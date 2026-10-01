@@ -7,6 +7,7 @@
 //
 
 import AVKit
+import Foundation
 import SwiftUI
 import os.log
 
@@ -54,6 +55,7 @@ struct PlayerView: UIViewControllerRepresentable {
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
         coordinator.detach()
         host.playerViewController.player?.pause()
+        host.teardown()
     }
 
     // MARK: - Coordinator
@@ -188,6 +190,8 @@ final class PlayerHostViewController: UIViewController {
 
     let playerViewController = AVPlayerViewController()
     private var didConfigure = false
+    /// Strong reference: `AVAssetResourceLoader` holds its delegate weakly.
+    private var assetResourceLoader: PatreonAssetResourceLoader?
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
 
     override func viewDidLoad() {
@@ -210,6 +214,13 @@ final class PlayerHostViewController: UIViewController {
         [playerViewController]
     }
 
+    /// Cancels in-flight authenticated requests and breaks the URLSession →
+    /// delegate retain cycle. Called when the player is dismissed.
+    func teardown() {
+        assetResourceLoader?.invalidate()
+        assetResourceLoader = nil
+    }
+
     func configure(
         source: MediaPlaybackSource,
         title: String,
@@ -230,8 +241,7 @@ final class PlayerHostViewController: UIViewController {
         // unexpired signed token still 403s unless the request carries a
         // patreon.com Referer/Origin and a browser User-Agent (the old WebView
         // player sent these automatically; native AVPlayer sends none, which
-        // silently broke video playback). We still send NO cookie — the session
-        // credential must never reach a third-party CDN.
+        // silently broke video playback).
         log.info("Direct playback for \(source.url.absoluteString.prefix(120))")
         let playbackHeaders = [
             "Referer": "https://www.patreon.com/",
@@ -242,6 +252,21 @@ final class PlayerHostViewController: UIViewController {
             url: source.url,
             options: ["AVURLAssetHTTPHeaderFieldsKey": playbackHeaders]
         )
+
+        // Some posts (those with a preview) serve the full video through a
+        // first-party manifest that authorises via the session cookie, not a
+        // signed token. Route that through a loader that attaches the cookie
+        // to patreon.com hosts only — never to the Mux CDN. See
+        // PatreonAssetResourceLoader for the full rationale.
+        if PatreonAssetResourceLoader.isPatreonHost(source.url.host),
+           let sessionID = PatreonClient.shared.sessionID {
+            let loader = PatreonAssetResourceLoader(sessionID: sessionID, headers: playbackHeaders)
+            assetResourceLoader = loader
+            asset.resourceLoader.setDelegate(
+                loader,
+                queue: DispatchQueue(label: "com.patreontv.PatreonAssetResourceLoader")
+            )
+        }
 
         let item = AVPlayerItem(asset: asset)
         item.externalMetadata = makeExternalMetadata(title: title, post: post, campaign: campaign)
