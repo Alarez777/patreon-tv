@@ -1,0 +1,165 @@
+name: tvOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      pairing_base_url:
+        description: >-
+          Optional. Override the pairing service origin to test against a local
+          relay (e.g. http://192.168.1.50:8788 — must match PAIRING_PUBLIC_ORIGIN
+          from site/scripts/dev-pairing.sh). Leave empty to build against the
+          production service, https://patreontv.com.
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: tvos-ipa
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    name: Build tvOS Release IPA
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve pairing origin
+        # Empty input → keep the project.yml default (https://patreontv.com).
+        # Non-empty → bake the override so the TV polls the given relay, which
+        # must match PAIRING_PUBLIC_ORIGIN from site/scripts/dev-pairing.sh.
+        env:
+          # Passed through env rather than inlined into the script, so the raw
+          # dispatch input can't break out of the shell command.
+          PAIRING_BASE_URL_INPUT: ${{ inputs.pairing_base_url }}
+        run: |
+          if [ -n "$PAIRING_BASE_URL_INPUT" ]; then
+            echo "Pairing override: $PAIRING_BASE_URL_INPUT"
+            echo "PAIRING_BASE_URL=$PAIRING_BASE_URL_INPUT" >> "$GITHUB_ENV"
+          else
+            echo "No pairing override; using the project default (https://patreontv.com)"
+          fi
+
+      - name: Select latest Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Selecting $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: apps/tvos
+        run: xcodegen generate
+
+      - name: Show schemes
+        working-directory: apps/tvos
+        run: |
+          xcodebuild \
+            -project PatreonTV.xcodeproj \
+            -list
+
+      - name: Archive tvOS app
+        working-directory: apps/tvos
+        run: |
+          set -o pipefail
+
+          rm -rf build
+          mkdir -p build
+
+          # Only override the project's Release PAIRING_BASE_URL when a relay
+          # was supplied; otherwise the checked-in default applies. The
+          # ${var:+...} form drops the argument entirely when unset.
+          pairing_override="${PAIRING_BASE_URL:+PAIRING_BASE_URL=$PAIRING_BASE_URL}"
+
+          xcodebuild \
+            -project PatreonTV.xcodeproj \
+            -scheme PatreonTV \
+            -configuration Release \
+            -destination "generic/platform=tvOS" \
+            -archivePath "$PWD/build/PatreonTV.xcarchive" \
+            archive \
+            ${pairing_override:+"$pairing_override"} \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            SKIP_INSTALL=NO \
+            > build/archive.log 2>&1
+
+      - name: Show archive contents
+        working-directory: apps/tvos
+        run: |
+          echo "=== Archive ==="
+          find build/PatreonTV.xcarchive -maxdepth 5 -print
+
+      - name: Locate application
+        working-directory: apps/tvos
+        run: |
+          APP=$(find build/PatreonTV.xcarchive/Products/Applications \
+            -maxdepth 1 \
+            -name "*.app" \
+            -print -quit)
+
+          if [ -z "$APP" ]; then
+            echo "::error::PatreonTV.app was not found in the archive"
+            exit 1
+          fi
+
+          echo "Found application:"
+          echo "$APP"
+
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+
+      - name: Verify baked PairingBaseURL
+        working-directory: apps/tvos
+        run: |
+          # Must match the override when one was given, otherwise the
+          # checked-in default. Guards against a stale/cached Info.plist.
+          EXPECTED="${PAIRING_BASE_URL:-https://patreontv.com}"
+          BAKED=$(/usr/libexec/PlistBuddy -c "Print :PairingBaseURL" "$APP_PATH/Info.plist")
+          echo "PairingBaseURL = $BAKED"
+          if [ "$BAKED" != "$EXPECTED" ]; then
+            echo "::error::PairingBaseURL is '$BAKED', expected '$EXPECTED'"
+            exit 1
+          fi
+
+      - name: Create unsigned IPA
+        working-directory: apps/tvos
+        run: |
+          rm -rf build/ipa
+          mkdir -p build/ipa/Payload
+
+          cp -R "$APP_PATH" build/ipa/Payload/
+
+          cd build/ipa
+          zip -r ../PatreonTV-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PatreonTV-unsigned
+          path: apps/tvos/build/PatreonTV-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: PatreonTV-xcarchive
+          path: apps/tvos/build/PatreonTV.xcarchive
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PatreonTV-build-log
+          path: apps/tvos/build/archive.log
+          if-no-files-found: ignore
+          retention-days: 14
