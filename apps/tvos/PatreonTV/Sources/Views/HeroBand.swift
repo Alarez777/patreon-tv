@@ -19,6 +19,10 @@ struct FeaturedHero: View {
     /// carries everything a slide needs to render and link.
     let items: [FocusedPoster]
 
+    /// Called when Play/Pause is pressed on the focused slide: open the post and
+    /// start playback directly.
+    var onPlay: ((String) -> Void)? = nil
+
     /// The slide currently centered (drives the page dots and auto-advance).
     @State private var index = 0
     @FocusState private var focusedIndex: Int?
@@ -36,6 +40,7 @@ struct FeaturedHero: View {
                             HeroSlide(item: item, focused: focusedIndex == i)
                         }
                         .buttonStyle(.plain)   // Full-bleed slide draws its own focus ring.
+                        .onPlayPauseCommand { onPlay?(item.postID) }
                         .focused($focusedIndex, equals: i)
                         .containerRelativeFrame(.horizontal)
                         .id(i)

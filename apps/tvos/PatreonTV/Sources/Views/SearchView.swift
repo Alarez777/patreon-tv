@@ -19,6 +19,9 @@ struct SearchView: View {
     @State private var vm = SearchViewModel()
     @State private var prefs = ContentPreferences.shared
     @State private var query: String = ""
+    /// Navigation path, so a creator opened from search can start playback
+    /// within this tab (remote Play button on a focused post).
+    @State private var path: [DeepLinkDestination] = []
 
     /// Results after applying the mature-content gate.
     private var visibleResults: [CampaignSearchResult] {
@@ -28,7 +31,7 @@ struct SearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 switch vm.state {
                 case .idle:
@@ -57,7 +60,7 @@ struct SearchView: View {
                 }
             }
             .background(PatreonColors.background.ignoresSafeArea())
-            .appNavigationDestinations()
+            .appNavigationDestinations(onPlayPost: { path.append(.post(id: $0, autoplay: true)) })
         }
     }
 

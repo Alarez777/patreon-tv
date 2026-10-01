@@ -15,6 +15,9 @@ struct CreatorsView: View {
 
     @State private var vm = CreatorsViewModel()
     @State private var prefs = ContentPreferences.shared
+    /// Navigation path, so a Creator page here can start playback within this
+    /// tab (remote Play button on a focused post).
+    @State private var path: [DeepLinkDestination] = []
 
     /// Entries after applying the mature-content gate.
     private var visibleEntries: [CreatorsViewModel.Entry] {
@@ -24,7 +27,7 @@ struct CreatorsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 switch vm.state {
                 case .idle, .loading:
@@ -39,7 +42,7 @@ struct CreatorsView: View {
             }
             .task { await vm.load() }
             .background(PatreonColors.background.ignoresSafeArea())
-            .appNavigationDestinations()
+            .appNavigationDestinations(onPlayPost: { path.append(.post(id: $0, autoplay: true)) })
         }
     }
 

@@ -16,6 +16,11 @@ struct HomeView: View {
     @State private var vm = HomeViewModel()
     @State private var prefs = ContentPreferences.shared
 
+    /// Opens a post and starts playback immediately. Wired to the Siri Remote
+    /// Play/Pause button on a focused card; a normal select still opens the
+    /// detail screen.
+    var onPlayPost: (String) -> Void = { _ in }
+
     /// Applies the mature-content gate to a shelf's posts based on each post's
     /// owning campaign. Keeps posts whose campaign is unknown (assumed safe).
     private func visible(_ posts: [Post]) -> [Post] {
@@ -78,14 +83,15 @@ struct HomeView: View {
                 // swipe up reveals the tab bar — no dependence on a conditional
                 // Play pill or TabView's finicky top-edge escape.
                 if !featuredItems.isEmpty {
-                    FeaturedHero(items: featuredItems)
+                    FeaturedHero(items: featuredItems, onPlay: onPlayPost)
                 }
 
                 if !continueWatching.isEmpty {
                     Shelf(
                         title: "Continue Watching",
                         posts: continueWatching,
-                        campaignFor: { vm.campaign(for: $0) }
+                        campaignFor: { vm.campaign(for: $0) },
+                        onPlay: onPlayPost
                     )
                 }
 
@@ -95,7 +101,8 @@ struct HomeView: View {
                     Shelf(
                         title: "New from Your Creators",
                         posts: Array(feed.prefix(10)),
-                        campaignFor: { vm.campaign(for: $0) }
+                        campaignFor: { vm.campaign(for: $0) },
+                        onPlay: onPlayPost
                     )
                 }
 
@@ -108,7 +115,8 @@ struct HomeView: View {
                             Task { await vm.loadMoreCreatorRow(campaignID: row.id, current: post) }
                         },
                         headerLink: .creator(id: row.campaign.id),
-                        headerAvatarURL: row.campaign.attributes.bestAvatarURL
+                        headerAvatarURL: row.campaign.attributes.bestAvatarURL,
+                        onPlay: onPlayPost
                     )
                 }
             }

@@ -27,6 +27,9 @@ struct Shelf: View {
     /// to the creator's page). Shown with the optional avatar.
     var headerLink: DeepLinkDestination? = nil
     var headerAvatarURL: URL? = nil
+    /// Called when the user presses Play/Pause on a focused card: open the post
+    /// and start playback directly, skipping the detail screen's Play button.
+    var onPlay: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -40,6 +43,7 @@ struct Shelf: View {
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
                         .focusedValue(\.focusedPoster, focusedPoster(for: post))
+                        .onPlayPauseCommand { onPlay?(post.id) }
                         .onAppear {
                             // Cheap heuristic: if we're within 5 of the end,
                             // ask for more. Real prefetch policy lives in the

@@ -42,8 +42,8 @@ struct HomeShell: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
-                HomeView()
-                    .appNavigationDestinations()
+                HomeView(onPlayPost: { playPost(id: $0) })
+                    .appNavigationDestinations(onPlayPost: { playPost(id: $0) })
             }
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
             .tag(Tab.home)
@@ -83,6 +83,12 @@ struct HomeShell: View {
             router.consume()
         }
     }
+
+    /// Push the post and start playback immediately (remote Play button on a
+    /// focused card). Appends so the back stack is preserved.
+    private func playPost(id: String) {
+        homePath.append(.post(id: id, autoplay: true))
+    }
 }
 
 /// NavigationDestination values are Codable + Hashable so NavigationStack can
@@ -95,20 +101,26 @@ enum DeepLinkDestination: Hashable, Codable {
 /// Shared destination table. Every NavigationStack in the app registers this
 /// so value-based links resolve identically in all tabs.
 struct AppNavigationDestinations: ViewModifier {
+
+    /// Supplied by each tab's stack so a Creator page can start playback within
+    /// the *same* tab — it appends to that stack's path. Nil here means creator
+    /// pages simply won't offer the remote-Play shortcut.
+    var onPlayPost: ((String) -> Void)? = nil
+
     func body(content: Content) -> some View {
         content.navigationDestination(for: DeepLinkDestination.self) { dest in
             switch dest {
             case .post(let id, let autoplay):
                 PostDetailView(postID: id, autoplay: autoplay)
             case .creator(let id):
-                CreatorView(campaignID: id, membership: nil)
+                CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             }
         }
     }
 }
 
 extension View {
-    func appNavigationDestinations() -> some View {
-        modifier(AppNavigationDestinations())
+    func appNavigationDestinations(onPlayPost: ((String) -> Void)? = nil) -> some View {
+        modifier(AppNavigationDestinations(onPlayPost: onPlayPost))
     }
 }

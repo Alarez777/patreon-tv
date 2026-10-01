@@ -14,6 +14,9 @@ struct CreatorView: View {
 
     let campaignID: String
     var membership: Membership?
+    /// Opens a post and starts playback directly (remote Play button on a focused
+    /// card). Supplied by the hosting tab's navigation stack.
+    var onPlayPost: ((String) -> Void)? = nil
 
     @State private var vm = CreatorViewModel()
     @FocusState private var heroFocused: Bool
@@ -80,7 +83,7 @@ struct CreatorView: View {
             // Passing the shared VM (not a snapshot) lets search cover the whole
             // catalog as pages stream in.
             NavigationLink {
-                CreatorPostSearchView(vm: vm, campaignID: campaignID)
+                CreatorPostSearchView(vm: vm, campaignID: campaignID, onPlayPost: onPlayPost)
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.title3.weight(.semibold))
@@ -104,6 +107,7 @@ struct CreatorView: View {
                     PostCard(post: post, campaign: vm.campaign)
                 }
                 .buttonStyle(.card)
+                .onPlayPauseCommand { onPlayPost?(post.id) }
                 .onAppear {
                     // Keep the feed loading forever as you scroll.
                     Task { await vm.loadMore(campaignID: campaignID, current: post) }
@@ -222,6 +226,7 @@ private struct CreatorPostSearchView: View {
 
     let vm: CreatorViewModel
     let campaignID: String
+    let onPlayPost: ((String) -> Void)?
 
     @State private var query: String = ""
 
@@ -250,6 +255,7 @@ private struct CreatorPostSearchView: View {
                             PostCard(post: post, campaign: vm.campaign)
                         }
                         .buttonStyle(.card)
+                        .onPlayPauseCommand { onPlayPost?(post.id) }
                     }
                 }
                 .padding(60)
