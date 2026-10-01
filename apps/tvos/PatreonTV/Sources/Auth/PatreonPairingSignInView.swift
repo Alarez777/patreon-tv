@@ -128,10 +128,13 @@ struct PatreonPairingSignInView: View {
         }
     }
 
-    /// Human-typeable form of the link URL: host + path, no scheme.
+    /// Human-typeable form of the link URL: host (+ port when non-default) +
+    /// path, no scheme. The port must be kept — a LAN relay runs on :8788, and
+    /// dropping it makes the shown URL unreachable.
     private func displayLink(_ url: URL) -> String {
         let host = url.host ?? "patreontv.com"
-        return host + url.path
+        let port = url.port.map { ":\($0)" } ?? ""
+        return host + port + url.path
     }
 
     private func startPairing() async {
