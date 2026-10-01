@@ -20,6 +20,9 @@ struct CreatorView: View {
 
     @State private var vm = CreatorViewModel()
     @FocusState private var heroFocused: Bool
+    /// Initial focus lands on the search button: the banner stays visible and a
+    /// single swipe down reaches the posts.
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         Group {
@@ -32,7 +35,13 @@ struct CreatorView: View {
                 ErrorView(message: m) { Task { await vm.reload(campaignID: campaignID) } }
             }
         }
-        .task { await vm.load(campaignID: campaignID) }
+        .task {
+            await vm.load(campaignID: campaignID)
+            // A pushed page otherwise leaves focus on the tab bar. Move it onto
+            // the search button once the content is on screen.
+            try? await Task.sleep(for: .milliseconds(200))
+            searchFocused = true
+        }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
@@ -69,6 +78,7 @@ struct CreatorView: View {
             .padding(.bottom, 60)
         }
         .scrollClipDisabled()
+        .defaultFocus($searchFocused, true)
     }
 
     private var postsHeader: some View {
@@ -91,6 +101,8 @@ struct CreatorView: View {
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
+            .focused($searchFocused)
+            .accessibilityIdentifier("creator-search")
             .accessibilityLabel("Search this creator's posts")
         }
         .padding(.horizontal, 60)
