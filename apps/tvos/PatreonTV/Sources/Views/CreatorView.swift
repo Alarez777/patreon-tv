@@ -87,6 +87,15 @@ struct CreatorView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
             Spacer()
+            NavigationLink(value: DeepLinkDestination.collections(campaignID: campaignID)) {
+                Label("Collections", systemImage: "square.stack")
+                    .font(.title3.weight(.semibold))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Collections")
+
             // Destination-style link is deliberate here: the view model isn't
             // Hashable/Codable, so it can't be a DeepLinkDestination value. This
             // push is never mixed with programmatic path writes, so it's safe.

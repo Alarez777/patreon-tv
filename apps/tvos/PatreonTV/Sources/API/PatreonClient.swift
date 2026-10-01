@@ -223,6 +223,34 @@ final class PatreonClient {
         return try await fetch(Page<Post>.self, from: url)
     }
 
+    /// GET /api/campaigns/{id}?include=collections — the creator's collections.
+    /// There is no `/collections` endpoint; they arrive as `included`.
+    func collections(campaignID: String) async throws -> [PatreonCollection] {
+        let url = baseURL.appending(path: "campaigns/\(campaignID)")
+            .appending(queryItems: [
+                URLQueryItem(name: "include", value: "collections"),
+                URLQueryItem(name: "fields[campaign]", value: "name"),
+            ])
+        let doc = try await fetch(SingleResource<Campaign>.self, from: url)
+        return (doc.included ?? []).compactMap { inc in
+            if case .collection(let collection) = inc { return collection }
+            return nil
+        }
+    }
+
+    /// GET /api/collection/{id}?include=posts — one collection with all of its
+    /// posts in `included`, in a single response. (The `/campaigns/{id}/posts`
+    /// endpoint ignores `filter[collection_id]`, so this is the only reliable
+    /// way to fetch a collection's posts.)
+    func collection(id: String) async throws -> SingleResource<PatreonCollection> {
+        let url = baseURL.appending(path: "collection/\(id)")
+            .appending(queryItems: [
+                URLQueryItem(name: "include", value: "posts"),
+                URLQueryItem(name: "fields[post]", value: PostFields.default),
+            ])
+        return try await fetch(SingleResource<PatreonCollection>.self, from: url)
+    }
+
     /// GET /api/posts/{id} — a single post with media includes.
     /// Returns the full document; callers walk `included` for the Media
     /// resource containing the Mux HLS URL.

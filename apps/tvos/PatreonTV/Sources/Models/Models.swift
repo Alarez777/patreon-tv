@@ -81,9 +81,11 @@ protocol JSONAPIResource: Decodable, Identifiable, Sendable {
 enum Included: Decodable {
     case campaign(Campaign)
     case media(Media)
+    case post(Post)
     case user(PatreonUser)
     case member(Membership)
     case tier(Tier)
+    case collection(PatreonCollection)
     case unknown(type: String, id: String)
 
     private enum CodingKeys: String, CodingKey { case type, id }
@@ -101,12 +103,16 @@ enum Included: Decodable {
                 self = .campaign(try Campaign(from: decoder))
             case "media":
                 self = .media(try Media(from: decoder))
+            case "post":
+                self = .post(try Post(from: decoder))
             case "user":
                 self = .user(try PatreonUser(from: decoder))
             case "member":
                 self = .member(try Membership(from: decoder))
             case "reward", "tier":
                 self = .tier(try Tier(from: decoder))
+            case "collection":
+                self = .collection(try PatreonCollection(from: decoder))
             default:
                 self = .unknown(type: type, id: id)
             }
@@ -119,9 +125,11 @@ enum Included: Decodable {
         switch self {
         case .campaign(let x): x.id
         case .media(let x): x.id
+        case .post(let x): x.id
         case .user(let x): x.id
         case .member(let x): x.id
         case .tier(let x): x.id
+        case .collection(let x): x.id
         case .unknown(_, let id): id
         }
     }
@@ -464,6 +472,56 @@ struct Media: JSONAPIResource {
     struct Thumbnail: Decodable, Hashable {
         let url: URL?
         let position: Double?
+    }
+}
+
+// MARK: - Collection (a creator-curated list of posts)
+
+/// Named `PatreonCollection` so it doesn't shadow Swift's `Collection` protocol.
+struct PatreonCollection: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+
+    struct Attributes: Decodable, Hashable {
+        let title: String?
+        let description: String?
+        /// Total posts in the collection (the API caps each page separately).
+        let numPosts: Int?
+        /// Ordered post ids matching the collection's own sort.
+        let postIDs: [Int]?
+        let postSortType: String?
+        let thumbnail: Thumbnail?
+
+        enum CodingKeys: String, CodingKey {
+            case title, description, thumbnail
+            case numPosts = "num_posts"
+            case postIDs = "post_ids"
+            case postSortType = "post_sort_type"
+        }
+    }
+
+    /// Patreon returns several resized variants; the `thumbnail*` keys are
+    /// square crops — ideal for the two-column collections list.
+    struct Thumbnail: Decodable, Hashable {
+        let url: URL?
+        let defaultURL: URL?
+        let thumbnailURL: URL?
+        let thumbnailLargeURL: URL?
+        let thumbnailSmallURL: URL?
+
+        enum CodingKeys: String, CodingKey {
+            case url
+            case defaultURL = "default"
+            case thumbnailURL = "thumbnail"
+            case thumbnailLargeURL = "thumbnail_large"
+            case thumbnailSmallURL = "thumbnail_small"
+        }
+
+        /// Best square image for a poster: prefer the large square crop.
+        var bestImageURL: URL? {
+            thumbnailLargeURL ?? thumbnailURL ?? defaultURL ?? url
+        }
     }
 }
 
