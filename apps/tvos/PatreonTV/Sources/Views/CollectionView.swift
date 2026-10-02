@@ -21,8 +21,8 @@ struct CollectionView: View {
 
     @State private var vm = CollectionViewModel()
     @State private var reversed = false
-    /// Initial focus lands on the first post (a pushed page otherwise leaves
-    /// focus on the tab bar).
+    /// Initial focus lands on the last episode played (if any), else the first
+    /// post. A pushed page otherwise leaves focus on the tab bar.
     @FocusState private var focusedPostID: String?
 
     private let columns = [GridItem(.adaptive(minimum: 400, maximum: 480), spacing: 32)]
@@ -40,26 +40,43 @@ struct CollectionView: View {
                 content
             }
         }
-        .task {
-            await vm.load(collectionID: collectionID)
-            // Move focus onto the first post once the content is on screen.
-            try? await Task.sleep(for: .milliseconds(200))
-            focusedPostID = vm.posts.first?.id
+        .task { await vm.load(collectionID: collectionID) }
+        .onDisappear {
+            // Record on the way out: updating the store re-renders Home, and
+            // doing that mid-push stole the initial focus.
+            recordRecent()
         }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
     private var content: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 40) {
-                header
-                postsToolbar
-                postsGrid
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 40) {
+                    header
+                    postsToolbar
+                    postsGrid
+                }
+                .padding(.top, 60)
+                .padding(.bottom, 60)
             }
-            .padding(.top, 60)
-            .padding(.bottom, 60)
+            .scrollClipDisabled()
+            .task { await focusInitialPost(using: proxy) }
         }
-        .scrollClipDisabled()
+    }
+
+    /// Focus the last episode played in this collection (else the first post).
+    /// The grid is lazy, so a deep cell isn't realized until it's on screen and
+    /// focus can't move to a cell that doesn't exist yet — scroll it into view
+    /// first, then move focus.
+    private func focusInitialPost(using proxy: ScrollViewProxy) async {
+        guard let target = PlaybackProgressStore.shared.mostRecent(in: vm.posts.map(\.id))?.postID
+                ?? vm.posts.first?.id
+        else { return }
+        try? await Task.sleep(for: .milliseconds(250))
+        proxy.scrollTo(target, anchor: .center)
+        try? await Task.sleep(for: .milliseconds(350))
+        focusedPostID = target
     }
 
     @ViewBuilder
@@ -147,6 +164,7 @@ struct CollectionView: View {
                 .buttonStyle(.card)
                 .focused($focusedPostID, equals: post.id)
                 .onPlayPauseCommand { onPlayPost?(post.id) }
+                .id(post.id)
             }
         }
         .padding(.horizontal, 60)
@@ -155,6 +173,18 @@ struct CollectionView: View {
 
     private var displayedPosts: [Post] {
         reversed ? Array(vm.posts.reversed()) : vm.posts
+    }
+
+    /// Remember this collection so Home can offer it under Continue Collection.
+    private func recordRecent() {
+        guard let collection = vm.collection else { return }
+        RecentCollectionsStore.shared.record(RecentCollection(
+            id: collection.id,
+            title: collection.attributes.title ?? "Collection",
+            squareImageURL: collection.attributes.thumbnail?.bestImageURL,
+            wideImageURL: collection.attributes.thumbnail?.wideImageURL,
+            numPosts: collection.attributes.numPosts
+        ))
     }
 }
 

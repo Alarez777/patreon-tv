@@ -74,6 +74,15 @@ final class PlaybackProgressStore {
             .map { $0 }
     }
 
+    /// The most recently watched post among the given ids (finished or not) —
+    /// used to put initial focus on the last episode played.
+    func mostRecent(in postIDs: some Collection<String>) -> PlaybackProgress? {
+        let set = Set(postIDs)
+        return records.values
+            .filter { set.contains($0.postID) }
+            .max { $0.lastUpdated < $1.lastUpdated }
+    }
+
     func clear(postID: String) {
         records.removeValue(forKey: postID)
         save()

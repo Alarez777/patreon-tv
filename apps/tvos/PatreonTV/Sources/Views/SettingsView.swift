@@ -57,6 +57,17 @@ struct SettingsView: View {
             }
             .frame(maxWidth: 700)
 
+            Toggle(isOn: $prefs.showContinueCollection) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Show Continue Collection")
+                        .foregroundStyle(PatreonColors.primaryText)
+                    Text("Show the collection you opened most recently on Home.")
+                        .font(.caption)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                }
+            }
+            .frame(maxWidth: 700)
+
             Button {
                 auth.signOut()
             } label: {

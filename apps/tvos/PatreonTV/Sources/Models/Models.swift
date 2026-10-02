@@ -522,6 +522,9 @@ struct PatreonCollection: JSONAPIResource {
         var bestImageURL: URL? {
             thumbnailLargeURL ?? thumbnailURL ?? defaultURL ?? url
         }
+
+        /// Wide (roughly 16:9) art for horizontal shelf cards.
+        var wideImageURL: URL? { defaultURL ?? url }
     }
 }
 

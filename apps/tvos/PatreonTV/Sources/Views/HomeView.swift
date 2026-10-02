@@ -9,6 +9,7 @@
 //  See references/swiftfin_code/CinematicItemSelector.swift for the pattern.
 //
 
+import NukeUI
 import SwiftUI
 
 struct HomeView: View {
@@ -20,6 +21,12 @@ struct HomeView: View {
     /// Play/Pause button on a focused card; a normal select still opens the
     /// detail screen.
     var onPlayPost: (String) -> Void = { _ in }
+
+    /// Recently opened collections, shown under "Continue Collection" unless the
+    /// user turned the shelf off in Settings.
+    private var recentCollections: [RecentCollection] {
+        prefs.showContinueCollection ? RecentCollectionsStore.shared.recent(limit: 8) : []
+    }
 
     /// Applies the mature-content gate to a shelf's posts based on each post's
     /// owning campaign. Keeps posts whose campaign is unknown (assumed safe).
@@ -93,6 +100,10 @@ struct HomeView: View {
                         campaignFor: { vm.campaign(for: $0) },
                         onPlay: onPlayPost
                     )
+                }
+
+                if !recentCollections.isEmpty {
+                    CollectionsShelf(title: "Continue Collection", collections: recentCollections)
                 }
 
                 // Short merged shelf of the latest posts across creators; the
@@ -169,5 +180,100 @@ struct ErrorView: View {
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Continue Collection shelf
+
+/// Horizontal shelf of recently opened collections.
+private struct CollectionsShelf: View {
+
+    let title: String
+    let collections: [RecentCollection]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text(title)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(PatreonColors.primaryText)
+                .padding(.horizontal, 60)
+                .accessibilityAddTraits(.isHeader)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 32) {
+                    ForEach(collections) { collection in
+                        NavigationLink(value: DeepLinkDestination.collection(id: collection.id)) {
+                            CollectionPosterCard(collection: collection)
+                        }
+                        .buttonStyle(.card)
+                    }
+                }
+                .padding(.horizontal, 60)
+                .padding(.vertical, 30)
+            }
+            .scrollClipDisabled()
+        }
+        .focusSection()
+    }
+}
+
+private struct CollectionPosterCard: View {
+
+    let collection: RecentCollection
+
+    private let cardWidth: CGFloat = 400
+    private let cardHeight: CGFloat = 225   // 16:9
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            art
+                .frame(width: cardWidth, height: cardHeight)
+                .background(PatreonColors.cardSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(alignment: .topTrailing) {
+                    Image(systemName: "square.stack")
+                        .font(.callout.weight(.semibold))
+                        .padding(8)
+                        .background(.black.opacity(0.55), in: Circle())
+                        .foregroundStyle(.white)
+                        .padding(8)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(collection.title)
+                    .font(.headline)
+                    .foregroundStyle(PatreonColors.primaryText)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                if let count = collection.numPosts {
+                    Text("\(count) posts")
+                        .font(.subheadline)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                }
+            }
+            .frame(width: cardWidth, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(collection.title)
+    }
+
+    @ViewBuilder
+    private var art: some View {
+        if let url = collection.wideImageURL ?? collection.squareImageURL {
+            LazyImage(url: url) { state in
+                if let image = state.image {
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    PatreonColors.cardSurface
+                }
+            }
+        } else {
+            ZStack {
+                PatreonColors.cardSurface
+                Image(systemName: "square.stack")
+                    .font(.system(size: 40))
+                    .foregroundStyle(PatreonColors.tertiaryText)
+            }
+        }
     }
 }

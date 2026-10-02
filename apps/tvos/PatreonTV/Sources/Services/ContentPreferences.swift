@@ -17,6 +17,7 @@ final class ContentPreferences {
 
     private let matureKey = "show_mature_content"
     private let autoplayKey = "autoplay_next"
+    private let continueCollectionKey = "show_continue_collection"
 
     /// When false (default), NSFW creators are hidden from Creators and Search.
     var showMatureContent: Bool {
@@ -30,8 +31,15 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(autoplayNext, forKey: autoplayKey) }
     }
 
+    /// When true (default), Home shows a "Continue Collection" shelf with the
+    /// collection the user opened most recently.
+    var showContinueCollection: Bool {
+        didSet { UserDefaults.standard.set(showContinueCollection, forKey: continueCollectionKey) }
+    }
+
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
         autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
+        showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
     }
 }
