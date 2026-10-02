@@ -10,7 +10,6 @@
 //  endpoint ignores the filter and returns the whole campaign).
 //
 
-import NukeUI
 import Observation
 import SwiftUI
 
@@ -82,7 +81,7 @@ struct CollectionView: View {
     @ViewBuilder
     private var header: some View {
         HStack(alignment: .top, spacing: 32) {
-            art
+            CollectionArtwork(urls: [vm.collection?.attributes.thumbnail?.bestImageURL], iconSize: 48)
                 .frame(width: 280, height: 280)
                 .background(PatreonColors.cardSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -111,26 +110,6 @@ struct CollectionView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 60)
-    }
-
-    @ViewBuilder
-    private var art: some View {
-        if let url = vm.collection?.attributes.thumbnail?.bestImageURL {
-            LazyImage(url: url) { state in
-                if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } else {
-                    PatreonColors.cardSurface
-                }
-            }
-        } else {
-            ZStack {
-                PatreonColors.cardSurface
-                Image(systemName: "square.stack")
-                    .font(.system(size: 48))
-                    .foregroundStyle(PatreonColors.tertiaryText)
-            }
-        }
     }
 
     private var postsToolbar: some View {

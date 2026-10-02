@@ -8,7 +8,6 @@
 //  the left, title + description on the right.
 //
 
-import NukeUI
 import Observation
 import SwiftUI
 
@@ -94,7 +93,7 @@ private struct CollectionRow: View {
 
     var body: some View {
         HStack(spacing: 24) {
-            art
+            CollectionArtwork(urls: [collection.attributes.thumbnail?.bestImageURL])
                 .frame(width: 200, height: 200)
                 .background(PatreonColors.cardSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -126,26 +125,6 @@ private struct CollectionRow: View {
         .padding(16)
         .background(PatreonColors.cardSurface.opacity(0.5), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private var art: some View {
-        if let url = collection.attributes.thumbnail?.bestImageURL {
-            LazyImage(url: url) { state in
-                if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } else {
-                    PatreonColors.cardSurface
-                }
-            }
-        } else {
-            ZStack {
-                PatreonColors.cardSurface
-                Image(systemName: "square.stack")
-                    .font(.system(size: 40))
-                    .foregroundStyle(PatreonColors.tertiaryText)
-            }
-        }
     }
 }
 

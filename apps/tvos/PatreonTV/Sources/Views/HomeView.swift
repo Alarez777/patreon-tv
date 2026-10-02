@@ -9,7 +9,6 @@
 //  See references/swiftfin_code/CinematicItemSelector.swift for the pattern.
 //
 
-import NukeUI
 import SwiftUI
 
 struct HomeView: View {
@@ -226,7 +225,7 @@ private struct CollectionPosterCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            art
+            CollectionArtwork(urls: [collection.wideImageURL, collection.squareImageURL])
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -255,25 +254,5 @@ private struct CollectionPosterCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(collection.title)
-    }
-
-    @ViewBuilder
-    private var art: some View {
-        if let url = collection.wideImageURL ?? collection.squareImageURL {
-            LazyImage(url: url) { state in
-                if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } else {
-                    PatreonColors.cardSurface
-                }
-            }
-        } else {
-            ZStack {
-                PatreonColors.cardSurface
-                Image(systemName: "square.stack")
-                    .font(.system(size: 40))
-                    .foregroundStyle(PatreonColors.tertiaryText)
-            }
-        }
     }
 }
