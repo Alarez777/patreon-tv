@@ -528,6 +528,29 @@ struct PatreonCollection: JSONAPIResource {
     }
 }
 
+extension PatreonCollection {
+
+    /// The posts from a `?include=posts` document, in the collection's own order
+    /// (by `post_ids`). Falls back to the include order when `post_ids` is absent.
+    func orderedPosts(from included: [Included]) -> [Post] {
+        let byID = Dictionary(
+            included.compactMap { item -> (String, Post)? in
+                if case .post(let post) = item { return (post.id, post) }
+                return nil
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        guard let order = attributes.postIDs, !order.isEmpty else {
+            return included.compactMap {
+                if case .post(let post) = $0 { return post }
+                return nil
+            }
+        }
+        return order.compactMap { byID[String($0)] }
+    }
+}
+
 // MARK: - Relationship references
 
 struct RelationRef: Decodable, Hashable {

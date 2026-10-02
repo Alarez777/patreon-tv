@@ -78,4 +78,40 @@ final class CollectionDecodingTests: XCTestCase {
         XCTAssertNil(collection?.attributes.thumbnail)
         XCTAssertNil(collection?.attributes.numPosts)
     }
+
+    func test_ordered_posts_follow_post_ids() throws {
+        let json = """
+        {
+          "data": {
+            "type": "collection", "id": "1",
+            "attributes": { "title": "C", "post_ids": [3, 1, 2] }
+          },
+          "included": [
+            { "type": "post", "id": "1", "attributes": { "title": "one" } },
+            { "type": "post", "id": "2", "attributes": { "title": "two" } },
+            { "type": "post", "id": "3", "attributes": { "title": "three" } }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonCollection>.self, from: json)
+        let posts = doc.data.orderedPosts(from: doc.included ?? [])
+        XCTAssertEqual(posts.map(\.id), ["3", "1", "2"])
+    }
+
+    func test_ordered_posts_fall_back_to_include_order_without_post_ids() throws {
+        let json = """
+        {
+          "data": { "type": "collection", "id": "1", "attributes": { "title": "C" } },
+          "included": [
+            { "type": "post", "id": "1", "attributes": {} },
+            { "type": "post", "id": "2", "attributes": {} }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonCollection>.self, from: json)
+        let posts = doc.data.orderedPosts(from: doc.included ?? [])
+        XCTAssertEqual(posts.map(\.id), ["1", "2"])
+    }
 }

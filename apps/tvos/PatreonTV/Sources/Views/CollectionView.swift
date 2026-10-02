@@ -209,26 +209,7 @@ final class CollectionViewModel {
         do {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             collection = doc.data
-
-            // Posts arrive in `included`; order them by the collection's own
-            // `post_ids` (the include order isn't exactly the custom order).
-            let byID = Dictionary(
-                (doc.included ?? []).compactMap { included -> (String, Post)? in
-                    if case .post(let post) = included { return (post.id, post) }
-                    return nil
-                },
-                uniquingKeysWith: { first, _ in first }
-            )
-
-            if let order = doc.data.attributes.postIDs, !order.isEmpty {
-                posts = order.compactMap { byID[String($0)] }
-            } else {
-                posts = (doc.included ?? []).compactMap {
-                    if case .post(let post) = $0 { return post }
-                    return nil
-                }
-            }
-
+            posts = doc.data.orderedPosts(from: doc.included ?? [])
             state = .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
