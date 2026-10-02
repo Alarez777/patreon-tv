@@ -21,6 +21,9 @@ struct CollectionView: View {
 
     @State private var vm = CollectionViewModel()
     @State private var reversed = false
+    /// Initial focus lands on the first post (a pushed page otherwise leaves
+    /// focus on the tab bar).
+    @FocusState private var focusedPostID: String?
 
     private let columns = [GridItem(.adaptive(minimum: 400, maximum: 480), spacing: 32)]
 
@@ -37,7 +40,12 @@ struct CollectionView: View {
                 content
             }
         }
-        .task { await vm.load(collectionID: collectionID) }
+        .task {
+            await vm.load(collectionID: collectionID)
+            // Move focus onto the first post once the content is on screen.
+            try? await Task.sleep(for: .milliseconds(200))
+            focusedPostID = vm.posts.first?.id
+        }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
@@ -137,6 +145,7 @@ struct CollectionView: View {
                     PostCard(post: post)
                 }
                 .buttonStyle(.card)
+                .focused($focusedPostID, equals: post.id)
                 .onPlayPauseCommand { onPlayPost?(post.id) }
             }
         }
