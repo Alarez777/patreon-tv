@@ -97,7 +97,7 @@ enum DeepLinkDestination: Hashable, Codable {
     case post(id: String, autoplay: Bool)
     case creator(id: String)
     case collections(campaignID: String)
-    case collection(id: String)
+    case collection(id: String, focusPostID: String?)
 }
 
 /// Shared destination table. Every NavigationStack in the app registers this
@@ -118,8 +118,8 @@ struct AppNavigationDestinations: ViewModifier {
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):
                 CollectionsView(campaignID: campaignID)
-            case .collection(let id):
-                CollectionView(collectionID: id, onPlayPost: onPlayPost)
+            case .collection(let id, let focusPostID):
+                CollectionView(collectionID: id, focusPostID: focusPostID, onPlayPost: onPlayPost)
             }
         }
     }

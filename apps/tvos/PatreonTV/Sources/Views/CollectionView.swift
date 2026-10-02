@@ -16,6 +16,9 @@ import SwiftUI
 struct CollectionView: View {
 
     let collectionID: String
+    /// Post to focus on open (set by "In this collection"). Falls back to the
+    /// last episode played, then the first post.
+    var focusPostID: String? = nil
     var onPlayPost: ((String) -> Void)? = nil
 
     @State private var vm = CollectionViewModel()
@@ -64,12 +67,16 @@ struct CollectionView: View {
         }
     }
 
-    /// Focus the last episode played in this collection (else the first post).
-    /// The grid is lazy, so a deep cell isn't realized until it's on screen and
-    /// focus can't move to a cell that doesn't exist yet — scroll it into view
-    /// first, then move focus.
+    /// Focus the post the user came for (from "In this collection"), else the
+    /// last episode played, else the first post. The grid is lazy, so a deep cell
+    /// isn't realized until it's on screen and focus can't move to a cell that
+    /// doesn't exist yet — scroll it into view first, then move focus.
     private func focusInitialPost(using proxy: ScrollViewProxy) async {
-        guard let target = PlaybackProgressStore.shared.mostRecent(in: vm.posts.map(\.id))?.postID
+        let requested = focusPostID.flatMap { id in
+            vm.posts.contains { $0.id == id } ? id : nil
+        }
+        guard let target = requested
+                ?? PlaybackProgressStore.shared.mostRecent(in: vm.posts.map(\.id))?.postID
                 ?? vm.posts.first?.id
         else { return }
         try? await Task.sleep(for: .milliseconds(250))

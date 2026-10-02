@@ -23,8 +23,17 @@ struct HomeView: View {
 
     /// Recently opened collections, shown under "Continue Collection" unless the
     /// user turned the shelf off in Settings.
-    private var recentCollections: [RecentCollection] {
-        prefs.showContinueCollection ? RecentCollectionsStore.shared.recent(limit: 8) : []
+    private var recentCollectionCards: [CollectionCardModel] {
+        guard prefs.showContinueCollection else { return [] }
+        return RecentCollectionsStore.shared.recent(limit: 8).map {
+            CollectionCardModel(
+                id: $0.id,
+                title: $0.title,
+                squareImageURL: $0.squareImageURL,
+                wideImageURL: $0.wideImageURL,
+                numPosts: $0.numPosts
+            )
+        }
     }
 
     /// Applies the mature-content gate to a shelf's posts based on each post's
@@ -101,8 +110,8 @@ struct HomeView: View {
                     )
                 }
 
-                if !recentCollections.isEmpty {
-                    CollectionsShelf(title: "Continue Collection", collections: recentCollections)
+                if !recentCollectionCards.isEmpty {
+                    CollectionShelf(title: "Continue Collection", cards: recentCollectionCards)
                 }
 
                 // Short merged shelf of the latest posts across creators; the
@@ -179,80 +188,5 @@ struct ErrorView: View {
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Continue Collection shelf
-
-/// Horizontal shelf of recently opened collections.
-private struct CollectionsShelf: View {
-
-    let title: String
-    let collections: [RecentCollection]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text(title)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(PatreonColors.primaryText)
-                .padding(.horizontal, 60)
-                .accessibilityAddTraits(.isHeader)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 32) {
-                    ForEach(collections) { collection in
-                        NavigationLink(value: DeepLinkDestination.collection(id: collection.id)) {
-                            CollectionPosterCard(collection: collection)
-                        }
-                        .buttonStyle(.card)
-                    }
-                }
-                .padding(.horizontal, 60)
-                .padding(.vertical, 30)
-            }
-            .scrollClipDisabled()
-        }
-        .focusSection()
-    }
-}
-
-private struct CollectionPosterCard: View {
-
-    let collection: RecentCollection
-
-    private let cardWidth: CGFloat = 400
-    private let cardHeight: CGFloat = 225   // 16:9
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            CollectionArtwork(urls: [collection.wideImageURL, collection.squareImageURL])
-                .frame(width: cardWidth, height: cardHeight)
-                .background(PatreonColors.cardSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(alignment: .topTrailing) {
-                    Image(systemName: "square.stack")
-                        .font(.callout.weight(.semibold))
-                        .padding(8)
-                        .background(.black.opacity(0.55), in: Circle())
-                        .foregroundStyle(.white)
-                        .padding(8)
-                }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(collection.title)
-                    .font(.headline)
-                    .foregroundStyle(PatreonColors.primaryText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                if let count = collection.numPosts {
-                    Text("\(count) posts")
-                        .font(.subheadline)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                }
-            }
-            .frame(width: cardWidth, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(collection.title)
     }
 }

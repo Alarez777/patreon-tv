@@ -30,6 +30,8 @@ struct PostDetailView: View {
     @State private var upNext: Post?
     @State private var post: Post?
     @State private var campaign: Campaign?
+    /// Collections this post belongs to (for the "In this collection" shelf).
+    @State private var collections: [PatreonCollection] = []
     @State private var videoDuration: Double?
     @State private var heroImageURL: URL?
     @State private var mediaURL: URL?
@@ -154,6 +156,19 @@ struct PostDetailView: View {
                 metadataSection(post: post)
 
                 playbackSection(post: post)
+
+                if !collections.isEmpty {
+                    CollectionShelf(title: "In this collection", cards: collections.map { collection in
+                        CollectionCardModel(
+                            id: collection.id,
+                            title: collection.attributes.title ?? "Collection",
+                            squareImageURL: collection.attributes.thumbnail?.bestImageURL,
+                            wideImageURL: collection.attributes.thumbnail?.wideImageURL,
+                            numPosts: collection.attributes.numPosts,
+                            focusPostID: post.id
+                        )
+                    })
+                }
 
                 descriptionSection(post: post)
 
@@ -478,6 +493,11 @@ struct PostDetailView: View {
         videoDuration = resolvedDuration
         heroImageURL = resolvedHero
             ?? doc.data.attributes.posterImageURL
+
+        collections = (doc.included ?? []).compactMap {
+            if case .collection(let collection) = $0 { return collection }
+            return nil
+        }
     }
 
     // MARK: - Up Next

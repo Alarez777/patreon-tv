@@ -58,7 +58,7 @@ struct CollectionsView: View {
 
                 LazyVGrid(columns: columns, spacing: 32) {
                     ForEach(vm.collections) { collection in
-                        NavigationLink(value: DeepLinkDestination.collection(id: collection.id)) {
+                        NavigationLink(value: DeepLinkDestination.collection(id: collection.id, focusPostID: nil)) {
                             CollectionRow(collection: collection)
                         }
                         .buttonStyle(.card)
