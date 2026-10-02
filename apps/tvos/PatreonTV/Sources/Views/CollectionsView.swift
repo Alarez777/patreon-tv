@@ -2,10 +2,10 @@
 //  CollectionsView.swift
 //  PatreonTV
 //
-//  A creator's collections (creator-curated lists of posts). Patreon has no
-//  dedicated collections endpoint, so this lists the `collection` resources
-//  included on the campaign. Two-column grid: square art on the left, title +
-//  description on the right.
+//  A creator's collections (creator-curated lists of posts). Patreon exposes
+//  them only as `include=collections` on the campaign (there is no list
+//  endpoint), so this decodes those resources. Two-column grid: square art on
+//  the left, title + description on the right.
 //
 
 import NukeUI
@@ -17,6 +17,9 @@ struct CollectionsView: View {
     let campaignID: String
 
     @State private var vm = CollectionsViewModel()
+    /// Initial focus lands on the first collection (a pushed page otherwise
+    /// leaves focus on the tab bar).
+    @FocusState private var focusedCollectionID: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: 32),
@@ -36,7 +39,12 @@ struct CollectionsView: View {
                 content
             }
         }
-        .task { await vm.load(campaignID: campaignID) }
+        .task {
+            await vm.load(campaignID: campaignID)
+            // Move focus onto the first collection once the content is on screen.
+            try? await Task.sleep(for: .milliseconds(200))
+            focusedCollectionID = vm.collections.first?.id
+        }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
@@ -55,6 +63,7 @@ struct CollectionsView: View {
                             CollectionRow(collection: collection)
                         }
                         .buttonStyle(.card)
+                        .focused($focusedCollectionID, equals: collection.id)
                     }
                 }
                 .padding(.horizontal, 60)
