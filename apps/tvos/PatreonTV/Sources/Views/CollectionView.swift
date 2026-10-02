@@ -155,8 +155,13 @@ struct CollectionView: View {
     }
 
     /// Remember this collection so Home can offer it under Continue Collection.
+    /// Only once the user has actually watched something in it — merely opening
+    /// the collection shouldn't add it.
     private func recordRecent() {
         guard let collection = vm.collection else { return }
+        guard vm.posts.contains(where: { PlaybackProgressStore.shared.progress(for: $0.id) != nil })
+        else { return }
+
         RecentCollectionsStore.shared.record(RecentCollection(
             id: collection.id,
             title: collection.attributes.title ?? "Collection",

@@ -26,7 +26,9 @@ final class RecentCollectionsStore {
 
     static let shared = RecentCollectionsStore()
 
-    private let key = "recent_collections_v1"
+    // v2: collections are only recorded once something in them has been watched,
+    // so bumping the key drops v1's stale entries (collections merely opened).
+    private let key = "recent_collections_v2"
     private let maxEntries = 10
     private let defaults: UserDefaults
 
