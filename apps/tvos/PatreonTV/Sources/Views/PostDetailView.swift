@@ -32,6 +32,7 @@ struct PostDetailView: View {
     @State private var campaign: Campaign?
     /// Collections this post belongs to (for the "In this collection" shelf).
     @State private var collections: [PatreonCollection] = []
+    @State private var showCollectionPicker = false
     @State private var videoDuration: Double?
     @State private var heroImageURL: URL?
     @State private var mediaURL: URL?
@@ -107,6 +108,9 @@ struct PostDetailView: View {
         } message: {
             Text(playbackErrorMessage ?? "")
         }
+        .sheet(isPresented: $showCollectionPicker) {
+            CollectionPickerSheet(collections: collections, focusPostID: currentPostID)
+        }
     }
 
     /// Audio posts get the custom now-playing screen; video uses the native
@@ -157,17 +161,8 @@ struct PostDetailView: View {
 
                 playbackSection(post: post)
 
-                if !collections.isEmpty {
-                    CollectionShelf(title: "In this collection", cards: collections.map { collection in
-                        CollectionCardModel(
-                            id: collection.id,
-                            title: collection.attributes.title ?? "Collection",
-                            squareImageURL: collection.attributes.thumbnail?.bestImageURL,
-                            wideImageURL: collection.attributes.thumbnail?.wideImageURL,
-                            numPosts: collection.attributes.numPosts,
-                            focusPostID: post.id
-                        )
-                    })
+                if collections.count == 1, let collection = collections.first {
+                    CollectionEpisodesShelf(collectionID: collection.id, currentPostID: post.id)
                 }
 
                 descriptionSection(post: post)
@@ -265,6 +260,22 @@ struct PostDetailView: View {
             if let campaign {
                 NavigationLink(value: DeepLinkDestination.creator(id: campaign.id)) {
                     Label(campaign.attributes.name ?? "Creator", systemImage: "person.circle.fill")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if collections.count == 1, let collection = collections.first {
+                NavigationLink(value: DeepLinkDestination.collection(id: collection.id, focusPostID: post.id)) {
+                    Label("Collection", systemImage: "square.stack")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+            } else if collections.count > 1 {
+                Button {
+                    showCollectionPicker = true
+                } label: {
+                    Label("Collections", systemImage: "square.stack")
                         .font(.title3.weight(.medium))
                 }
                 .buttonStyle(.bordered)
