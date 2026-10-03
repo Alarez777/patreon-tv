@@ -144,7 +144,7 @@ struct CollectionView: View {
     private var postsGrid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(displayedPosts) { post in
-                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
                     PostCard(post: post)
                 }
                 .buttonStyle(.card)
@@ -201,6 +201,7 @@ final class CollectionViewModel {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             collection = doc.data
             posts = doc.data.orderedPosts(from: doc.included ?? [])
+            CollectionPostsCache.shared.store(posts, for: collectionID)
             state = .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)

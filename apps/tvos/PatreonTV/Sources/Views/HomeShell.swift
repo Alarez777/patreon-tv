@@ -76,7 +76,7 @@ struct HomeShell: View {
             selectedTab = .home
             switch pending {
             case .post(let id, let autoplay):
-                homePath = [.post(id: id, autoplay: autoplay)]
+                homePath = [.post(id: id, autoplay: autoplay, collectionID: nil)]
             case .creator(let id):
                 homePath = [.creator(id: id)]
             }
@@ -87,14 +87,14 @@ struct HomeShell: View {
     /// Push the post and start playback immediately (remote Play button on a
     /// focused card). Appends so the back stack is preserved.
     private func playPost(id: String) {
-        homePath.append(.post(id: id, autoplay: true))
+        homePath.append(.post(id: id, autoplay: true, collectionID: nil))
     }
 }
 
 /// NavigationDestination values are Codable + Hashable so NavigationStack can
 /// persist them across launches.
 enum DeepLinkDestination: Hashable, Codable {
-    case post(id: String, autoplay: Bool)
+    case post(id: String, autoplay: Bool, collectionID: String?)
     case creator(id: String)
     case collections(campaignID: String)
     case collection(id: String, focusPostID: String?)
@@ -112,8 +112,8 @@ struct AppNavigationDestinations: ViewModifier {
     func body(content: Content) -> some View {
         content.navigationDestination(for: DeepLinkDestination.self) { dest in
             switch dest {
-            case .post(let id, let autoplay):
-                PostDetailView(postID: id, autoplay: autoplay)
+            case .post(let id, let autoplay, let collectionID):
+                PostDetailView(postID: id, autoplay: autoplay, collectionID: collectionID)
             case .creator(let id):
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):

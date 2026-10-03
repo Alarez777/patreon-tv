@@ -16,10 +16,13 @@ struct PostDetailView: View {
     /// When true (Top Shelf "Play", the featured hero button, deep links with
     /// /play), playback starts as soon as the post loads.
     var autoplay: Bool = false
+    /// Set when the post was opened from a collection; shows the episode strip.
+    var collectionID: String? = nil
 
-    init(postID: String, autoplay: Bool = false) {
+    init(postID: String, autoplay: Bool = false, collectionID: String? = nil) {
         self.postID = postID
         self.autoplay = autoplay
+        self.collectionID = collectionID
         _currentPostID = State(initialValue: postID)
     }
 
@@ -161,8 +164,8 @@ struct PostDetailView: View {
 
                 playbackSection(post: post)
 
-                if collections.count == 1, let collection = collections.first {
-                    CollectionEpisodesShelf(collectionID: collection.id, currentPostID: post.id)
+                if let collectionID {
+                    CollectionEpisodesShelf(collectionID: collectionID, currentPostID: post.id)
                 }
 
                 descriptionSection(post: post)
