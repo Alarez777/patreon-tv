@@ -164,8 +164,8 @@ struct PostDetailView: View {
 
                 playbackSection(post: post)
 
-                if let episodeCollectionID {
-                    CollectionEpisodesShelf(collectionID: episodeCollectionID, currentPostID: post.id)
+                if let collection = collections.first {
+                    CollectionEpisodesShelf(collectionID: collection.id, currentPostID: post.id)
                 }
 
                 descriptionSection(post: post)
@@ -175,15 +175,6 @@ struct PostDetailView: View {
         }
         .scrollClipDisabled()
         .defaultFocus($focusedControl, .play)
-    }
-
-    /// The collection whose episode strip to show: the one we navigated from,
-    /// else the post's collection whose episodes are already cached (i.e. one
-    /// the user just browsed). Empty when the post wasn't reached via a
-    /// collection.
-    private var episodeCollectionID: String? {
-        if let collectionID { return collectionID }
-        return collections.first { CollectionPostsCache.shared.posts(for: $0.id) != nil }?.id
     }
 
     @ViewBuilder
