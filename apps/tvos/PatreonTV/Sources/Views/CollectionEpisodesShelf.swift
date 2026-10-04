@@ -19,38 +19,36 @@ struct CollectionEpisodesShelf: View {
     @State private var vm = CollectionEpisodesViewModel()
 
     var body: some View {
-        Group {
-            if !vm.posts.isEmpty {
-                VStack(alignment: .leading, spacing: 24) {
-                    Text("In this collection")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(PatreonColors.primaryText)
-                        .padding(.horizontal, 60)
-                        .accessibilityAddTraits(.isHeader)
+        VStack(alignment: .leading, spacing: 24) {
+            Text("In this collection")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(PatreonColors.primaryText)
+                .padding(.horizontal, 60)
+                .accessibilityAddTraits(.isHeader)
 
-                    ScrollViewReader { proxy in
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(spacing: 24) {
-                                ForEach(vm.posts) { post in
-                                    NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
-                                        EpisodeCard(post: post, isCurrent: post.id == currentPostID)
-                                    }
-                                    .buttonStyle(.card)
-                                    .id(post.id)
+            if !vm.posts.isEmpty {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 24) {
+                            ForEach(vm.posts) { post in
+                                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
+                                    EpisodeCard(post: post, isCurrent: post.id == currentPostID)
                                 }
+                                .buttonStyle(.card)
+                                .id(post.id)
                             }
-                            .padding(.horizontal, 60)
-                            .padding(.vertical, 30)
                         }
-                        .scrollClipDisabled()
-                        // Current episode at the leading edge; newer ones sit to
-                        // the right.
-                        .onAppear { proxy.scrollTo(currentPostID, anchor: .leading) }
+                        .padding(.horizontal, 60)
+                        .padding(.vertical, 30)
                     }
+                    .scrollClipDisabled()
+                    // Current episode at the leading edge; newer ones sit to
+                    // the right.
+                    .onAppear { proxy.scrollTo(currentPostID, anchor: .leading) }
                 }
-                .focusSection()
             }
         }
+        .focusSection()
         .task { await vm.load(collectionID: collectionID) }
     }
 }
