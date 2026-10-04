@@ -345,12 +345,13 @@ struct PostDetailView: View {
                     .tint(PatreonColors.brand)
                     .disabled(isPreparingPlayback)
                     .focused($focusedControl, equals: .play)
+                    // The Siri Remote Play button starts playback too, not just
+                    // the select/click.
+                    .onPlayPauseCommand { Task { await prepareAndPlay() } }
 
                     if resumeProgress != nil {
                         Button {
-                            PlaybackProgressStore.shared.clear(postID: currentPostID)
-                            resumeProgressStamp = UUID()
-                            Task { await prepareAndPlay() }
+                            startOver()
                         } label: {
                             Text("Start Over")
                                 .font(.title3.weight(.medium))
@@ -359,6 +360,7 @@ struct PostDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(isPreparingPlayback)
+                        .onPlayPauseCommand { startOver() }
                     }
                 }
 
@@ -560,6 +562,13 @@ struct PostDetailView: View {
         } else {
             playbackErrorMessage = message
         }
+    }
+
+    /// Clear any saved progress and play from the start.
+    private func startOver() {
+        PlaybackProgressStore.shared.clear(postID: currentPostID)
+        resumeProgressStamp = UUID()
+        Task { await prepareAndPlay() }
     }
 
     /// Re-fetch post on play so Mux HLS tokens are fresh (~24h expiry).
