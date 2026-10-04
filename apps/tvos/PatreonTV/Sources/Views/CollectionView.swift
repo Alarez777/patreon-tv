@@ -21,8 +21,16 @@ struct CollectionView: View {
     var focusPostID: String? = nil
     var onPlayPost: ((String) -> Void)? = nil
 
-    @State private var vm = CollectionViewModel()
+    @State private var vm: CollectionViewModel
     @State private var reversed = false
+
+    init(collectionID: String, focusPostID: String? = nil, onPlayPost: ((String) -> Void)? = nil) {
+        self.collectionID = collectionID
+        self.focusPostID = focusPostID
+        self.onPlayPost = onPlayPost
+        // Seed from the cache so returning to the screen is instant.
+        _vm = State(initialValue: CollectionViewModel(collectionID: collectionID))
+    }
     /// Initial focus lands on the last episode played (if any), else the first
     /// post. A pushed page otherwise leaves focus on the tab bar.
     @FocusState private var focusedPostID: String?
@@ -195,13 +203,23 @@ final class CollectionViewModel {
     var collection: PatreonCollection?
     var posts: [Post] = []
 
+    init(collectionID: String? = nil) {
+        if let id = collectionID, let cached = CollectionPostsCache.shared.snapshot(for: id) {
+            collection = cached.collection
+            posts = cached.posts
+            state = .loaded
+        }
+    }
+
     func load(collectionID: String) async {
+        // Seeded from the cache (or already loaded): keep returning instant.
+        guard collection == nil else { return }
         state = .loading
         do {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             collection = doc.data
             posts = doc.data.orderedPosts(from: doc.included ?? [])
-            CollectionPostsCache.shared.store(posts, for: collectionID)
+            CollectionPostsCache.shared.store(collection: doc.data, posts: posts)
             state = .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
