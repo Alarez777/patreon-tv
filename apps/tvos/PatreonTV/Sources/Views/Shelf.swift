@@ -38,7 +38,7 @@ struct Shelf: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 32) {
                     ForEach(posts) { post in
-                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil)) {
+                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)

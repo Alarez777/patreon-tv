@@ -36,7 +36,7 @@ struct FeaturedHero: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.postID) { i, item in
-                        NavigationLink(value: DeepLinkDestination.post(id: item.postID, autoplay: false, collectionID: nil)) {
+                        NavigationLink(value: DeepLinkDestination.post(id: item.postID, autoplay: false)) {
                             HeroSlide(item: item, focused: focusedIndex == i)
                         }
                         .buttonStyle(.plain)   // Full-bleed slide draws its own focus ring.

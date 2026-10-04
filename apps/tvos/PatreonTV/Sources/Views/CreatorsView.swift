@@ -42,7 +42,7 @@ struct CreatorsView: View {
             }
             .task { await vm.load() }
             .background(PatreonColors.background.ignoresSafeArea())
-            .appNavigationDestinations(onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: nil)) })
+            .appNavigationDestinations(onPlayPost: { path.append(.post(id: $0, autoplay: true)) })
         }
     }
 
