@@ -309,6 +309,7 @@ struct PostDetailView: View {
             }
         }
         .padding(.horizontal, 60)
+        .focusSection()
     }
 
     @ViewBuilder
@@ -360,6 +361,7 @@ struct PostDetailView: View {
                 }
             }
             .padding(.horizontal, 60)
+            .focusSection()
         } else if post.attributes.currentUserCanView == false {
             lockedNotice
         }

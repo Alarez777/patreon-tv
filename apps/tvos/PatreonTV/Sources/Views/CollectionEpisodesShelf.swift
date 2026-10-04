@@ -3,8 +3,8 @@
 //  PatreonTV
 //
 //  A horizontal strip of a collection's episodes, shown on a post's detail so
-//  the viewer can jump between chapters. It scrolls to the current episode on
-//  appear.
+//  the viewer can jump between chapters. Oldest is on the left, newest on the
+//  right, and it scrolls to the current episode on appear.
 //
 
 import NukeUI
@@ -19,40 +19,38 @@ struct CollectionEpisodesShelf: View {
     @State private var vm = CollectionEpisodesViewModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("In this collection")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(PatreonColors.primaryText)
-                .padding(.horizontal, 60)
-                .accessibilityAddTraits(.isHeader)
-
-            if vm.posts.isEmpty {
-                // Diagnostic while the strip is being stabilised.
-                Text(vm.isLoading ? "Loading episodes…" : "No episodes (\(vm.note))")
-                    .font(.subheadline)
-                    .foregroundStyle(PatreonColors.secondaryText)
-                    .padding(.horizontal, 60)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 24) {
-                            ForEach(vm.posts) { post in
-                                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
-                                    EpisodeCard(post: post, isCurrent: post.id == currentPostID)
-                                }
-                                .buttonStyle(.card)
-                                .id(post.id)
-                            }
-                        }
+        Group {
+            if !vm.posts.isEmpty {
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("In this collection")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(PatreonColors.primaryText)
                         .padding(.horizontal, 60)
-                        .padding(.vertical, 30)
+                        .accessibilityAddTraits(.isHeader)
+
+                    ScrollViewReader { proxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHStack(spacing: 24) {
+                                ForEach(vm.posts) { post in
+                                    NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
+                                        EpisodeCard(post: post, isCurrent: post.id == currentPostID)
+                                    }
+                                    .buttonStyle(.card)
+                                    .id(post.id)
+                                }
+                            }
+                            .padding(.horizontal, 60)
+                            .padding(.vertical, 30)
+                        }
+                        .scrollClipDisabled()
+                        // Current episode at the leading edge; newer ones sit to
+                        // the right.
+                        .onAppear { proxy.scrollTo(currentPostID, anchor: .leading) }
                     }
-                    .scrollClipDisabled()
-                    .onAppear { proxy.scrollTo(currentPostID, anchor: .center) }
                 }
+                .focusSection()
             }
         }
-        .focusSection()
         .task { await vm.load(collectionID: collectionID) }
     }
 }
@@ -123,29 +121,25 @@ private struct EpisodeCard: View {
 final class CollectionEpisodesViewModel {
 
     var posts: [Post] = []
-    var isLoading = false
-    /// Short diagnostic shown when there are no episodes yet.
-    var note = ""
 
     func load(collectionID: String) async {
-        isLoading = true
-        defer { isLoading = false }
-
         if let cached = CollectionPostsCache.shared.posts(for: collectionID), !cached.isEmpty {
-            posts = cached
-            note = "cached \(cached.count)"
+            posts = Self.oldestFirst(cached)
             return
         }
-
         do {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             let ordered = doc.data.orderedPosts(from: doc.included ?? [])
-            posts = ordered
             CollectionPostsCache.shared.store(ordered, for: collectionID)
-            note = "fetched \(ordered.count)"
+            posts = Self.oldestFirst(ordered)
         } catch {
-            note = "error: \(error.localizedDescription)"
             posts = []
         }
+    }
+
+    /// The strip reads left→right oldest→newest, so the newest episodes sit to
+    /// the right.
+    private static func oldestFirst(_ posts: [Post]) -> [Post] {
+        Array(posts.reversed())
     }
 }
