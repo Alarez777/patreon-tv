@@ -13,16 +13,24 @@ import SwiftUI
 
 struct CollectionEpisodesShelf: View {
 
+    let title: String
     let collectionID: String
     let currentPostID: String
+    /// Opens an episode with autoplay (remote Play button). Nil leaves the
+    /// normal select behaviour.
+    var onPlay: ((String) -> Void)? = nil
 
     @State private var vm = CollectionEpisodesViewModel()
 
+    /// Trailing space so even the last episode can scroll to the leading edge.
+    private let trailingFiller: CGFloat = 1800
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("In this collection")
+            Text(title)
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
+                .lineLimit(1)
                 .padding(.horizontal, 60)
                 .accessibilityAddTraits(.isHeader)
 
@@ -35,10 +43,13 @@ struct CollectionEpisodesShelf: View {
                                     EpisodeCard(post: post, isCurrent: post.id == currentPostID)
                                 }
                                 .buttonStyle(.card)
+                                .onPlayPauseCommand { onPlay?(post.id) }
                                 .id(post.id)
                             }
+
+                            Color.clear.frame(width: trailingFiller)
                         }
-                        .padding(.horizontal, 60)
+                        .padding(.leading, 60)
                         .padding(.vertical, 30)
                     }
                     .scrollClipDisabled()

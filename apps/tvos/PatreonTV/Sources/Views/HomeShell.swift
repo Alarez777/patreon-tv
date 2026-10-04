@@ -113,7 +113,7 @@ struct AppNavigationDestinations: ViewModifier {
         content.navigationDestination(for: DeepLinkDestination.self) { dest in
             switch dest {
             case .post(let id, let autoplay):
-                PostDetailView(postID: id, autoplay: autoplay)
+                PostDetailView(postID: id, autoplay: autoplay, onPlayPost: onPlayPost)
             case .creator(let id):
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):
