@@ -18,6 +18,7 @@ final class ContentPreferences {
     private let matureKey = "show_mature_content"
     private let autoplayKey = "autoplay_next"
     private let continueCollectionKey = "show_continue_collection"
+    private let collectionOldestFirstKey = "collection_oldest_first"
 
     /// When false (default), NSFW creators are hidden from Creators and Search.
     var showMatureContent: Bool {
@@ -37,9 +38,17 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(showContinueCollection, forKey: continueCollectionKey) }
     }
 
+    /// When true, a collection's episodes open oldest-first (ascending) by
+    /// default; otherwise newest-first (descending). The on-screen toggle still
+    /// overrides it for the session.
+    var collectionOldestFirst: Bool {
+        didSet { UserDefaults.standard.set(collectionOldestFirst, forKey: collectionOldestFirstKey) }
+    }
+
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
         autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
         showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
+        collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false
     }
 }

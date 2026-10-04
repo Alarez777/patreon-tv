@@ -22,7 +22,7 @@ struct CollectionView: View {
     var onPlayPost: ((String) -> Void)? = nil
 
     @State private var vm: CollectionViewModel
-    @State private var reversed = false
+    @State private var reversed: Bool
 
     init(collectionID: String, focusPostID: String? = nil, onPlayPost: ((String) -> Void)? = nil) {
         self.collectionID = collectionID
@@ -30,7 +30,11 @@ struct CollectionView: View {
         self.onPlayPost = onPlayPost
         // Seed from the cache so returning to the screen is instant.
         _vm = State(initialValue: CollectionViewModel(collectionID: collectionID))
+        // Default episode order comes from Settings; the on-screen toggle can
+        // still override it.
+        _reversed = State(initialValue: ContentPreferences.shared.collectionOldestFirst)
     }
+
     /// Initial focus lands on the last episode played (if any), else the first
     /// post. A pushed page otherwise leaves focus on the tab bar.
     @FocusState private var focusedPostID: String?

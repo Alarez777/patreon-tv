@@ -68,6 +68,17 @@ struct SettingsView: View {
             }
             .frame(maxWidth: 700)
 
+            Toggle(isOn: $prefs.collectionOldestFirst) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Oldest episodes first")
+                        .foregroundStyle(PatreonColors.primaryText)
+                    Text("Open a collection's episodes oldest-first; off lists newest first.")
+                        .font(.caption)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                }
+            }
+            .frame(maxWidth: 700)
+
             Button {
                 auth.signOut()
             } label: {
