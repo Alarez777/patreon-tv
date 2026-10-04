@@ -64,7 +64,7 @@ struct CollectionEpisodesShelf: View {
     }
 }
 
-private struct EpisodeCard: View {
+struct EpisodeCard: View {
 
     let post: Post
     let isCurrent: Bool

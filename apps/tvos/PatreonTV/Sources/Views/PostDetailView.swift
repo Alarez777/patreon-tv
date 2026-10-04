@@ -149,9 +149,26 @@ struct PostDetailView: View {
                 },
                 onPlaybackEnded: {
                     Task { await handlePlaybackEnded() }
-                }
+                },
+                episodes: collectionEpisodes,
+                onSelectEpisode: { id in selectEpisode(id) }
             )
         }
+    }
+
+    /// Episodes of the collection this post belongs to (cached when the
+    /// collection was opened), for the player's Episodes info tab.
+    private var collectionEpisodes: [Post] {
+        guard let collection = collections.first else { return [] }
+        return CollectionPostsCache.shared.posts(for: collection.id) ?? []
+    }
+
+    /// Switch playback to another episode of the collection without leaving the
+    /// player.
+    private func selectEpisode(_ id: String) {
+        guard id != currentPostID else { return }
+        currentPostID = id
+        Task { await prepareAndPlay() }
     }
 
     @ViewBuilder

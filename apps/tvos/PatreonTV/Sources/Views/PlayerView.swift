@@ -29,6 +29,11 @@ struct PlayerView: UIViewControllerRepresentable {
     /// Called on the main actor when the item plays to its end. The presenter
     /// can show an Up Next overlay or dismiss the player.
     var onPlaybackEnded: (() -> Void)? = nil
+    /// Episodes of the collection this post belongs to (for the player's
+    /// Episodes info tab). Empty hides the tab.
+    var episodes: [Post] = []
+    /// Called on the main actor when an episode is chosen from the tab.
+    var onSelectEpisode: ((String) -> Void)? = nil
 
     var mediaURL: URL { source.url }
 
@@ -45,6 +50,8 @@ struct PlayerView: UIViewControllerRepresentable {
             post: post,
             campaign: campaign,
             duration: duration,
+            episodes: episodes,
+            onSelectEpisode: onSelectEpisode,
             coordinator: context.coordinator
         )
         return host
@@ -228,6 +235,8 @@ final class PlayerHostViewController: UIViewController {
         post: Post? = nil,
         campaign: Campaign? = nil,
         duration: Double? = nil,
+        episodes: [Post] = [],
+        onSelectEpisode: ((String) -> Void)? = nil,
         coordinator: PlayerView.Coordinator
     ) {
         guard !didConfigure else { return }
@@ -279,7 +288,7 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.allowsPictureInPicturePlayback = true
         playerViewController.videoGravity = .resizeAspect
 
-        configureInfoPanel(post: post, campaign: campaign)
+        configureInfoPanel(post: post, campaign: campaign, episodes: episodes, onSelectEpisode: onSelectEpisode)
 
         coordinator.attach(player: player, item: item)
 
@@ -374,12 +383,34 @@ final class PlayerHostViewController: UIViewController {
     // MARK: - Custom info panel
 
     /// "Details" tab in the swipe-down panel: full description without leaving
-    /// playback.
-    private func configureInfoPanel(post: Post?, campaign: Campaign?) {
-        guard let post else { return }
-        let details = UIHostingController(rootView: PlayerInfoView(post: post, campaign: campaign))
-        details.title = "Details"
-        playerViewController.customInfoViewControllers = [details]
+    /// playback. When the post belongs to a collection, adds an "Episodes" tab
+    /// listing its episodes (focused on the one playing).
+    private func configureInfoPanel(
+        post: Post?,
+        campaign: Campaign?,
+        episodes: [Post],
+        onSelectEpisode: ((String) -> Void)?
+    ) {
+        var tabs: [UIViewController] = []
+
+        if let post {
+            let details = UIHostingController(rootView: PlayerInfoView(post: post, campaign: campaign))
+            details.title = "Details"
+            tabs.append(details)
+        }
+
+        if episodes.count > 1, let onSelectEpisode {
+            let episodesVC = UIHostingController(rootView: PlayerEpisodesView(
+                episodes: episodes,
+                currentPostID: post?.id ?? "",
+                onSelect: onSelectEpisode
+            ))
+            episodesVC.title = "Episodes"
+            episodesVC.preferredContentSize = CGSize(width: 0, height: 380)
+            tabs.append(episodesVC)
+        }
+
+        playerViewController.customInfoViewControllers = tabs
     }
 
     private func makeMetadataItem(identifier: AVMetadataIdentifier, value: String) -> AVMetadataItem {
