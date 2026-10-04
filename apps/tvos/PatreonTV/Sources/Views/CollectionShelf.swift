@@ -2,22 +2,19 @@
 //  CollectionShelf.swift
 //  PatreonTV
 //
-//  A horizontal shelf of collection cards, reused by Home's "Continue
-//  Collection" and the post detail's "In this collection".
+//  A horizontal shelf of collection cards, used by Home's "Continue Collection".
 //
 
 import SwiftUI
 
 /// The fields a collection card needs, decoupled from where it came from
-/// (a stored `RecentCollection` or a fetched `PatreonCollection`).
+/// (the stored `RecentCollection`).
 struct CollectionCardModel: Identifiable {
     let id: String
     let title: String
     let squareImageURL: URL?
     let wideImageURL: URL?
     let numPosts: Int?
-    /// Post to focus when the collection opens (nil → default focus).
-    var focusPostID: String?
 }
 
 struct CollectionShelf: View {
@@ -36,10 +33,7 @@ struct CollectionShelf: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 32) {
                     ForEach(cards) { card in
-                        NavigationLink(value: DeepLinkDestination.collection(
-                            id: card.id,
-                            focusPostID: card.focusPostID
-                        )) {
+                        NavigationLink(value: DeepLinkDestination.collection(id: card.id, focusPostID: nil)) {
                             CollectionShelfCard(card: card)
                         }
                         .buttonStyle(.card)
