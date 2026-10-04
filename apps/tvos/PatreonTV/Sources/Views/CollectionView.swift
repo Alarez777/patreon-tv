@@ -194,14 +194,19 @@ final class CollectionViewModel {
     var state: State = .loading
     var collection: PatreonCollection?
     var posts: [Post] = []
+    /// The collection already loaded; guards against a re-fetch when the view
+    /// re-appears (e.g. returning from a post), which flashed a spinner.
+    private var loadedCollectionID: String?
 
     func load(collectionID: String) async {
+        guard loadedCollectionID != collectionID else { return }
         state = .loading
         do {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             collection = doc.data
             posts = doc.data.orderedPosts(from: doc.included ?? [])
             CollectionPostsCache.shared.store(posts, for: collectionID)
+            loadedCollectionID = collectionID
             state = .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)

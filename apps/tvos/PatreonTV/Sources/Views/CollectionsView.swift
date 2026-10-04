@@ -143,12 +143,16 @@ final class CollectionsViewModel {
 
     var state: State = .loading
     var collections: [PatreonCollection] = []
+    /// The campaign already loaded; guards against a re-fetch on re-appear.
+    private var loadedCampaignID: String?
 
     func load(campaignID: String) async {
+        guard loadedCampaignID != campaignID else { return }
         state = .loading
         do {
             let collections = try await PatreonClient.shared.collections(campaignID: campaignID)
             self.collections = collections
+            loadedCampaignID = campaignID
             state = collections.isEmpty ? .empty : .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
