@@ -288,7 +288,11 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.allowsPictureInPicturePlayback = true
         playerViewController.videoGravity = .resizeAspect
 
-        configureInfoPanel(post: post, campaign: campaign, episodes: episodes, onSelectEpisode: onSelectEpisode)
+        configureEpisodesTab(
+            episodes: episodes,
+            currentPostID: post?.id ?? "",
+            onSelectEpisode: onSelectEpisode
+        )
 
         coordinator.attach(player: player, item: item)
 
@@ -307,30 +311,29 @@ final class PlayerHostViewController: UIViewController {
     private func makeExternalMetadata(title: String, post: Post?, campaign: Campaign?) -> [AVMetadataItem] {
         var items = [makeMetadataItem(identifier: .commonIdentifierTitle, value: title)]
 
+        // The transport bar's small line shows "date · subtitle", so the
+        // subtitle stays just the channel. The Info body carries the title.
         if let creator = campaign?.attributes.name, !creator.isEmpty {
-            items.append(makeMetadataItem(identifier: .commonIdentifierArtist, value: creator))
             items.append(makeMetadataItem(identifier: .iTunesMetadataTrackSubTitle, value: creator))
         }
 
-        if let description = playerDescription(for: post) {
+        if let date = formattedPublishedDate(post?.attributes.publishedAt) {
+            items.append(makeMetadataItem(identifier: .commonIdentifierCreationDate, value: date))
+        }
+        if let description = playerDescription(title: title, post: post) {
             items.append(makeMetadataItem(identifier: .commonIdentifierDescription, value: description))
         }
 
         return items
     }
 
-    /// Plain-text description for the info panel: teaser preferred (short and
-    /// hand-written), else the post body stripped of HTML, capped so AVKit
-    /// doesn't choke on essay-length values.
-    private func playerDescription(for post: Post?) -> String? {
-        guard let post else { return nil }
-        let raw = [post.attributes.teaser, post.attributes.content]
-            .compactMap { $0 }
-            .first { !$0.isEmpty }
-        guard let raw else { return nil }
-        let text = HTMLRenderer.stripToPlainText(raw)
-        guard !text.isEmpty else { return nil }
-        return text.count > 600 ? String(text.prefix(600)) + "…" : text
+    private func formattedPublishedDate(_ iso: String?) -> String? {
+        guard let iso, !iso.isEmpty else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
+        else { return nil }
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 
     /// Fetch the poster asynchronously and append it as artwork metadata; the
@@ -382,35 +385,48 @@ final class PlayerHostViewController: UIViewController {
 
     // MARK: - Custom info panel
 
-    /// "Details" tab in the swipe-down panel: full description without leaving
-    /// playback. When the post belongs to a collection, adds an "Episodes" tab
-    /// listing its episodes (focused on the one playing).
-    private func configureInfoPanel(
-        post: Post?,
-        campaign: Campaign?,
+    /// "Episodes" tab in the swipe-down panel, listing the collection's
+    /// episodes (focused on the one playing). The native Info tab carries the
+    /// title, channel/date and description, so this is the only extra tab.
+    private func configureEpisodesTab(
         episodes: [Post],
+        currentPostID: String,
         onSelectEpisode: ((String) -> Void)?
     ) {
-        var tabs: [UIViewController] = []
-
-        if let post {
-            let details = UIHostingController(rootView: PlayerInfoView(post: post, campaign: campaign))
-            details.title = "Details"
-            tabs.append(details)
+        guard episodes.count > 1, let onSelectEpisode else {
+            playerViewController.customInfoViewControllers = []
+            return
         }
 
-        if episodes.count > 1, let onSelectEpisode {
-            let episodesVC = UIHostingController(rootView: PlayerEpisodesView(
-                episodes: episodes,
-                currentPostID: post?.id ?? "",
-                onSelect: onSelectEpisode
-            ))
-            episodesVC.title = "Episodes"
-            episodesVC.preferredContentSize = CGSize(width: 0, height: 380)
-            tabs.append(episodesVC)
-        }
+        let episodesVC = UIHostingController(rootView: PlayerEpisodesView(
+            episodes: episodes,
+            currentPostID: currentPostID,
+            onSelect: onSelectEpisode
+        ))
+        episodesVC.title = "Episodes"
+        episodesVC.preferredContentSize = CGSize(width: 0, height: 380)
+        playerViewController.customInfoViewControllers = [episodesVC]
+    }
 
-        playerViewController.customInfoViewControllers = tabs
+    /// Info panel body: the title on its own line, then (when present) the
+    /// post's text body. Falls back to whichever of the two exists.
+    private func playerDescription(title: String, post: Post?) -> String? {
+        let body = post
+            .flatMap { post in
+                [post.attributes.content, post.attributes.teaser]
+                    .compactMap { $0 }
+                    .first { !$0.isEmpty }
+            }
+            .map(HTMLRenderer.stripToPlainText)
+            .flatMap { $0.isEmpty ? nil : $0 }
+
+        let heading = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (heading.isEmpty, body) {
+        case (false, .some(let body)): return "\(heading)\n\n\(body)"
+        case (false, .none): return heading
+        case (true, .some(let body)): return body
+        case (true, .none): return nil
+        }
     }
 
     private func makeMetadataItem(identifier: AVMetadataIdentifier, value: String) -> AVMetadataItem {
