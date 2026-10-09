@@ -20,15 +20,16 @@ struct PostDetailView: View {
     /// overlay advance through the collection (oldest→newest) instead of the
     /// creator's feed.
     var collectionID: String? = nil
-    /// Opens an episode from the collection strip with autoplay. Supplied by the
+    /// Opens an episode with autoplay (remote Play button). The second argument
+    /// is the collection the episode belongs to, when known. Supplied by the
     /// hosting stack.
-    var onPlayPost: ((String) -> Void)? = nil
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
     init(
         postID: String,
         autoplay: Bool = false,
         collectionID: String? = nil,
-        onPlayPost: ((String) -> Void)? = nil
+        onPlayPost: ((String, String?) -> Void)? = nil
     ) {
         self.postID = postID
         self.autoplay = autoplay
@@ -197,7 +198,7 @@ struct PostDetailView: View {
                         title: collection.attributes.title ?? "Collection",
                         collectionID: collection.id,
                         currentPostID: post.id,
-                        onPlay: onPlayPost
+                        onPlay: { id in onPlayPost?(id, collection.id) }
                     )
                 }
 
@@ -558,6 +559,7 @@ struct PostDetailView: View {
     /// nothing to queue, just close the player.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
+        log.info("Playback ended: collectionID=\(collectionID ?? "nil") campaignID=\(campaign?.id ?? "nil")")
 
         if let collectionID {
             // Only ever walk the collection; never jump to the creator's feed.
@@ -585,6 +587,7 @@ struct PostDetailView: View {
         var posts = CollectionPostsCache.shared.posts(for: collectionID) ?? []
         if posts.isEmpty {
             guard let doc = try? await PatreonClient.shared.collection(id: collectionID) else {
+                log.info("Up Next: collection \(collectionID) not cached and fetch failed")
                 return nil
             }
             posts = doc.data.orderedPosts(from: doc.included ?? [])
@@ -593,9 +596,12 @@ struct PostDetailView: View {
 
         let oldestFirst = Array(posts.reversed())
         guard let index = oldestFirst.firstIndex(where: { $0.id == currentPostID }) else {
+            log.info("Up Next: current \(currentPostID) not found among \(oldestFirst.count) episodes")
             return nil
         }
-        return oldestFirst.dropFirst(index + 1).first { UpNextResolver.isPlayable($0) }
+        let next = oldestFirst.dropFirst(index + 1).first { UpNextResolver.isPlayable($0) }
+        log.info("Up Next: index \(index)/\(oldestFirst.count) -> \(next?.id ?? "none")")
+        return next
     }
 
     /// Advance to the queued post: swap the detail view's subject and start

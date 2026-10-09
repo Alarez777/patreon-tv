@@ -42,8 +42,8 @@ struct HomeShell: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
-                HomeView(onPlayPost: { playPost(id: $0) })
-                    .appNavigationDestinations(onPlayPost: { playPost(id: $0) })
+                HomeView(onPlayPost: { playPost(id: $0, collectionID: nil) })
+                    .appNavigationDestinations(onPlayPost: { playPost(id: $0, collectionID: $1) })
             }
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
             .tag(Tab.home)
@@ -86,8 +86,8 @@ struct HomeShell: View {
 
     /// Push the post and start playback immediately (remote Play button on a
     /// focused card). Appends so the back stack is preserved.
-    private func playPost(id: String) {
-        homePath.append(.post(id: id, autoplay: true, collectionID: nil))
+    private func playPost(id: String, collectionID: String?) {
+        homePath.append(.post(id: id, autoplay: true, collectionID: collectionID))
     }
 }
 
@@ -107,7 +107,7 @@ struct AppNavigationDestinations: ViewModifier {
     /// Supplied by each tab's stack so a Creator page can start playback within
     /// the *same* tab — it appends to that stack's path. Nil here means creator
     /// pages simply won't offer the remote-Play shortcut.
-    var onPlayPost: ((String) -> Void)? = nil
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
     func body(content: Content) -> some View {
         content.navigationDestination(for: DeepLinkDestination.self) { dest in
@@ -126,7 +126,7 @@ struct AppNavigationDestinations: ViewModifier {
 }
 
 extension View {
-    func appNavigationDestinations(onPlayPost: ((String) -> Void)? = nil) -> some View {
+    func appNavigationDestinations(onPlayPost: ((String, String?) -> Void)? = nil) -> some View {
         modifier(AppNavigationDestinations(onPlayPost: onPlayPost))
     }
 }

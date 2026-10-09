@@ -19,12 +19,12 @@ struct CollectionView: View {
     /// Post to focus on open (set by "In this collection"). Falls back to the
     /// last episode played, then the first post.
     var focusPostID: String? = nil
-    var onPlayPost: ((String) -> Void)? = nil
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
     @State private var vm: CollectionViewModel
     @State private var reversed: Bool
 
-    init(collectionID: String, focusPostID: String? = nil, onPlayPost: ((String) -> Void)? = nil) {
+    init(collectionID: String, focusPostID: String? = nil, onPlayPost: ((String, String?) -> Void)? = nil) {
         self.collectionID = collectionID
         self.focusPostID = focusPostID
         self.onPlayPost = onPlayPost
@@ -161,7 +161,7 @@ struct CollectionView: View {
                 }
                 .buttonStyle(.card)
                 .focused($focusedPostID, equals: post.id)
-                .onPlayPauseCommand { onPlayPost?(post.id) }
+                .onPlayPauseCommand { onPlayPost?(post.id, collectionID) }
                 .id(post.id)
             }
         }
