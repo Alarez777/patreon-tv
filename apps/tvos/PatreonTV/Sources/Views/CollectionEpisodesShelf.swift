@@ -39,7 +39,7 @@ struct CollectionEpisodesShelf: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 24) {
                             ForEach(vm.posts) { post in
-                                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
                                     EpisodeCard(post: post, isCurrent: post.id == currentPostID)
                                 }
                                 .buttonStyle(.card)

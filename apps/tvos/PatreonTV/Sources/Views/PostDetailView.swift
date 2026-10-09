@@ -16,13 +16,23 @@ struct PostDetailView: View {
     /// When true (Top Shelf "Play", the featured hero button, deep links with
     /// /play), playback starts as soon as the post loads.
     var autoplay: Bool = false
+    /// Set when this post was opened from within a collection. Makes the Up Next
+    /// overlay advance through the collection (oldest→newest) instead of the
+    /// creator's feed.
+    var collectionID: String? = nil
     /// Opens an episode from the collection strip with autoplay. Supplied by the
     /// hosting stack.
     var onPlayPost: ((String) -> Void)? = nil
 
-    init(postID: String, autoplay: Bool = false, onPlayPost: ((String) -> Void)? = nil) {
+    init(
+        postID: String,
+        autoplay: Bool = false,
+        collectionID: String? = nil,
+        onPlayPost: ((String) -> Void)? = nil
+    ) {
         self.postID = postID
         self.autoplay = autoplay
+        self.collectionID = collectionID
         self.onPlayPost = onPlayPost
         _currentPostID = State(initialValue: postID)
     }
@@ -543,10 +553,22 @@ struct PostDetailView: View {
 
     // MARK: - Up Next
 
-    /// Playback finished: queue the creator's next post if one exists,
-    /// otherwise just close the player.
+    /// Playback finished. Inside a collection, queue the immediate next episode
+    /// (oldest→newest). Otherwise queue the creator's next feed post. If there's
+    /// nothing to queue, just close the player.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
+
+        if let collectionID {
+            // Only ever walk the collection; never jump to the creator's feed.
+            if let next = await nextEpisode(in: collectionID) {
+                upNext = next
+            } else {
+                playbackSource = nil
+            }
+            return
+        }
+
         guard let campaignID = campaign?.id,
               let next = await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
         else {
@@ -554,6 +576,26 @@ struct PostDetailView: View {
             return
         }
         upNext = next
+    }
+
+    /// The immediate next playable episode after the one playing, in the
+    /// collection's oldest→newest order (the order the Episodes strip shows).
+    /// Fetches and caches the collection if it isn't cached yet.
+    private func nextEpisode(in collectionID: String) async -> Post? {
+        var posts = CollectionPostsCache.shared.posts(for: collectionID) ?? []
+        if posts.isEmpty {
+            guard let doc = try? await PatreonClient.shared.collection(id: collectionID) else {
+                return nil
+            }
+            posts = doc.data.orderedPosts(from: doc.included ?? [])
+            CollectionPostsCache.shared.store(collection: doc.data, posts: posts)
+        }
+
+        let oldestFirst = Array(posts.reversed())
+        guard let index = oldestFirst.firstIndex(where: { $0.id == currentPostID }) else {
+            return nil
+        }
+        return oldestFirst.dropFirst(index + 1).first { UpNextResolver.isPlayable($0) }
     }
 
     /// Advance to the queued post: swap the detail view's subject and start
