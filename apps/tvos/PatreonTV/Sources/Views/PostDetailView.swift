@@ -8,6 +8,7 @@
 
 import NukeUI
 import SwiftUI
+import UIKit
 import os.log
 
 struct PostDetailView: View {
@@ -48,6 +49,9 @@ struct PostDetailView: View {
     @State private var queuedNext: Post?
     /// Seconds left shown on the Up Next card, driven by the player.
     @State private var upNextCountdown: Int?
+    /// Set when the viewer cancels the Up Next suggestion: the current video
+    /// finishes but the next one doesn't start.
+    @State private var upNextCancelled = false
     @State private var post: Post?
     @State private var campaign: Campaign?
     /// Collections this post belongs to (for the "In this collection" shelf).
@@ -158,15 +162,10 @@ struct PostDetailView: View {
                     AnyView(UpNextOverlayView(
                         post: next,
                         creatorName: campaign?.attributes.name,
-                        countdown: upNextCountdown,
-                        onPlay: { Task { await playNext(next) } },
-                        onDismiss: {
-                            upNext = nil
-                            upNextCountdown = nil
-                            playbackSource = nil
-                        }
+                        countdown: upNextCountdown
                     ))
                 },
+                contextualActions: upNextActions,
                 episodes: collectionEpisodes,
                 onSelectEpisode: { id in selectEpisode(id) }
             )
@@ -563,6 +562,7 @@ struct PostDetailView: View {
     /// Called ~once a second during the final seconds: shows the Up Next card
     /// once we enter the window and keeps its countdown in sync with the video.
     private func handleUpNextTick(_ remaining: Double) {
+        guard !upNextCancelled else { return }
         if upNext == nil, let next = queuedNext {
             log.info("Up Next window: showing \(next.id)")
             upNext = next
@@ -572,12 +572,44 @@ struct PostDetailView: View {
         }
     }
 
+    /// Native Up Next controls (AVKit owns their focus): "Siguiente" advances,
+    /// "Cancelar" lets the current video finish without starting the next.
+    private var upNextActions: [UIAction] {
+        guard let next = upNext else { return [] }
+        let play = UIAction(
+            title: upNextCountdown.map { "Siguiente (\($0)s)" } ?? "Siguiente",
+            image: UIImage(systemName: "forward.end.fill")
+        ) { _ in
+            Task { await playNext(next) }
+        }
+        let cancel = UIAction(
+            title: "Cancelar",
+            image: UIImage(systemName: "xmark")
+        ) { _ in
+            cancelUpNext()
+        }
+        return [play, cancel]
+    }
+
+    /// Hide the Up Next card/actions and keep the current video playing to its
+    /// end (without starting the next one).
+    private func cancelUpNext() {
+        upNextCancelled = true
+        upNext = nil
+        upNextCountdown = nil
+    }
+
     /// Playback finished. If the card is already up, honor it (advance when
     /// autoplay is on, else leave it for the viewer). Otherwise resolve a next
     /// post, or close the player when there's none.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
-        log.info("Playback ended: collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil")")
+        log.info("Playback ended: collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil") cancelled=\(upNextCancelled)")
+
+        if upNextCancelled {
+            playbackSource = nil
+            return
+        }
 
         if let next = upNext {
             if ContentPreferences.shared.autoplayNext { await playNext(next) }
@@ -615,6 +647,7 @@ struct PostDetailView: View {
 
     /// Resolve the next post up front so the card appears instantly.
     private func preloadNext() async {
+        upNextCancelled = false
         queuedNext = await resolveNext()
         log.info("Preloaded up next: \(queuedNext?.id ?? "none")")
     }

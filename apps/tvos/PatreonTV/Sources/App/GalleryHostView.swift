@@ -100,9 +100,7 @@ struct GalleryHostView: View {
                     UpNextOverlayView(
                         post: upNextPost,
                         creatorName: playerCampaign?.attributes.name,
-                        countdown: 10,
-                        onPlay: {},
-                        onDismiss: {}
+                        countdown: 10
                     )
                 }
             } else {

@@ -34,8 +34,11 @@ struct PlayerView: UIViewControllerRepresentable {
     /// presenter show the Up Next card ahead of the end.
     var onUpNextTick: ((Double) -> Void)? = nil
     /// Optional overlay (the Up Next card) hosted *inside* the player so it can
-    /// take focus away from the AVPlayerViewController.
+    /// render over the video.
     var upNextOverlay: AnyView? = nil
+    /// Native contextual action buttons (Up Next "Siguiente" / "Cancelar").
+    /// AVKit owns their focus, so they're reliably selectable.
+    var contextualActions: [UIAction] = []
     /// Episodes of the collection this post belongs to (for the player's
     /// Episodes info tab). Empty hides the tab.
     var episodes: [Post] = []
@@ -73,6 +76,7 @@ struct PlayerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
+        host.playerViewController.contextualActions = contextualActions
         host.setUpNextOverlay(upNextOverlay)
     }
 
@@ -269,16 +273,16 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.didMove(toParent: self)
     }
 
-    /// The Up Next card, hosted inside the player so it can own focus.
+    /// The Up Next card, hosted inside the player. Purely visual.
     private var upNextHost: UIHostingController<AnyView>?
 
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
-        if let upNextHost { return [upNextHost] }
-        return [playerViewController]
+        [playerViewController]
     }
 
-    /// Show or update the Up Next overlay inside the player (and move focus to
-    /// it). Passing nil removes it and hands focus back to the player.
+    /// Show or update the (non-interactive) Up Next card inside the player.
+    /// Passing nil removes it. The actionable controls are the player's native
+    /// `contextualActions`, so the card never takes focus.
     func setUpNextOverlay(_ view: AnyView?) {
         guard let view else {
             guard let host = upNextHost else { return }
@@ -286,8 +290,6 @@ final class PlayerHostViewController: UIViewController {
             host.view.removeFromSuperview()
             host.removeFromParent()
             upNextHost = nil
-            setNeedsFocusUpdate()
-            updateFocusIfNeeded()
             return
         }
 
@@ -298,6 +300,7 @@ final class PlayerHostViewController: UIViewController {
 
         let host = UIHostingController(rootView: view)
         host.view.backgroundColor = .clear
+        host.view.isUserInteractionEnabled = false
         addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(host.view)
@@ -309,8 +312,6 @@ final class PlayerHostViewController: UIViewController {
         ])
         host.didMove(toParent: self)
         upNextHost = host
-        setNeedsFocusUpdate()
-        updateFocusIfNeeded()
     }
 
     /// Cancels in-flight authenticated requests and breaks the URLSession →

@@ -2,9 +2,9 @@
 //  UpNextOverlayView.swift
 //  PatreonTV
 //
-//  Netflix-style "Up Next" card shown over the player when an item finishes.
-//  With autoplay enabled it counts down and auto-advances; otherwise it waits
-//  for the user. Escapable at all times (FOCUS rules: no traps).
+//  Visual "Up Next" card shown over the player in the final seconds. It's a
+//  preview only — the actionable controls are the player's native
+//  `contextualActions` (Siguiente / Cancelar), so they get system focus.
 //
 
 import NukeUI
@@ -17,10 +17,6 @@ struct UpNextOverlayView: View {
     /// Seconds left before auto-advance; nil hides the countdown ("Autoplay
     /// next" setting off). Driven by the player so it matches the video.
     let countdown: Int?
-    let onPlay: () -> Void
-    let onDismiss: () -> Void
-
-    @Namespace private var focusNamespace
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -31,14 +27,13 @@ struct UpNextOverlayView: View {
                 endPoint: .bottom
             )
             .ignoresSafeArea()
-            .allowsHitTesting(false)
 
             card
                 .padding(.trailing, 80)
-                .padding(.bottom, 80)
+                // Sit above the native contextual-action buttons.
+                .padding(.bottom, 200)
         }
-        // Claim focus from the player so the buttons are usable.
-        .focusScope(focusNamespace)
+        .allowsHitTesting(false)
     }
 
     private var card: some View {
@@ -62,26 +57,12 @@ struct UpNextOverlayView: View {
                         .foregroundStyle(.white.opacity(0.65))
                         .lineLimit(1)
                 }
-
-                HStack(spacing: 16) {
-                    Button(action: onPlay) {
-                        Label("Play Now", systemImage: "play.fill")
-                            .font(.body.weight(.semibold))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PatreonColors.brand)
-                    .prefersDefaultFocus(in: focusNamespace)
-
-                    Button("Dismiss", action: onDismiss)
-                        .buttonStyle(.bordered)
-                }
-                .padding(.top, 8)
             }
             .frame(maxWidth: 560, alignment: .leading)
         }
         .padding(28)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
     }
 
