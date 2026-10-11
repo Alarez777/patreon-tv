@@ -44,9 +44,12 @@ struct HomeShell: View {
             NavigationStack(path: $homePath) {
                 HomeView(
                     onPlayPost: { playPost(id: $0, collectionID: nil) },
-                    onPlayCollection: { playPost(id: $0, collectionID: $1) }
+                    onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) }
                 )
-                    .appNavigationDestinations(onPlayPost: { playPost(id: $0, collectionID: $1) })
+                    .appNavigationDestinations(
+                        onPlayPost: { playPost(id: $0, collectionID: $1) },
+                        onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) }
+                    )
             }
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
             .tag(Tab.home)
@@ -103,6 +106,15 @@ enum DeepLinkDestination: Hashable, Codable {
     case collection(id: String, focusPostID: String?)
 }
 
+extension Array where Element == DeepLinkDestination {
+    /// Push a collection and then its target episode, so backing out walks
+    /// episode → post info → collection → the screen we came from.
+    mutating func playCollection(collectionID: String, postID: String) {
+        append(.collection(id: collectionID, focusPostID: postID))
+        append(.post(id: postID, autoplay: true, collectionID: collectionID))
+    }
+}
+
 /// Shared destination table. Every NavigationStack in the app registers this
 /// so value-based links resolve identically in all tabs.
 struct AppNavigationDestinations: ViewModifier {
@@ -111,6 +123,8 @@ struct AppNavigationDestinations: ViewModifier {
     /// the *same* tab — it appends to that stack's path. Nil here means creator
     /// pages simply won't offer the remote-Play shortcut.
     var onPlayPost: ((String, String?) -> Void)? = nil
+    /// Remote Play on a collection card. Args: collection, post.
+    var onPlayCollection: ((String, String) -> Void)? = nil
 
     func body(content: Content) -> some View {
         content.navigationDestination(for: DeepLinkDestination.self) { dest in
@@ -120,7 +134,7 @@ struct AppNavigationDestinations: ViewModifier {
             case .creator(let id):
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):
-                CollectionsView(campaignID: campaignID, onPlayPost: onPlayPost)
+                CollectionsView(campaignID: campaignID, onPlayCollection: onPlayCollection)
             case .collection(let id, let focusPostID):
                 CollectionView(collectionID: id, focusPostID: focusPostID, onPlayPost: onPlayPost)
             }
@@ -129,7 +143,10 @@ struct AppNavigationDestinations: ViewModifier {
 }
 
 extension View {
-    func appNavigationDestinations(onPlayPost: ((String, String?) -> Void)? = nil) -> some View {
-        modifier(AppNavigationDestinations(onPlayPost: onPlayPost))
+    func appNavigationDestinations(
+        onPlayPost: ((String, String?) -> Void)? = nil,
+        onPlayCollection: ((String, String) -> Void)? = nil
+    ) -> some View {
+        modifier(AppNavigationDestinations(onPlayPost: onPlayPost, onPlayCollection: onPlayCollection))
     }
 }

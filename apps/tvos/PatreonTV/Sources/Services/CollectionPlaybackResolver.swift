@@ -75,7 +75,8 @@ enum CollectionPlaybackResolver {
 private struct CollectionPlayModifier: ViewModifier {
 
     let collectionID: String
-    let onPlayPost: ((String, String?) -> Void)?
+    /// Starts playback for a resolved episode. Args: collection, post.
+    let onPlay: ((String, String) -> Void)?
 
     @State private var pendingRestartPostID: String?
 
@@ -92,7 +93,7 @@ private struct CollectionPlayModifier: ViewModifier {
                 )
             ) {
                 Button("Restart") {
-                    if let postID = pendingRestartPostID { onPlayPost?(postID, collectionID) }
+                    if let postID = pendingRestartPostID { onPlay?(collectionID, postID) }
                     pendingRestartPostID = nil
                 }
                 Button("Cancel", role: .cancel) { pendingRestartPostID = nil }
@@ -102,19 +103,19 @@ private struct CollectionPlayModifier: ViewModifier {
     }
 
     private func play() async {
-        guard let onPlayPost,
+        guard let onPlay,
               let target = await CollectionPlaybackResolver.resolve(collectionID: collectionID)
         else { return }
         if target.isRestart {
             pendingRestartPostID = target.postID
         } else {
-            onPlayPost(target.postID, collectionID)
+            onPlay(collectionID, target.postID)
         }
     }
 }
 
 extension View {
-    func collectionPlay(collectionID: String, onPlayPost: ((String, String?) -> Void)?) -> some View {
-        modifier(CollectionPlayModifier(collectionID: collectionID, onPlayPost: onPlayPost))
+    func collectionPlay(collectionID: String, onPlay: ((String, String) -> Void)?) -> some View {
+        modifier(CollectionPlayModifier(collectionID: collectionID, onPlay: onPlay))
     }
 }
