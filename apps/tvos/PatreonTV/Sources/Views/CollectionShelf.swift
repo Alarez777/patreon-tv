@@ -28,6 +28,8 @@ struct CollectionShelf: View {
     /// Remote Play on a collection card starts playback. Args: collection, post.
     var onPlayCollection: ((String, String) -> Void)? = nil
 
+    @FocusState private var focusedCardID: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Text(title)
@@ -40,9 +42,10 @@ struct CollectionShelf: View {
                 LazyHStack(spacing: 32) {
                     ForEach(cards) { card in
                         NavigationLink(value: DeepLinkDestination.collection(id: card.id, focusPostID: nil)) {
-                            CollectionShelfCard(card: card)
+                            CollectionShelfCard(card: card, isActive: focusedCardID == card.id)
                         }
                         .buttonStyle(.card)
+                        .focused($focusedCardID, equals: card.id)
                         .collectionPlay(collectionID: card.id, onPlay: onPlayCollection)
                     }
                 }
@@ -58,6 +61,8 @@ struct CollectionShelf: View {
 private struct CollectionShelfCard: View {
 
     let card: CollectionCardModel
+    /// Scrolls the episode title while this card holds focus.
+    var isActive: Bool = false
 
     private let cardWidth: CGFloat = 400
     private let cardHeight: CGFloat = 225   // 16:9
@@ -89,10 +94,11 @@ private struct CollectionShelfCard: View {
                         .foregroundStyle(PatreonColors.secondaryText)
                 }
                 if let episodeTitle = card.episodeTitle {
-                    Text(episodeTitle)
-                        .font(.subheadline)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                        .lineLimit(1)
+                    MarqueeText(
+                        text: episodeTitle,
+                        availableWidth: cardWidth,
+                        isActive: isActive
+                    )
                 }
             }
             .frame(width: cardWidth, alignment: .leading)
