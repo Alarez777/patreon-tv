@@ -14,6 +14,8 @@ import SwiftUI
 struct CollectionsView: View {
 
     let campaignID: String
+    /// Remote Play on a collection card starts playback. Args: post, collection.
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
     @State private var vm = CollectionsViewModel()
     /// Initial focus lands on the first collection (a pushed page otherwise
@@ -63,6 +65,7 @@ struct CollectionsView: View {
                         }
                         .buttonStyle(.card)
                         .focused($focusedCollectionID, equals: collection.id)
+                        .collectionPlay(collectionID: collection.id, onPlayPost: onPlayPost)
                     }
                 }
                 .padding(.horizontal, 60)

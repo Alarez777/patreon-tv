@@ -21,6 +21,8 @@ struct CollectionShelf: View {
 
     let title: String
     let cards: [CollectionCardModel]
+    /// Remote Play on a collection card starts playback. Args: post, collection.
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -37,6 +39,7 @@ struct CollectionShelf: View {
                             CollectionShelfCard(card: card)
                         }
                         .buttonStyle(.card)
+                        .collectionPlay(collectionID: card.id, onPlayPost: onPlayPost)
                     }
                 }
                 .padding(.horizontal, 60)

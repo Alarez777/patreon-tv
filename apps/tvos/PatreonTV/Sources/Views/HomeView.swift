@@ -20,6 +20,9 @@ struct HomeView: View {
     /// Play/Pause button on a focused card; a normal select still opens the
     /// detail screen.
     var onPlayPost: (String) -> Void = { _ in }
+    /// Same as `onPlayPost` but collection-aware (post, collection) — used by
+    /// the Continue Collection shelf so its Play keeps the collection context.
+    var onPlayCollection: ((String, String?) -> Void)? = nil
 
     /// Recently opened collections, shown under "Continue Collection" unless the
     /// user turned the shelf off in Settings.
@@ -111,7 +114,11 @@ struct HomeView: View {
                 }
 
                 if !recentCollectionCards.isEmpty {
-                    CollectionShelf(title: "Continue Collection", cards: recentCollectionCards)
+                    CollectionShelf(
+                        title: "Continue Collection",
+                        cards: recentCollectionCards,
+                        onPlayPost: onPlayCollection
+                    )
                 }
 
                 // Short merged shelf of the latest posts across creators; the

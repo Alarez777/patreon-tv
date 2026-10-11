@@ -42,7 +42,10 @@ struct HomeShell: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
-                HomeView(onPlayPost: { playPost(id: $0, collectionID: nil) })
+                HomeView(
+                    onPlayPost: { playPost(id: $0, collectionID: nil) },
+                    onPlayCollection: { playPost(id: $0, collectionID: $1) }
+                )
                     .appNavigationDestinations(onPlayPost: { playPost(id: $0, collectionID: $1) })
             }
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
@@ -117,7 +120,7 @@ struct AppNavigationDestinations: ViewModifier {
             case .creator(let id):
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):
-                CollectionsView(campaignID: campaignID)
+                CollectionsView(campaignID: campaignID, onPlayPost: onPlayPost)
             case .collection(let id, let focusPostID):
                 CollectionView(collectionID: id, focusPostID: focusPostID, onPlayPost: onPlayPost)
             }
