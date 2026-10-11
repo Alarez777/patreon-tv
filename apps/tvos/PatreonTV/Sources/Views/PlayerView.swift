@@ -48,8 +48,6 @@ struct PlayerView: UIViewControllerRepresentable {
     /// Called on the main actor when an episode is chosen from the tab.
     var onSelectEpisode: ((String) -> Void)? = nil
 
-    var mediaURL: URL { source.url }
-
     /// Seconds before the end at which the Up Next card starts appearing.
     static let upNextLeadSeconds: Double = 15
 
