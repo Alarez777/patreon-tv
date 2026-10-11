@@ -163,10 +163,12 @@ struct PostDetailView: View {
                 onPlaybackFailure: { message in
                     presentPlaybackError(message)
                 },
-                onPlaybackEnded: {
+                onPlaybackEnded: { postID in
+                    guard postID == currentPostID else { return }
                     Task { await handlePlaybackEnded() }
                 },
-                onUpNextTick: { remaining in
+                onUpNextTick: { postID, remaining in
+                    guard postID == currentPostID else { return }
                     handleUpNextTick(remaining)
                 },
                 upNextActive: upNext != nil,

@@ -26,13 +26,15 @@ struct PlayerView: UIViewControllerRepresentable {
     /// Mux token after pausing overnight). The presenter should dismiss the
     /// player and offer a retry, which re-fetches a fresh URL.
     var onPlaybackFailure: ((String) -> Void)? = nil
-    /// Called on the main actor when the item plays to its end. The presenter
-    /// can show an Up Next overlay or dismiss the player.
-    var onPlaybackEnded: (() -> Void)? = nil
+    /// Called on the main actor when the item plays to its end, with the
+    /// coordinator's `postID` so the presenter can ignore a stale end from a
+    /// previous episode. The presenter can show an Up Next overlay or dismiss.
+    var onPlaybackEnded: ((String) -> Void)? = nil
     /// Called on the main actor roughly once a second once the item enters its
-    /// final `upNextLeadSeconds`, with the seconds still remaining. Lets the
-    /// presenter show the Up Next card ahead of the end.
-    var onUpNextTick: ((Double) -> Void)? = nil
+    /// final `upNextLeadSeconds`, with the coordinator's `postID` and the
+    /// seconds still remaining. Lets the presenter show the Up Next card ahead
+    /// of the end (ignoring stale ticks from a previous episode).
+    var onUpNextTick: ((String, Double) -> Void)? = nil
     /// Whether the native Up Next action buttons (Siguiente / Cancelar) are
     /// visible. AVKit owns their focus, so they're reliably selectable.
     var upNextActive: Bool = false
@@ -92,8 +94,8 @@ struct PlayerView: UIViewControllerRepresentable {
     final class Coordinator: NSObject {
         let postID: String
         private let onFailure: ((String) -> Void)?
-        private let onEnded: (() -> Void)?
-        private let onUpNextTick: ((Double) -> Void)?
+        private let onEnded: ((String) -> Void)?
+        private let onUpNextTick: ((String, Double) -> Void)?
         private var timeObserver: Any?
         private var upNextObserver: Any?
         private var statusObserver: NSKeyValueObservation?
@@ -104,8 +106,8 @@ struct PlayerView: UIViewControllerRepresentable {
         init(
             postID: String,
             onFailure: ((String) -> Void)? = nil,
-            onEnded: (() -> Void)? = nil,
-            onUpNextTick: ((Double) -> Void)? = nil
+            onEnded: ((String) -> Void)? = nil,
+            onUpNextTick: ((String, Double) -> Void)? = nil
         ) {
             self.postID = postID
             self.onFailure = onFailure
@@ -148,7 +150,7 @@ struct PlayerView: UIViewControllerRepresentable {
                     guard let self else { return }
                     self.log.info("Playback finished for post \(self.postID)")
                     self.markFinished()
-                    self.onEnded?()
+                    self.onEnded?(self.postID)
                 }
             }
 
@@ -176,15 +178,16 @@ struct PlayerView: UIViewControllerRepresentable {
             }
         }
 
-        /// Fire `onUpNextTick(remaining)` while the item is within its final
-        /// `PlayerView.upNextLeadSeconds`.
+        /// Fire `onUpNextTick(postID, remaining)` while the item is within its
+        /// final `PlayerView.upNextLeadSeconds`. Requires `remaining > 0` so a
+        /// tick frozen at the end of a previous item can't re-open the card.
         private func reportUpNextTick(player: AVPlayer) {
             let duration = player.currentItem?.duration.seconds ?? 0
             let position = player.currentTime().seconds
             guard duration.isFinite, duration > 0, position.isFinite else { return }
             let remaining = duration - position
-            guard remaining >= 0, remaining <= PlayerView.upNextLeadSeconds else { return }
-            onUpNextTick?(remaining)
+            guard remaining > 0, remaining <= PlayerView.upNextLeadSeconds else { return }
+            onUpNextTick?(postID, remaining)
         }
 
         func detach() {
