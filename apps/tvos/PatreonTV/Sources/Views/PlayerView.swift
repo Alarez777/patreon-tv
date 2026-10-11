@@ -294,15 +294,16 @@ final class PlayerHostViewController: UIViewController {
     }
 
     private func makeUpNextActions() -> [UIAction] {
-        let play = UIAction(
-            title: "Siguiente",
-            image: UIImage(systemName: "forward.end.fill")
-        ) { [weak self] _ in self?.onPlayNext?() }
         let cancel = UIAction(
-            title: "Cancelar",
+            title: "Cancel",
             image: UIImage(systemName: "xmark")
         ) { [weak self] _ in self?.onCancelUpNext?() }
-        return [play, cancel]
+        let next = UIAction(
+            title: "Next",
+            image: UIImage(systemName: "forward.end.fill")
+        ) { [weak self] _ in self?.onPlayNext?() }
+        // "Next" last so it sits on the trailing edge and takes default focus.
+        return [cancel, next]
     }
 
     /// Cancels in-flight authenticated requests and breaks the URLSession →

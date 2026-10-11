@@ -19,14 +19,15 @@ struct UpNextOverlayView: View {
     let countdown: Int?
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            // No full-screen dim: it would darken AVKit's native action buttons.
-            card
-                .padding(.trailing, 80)
-                // Sit above the native contextual-action buttons.
-                .padding(.bottom, 200)
-        }
-        .allowsHitTesting(false)
+        // Fill the screen and anchor the card bottom-trailing so it reads as
+        // part of the native action buttons. No full-screen dim (it would
+        // darken those buttons).
+        card
+            .padding(.trailing, 80)
+            // Sit above the native contextual-action buttons.
+            .padding(.bottom, 200)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .allowsHitTesting(false)
     }
 
     private var card: some View {
