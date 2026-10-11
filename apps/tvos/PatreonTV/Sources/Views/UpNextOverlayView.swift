@@ -4,7 +4,7 @@
 //
 //  Visual "Up Next" card shown over the player in the final seconds. It's a
 //  preview only — the actionable controls are the player's native
-//  `contextualActions` (Siguiente / Cancelar), so they get system focus.
+//  `contextualActions` (Next / Cancel), so they get system focus.
 //
 
 import NukeUI

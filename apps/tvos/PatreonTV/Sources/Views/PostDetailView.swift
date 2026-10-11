@@ -8,7 +8,6 @@
 
 import NukeUI
 import SwiftUI
-import UIKit
 import os.log
 
 struct PostDetailView: View {

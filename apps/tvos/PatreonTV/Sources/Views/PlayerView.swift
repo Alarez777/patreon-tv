@@ -35,12 +35,12 @@ struct PlayerView: UIViewControllerRepresentable {
     /// seconds still remaining. Lets the presenter show the Up Next card ahead
     /// of the end (ignoring stale ticks from a previous episode).
     var onUpNextTick: ((String, Double) -> Void)? = nil
-    /// Whether the native Up Next action buttons (Siguiente / Cancelar) are
+    /// Whether the native Up Next action buttons (Next / Cancel) are
     /// visible. AVKit owns their focus, so they're reliably selectable.
     var upNextActive: Bool = false
-    /// Tapped "Siguiente".
+    /// Tapped "Next".
     var onPlayNext: (() -> Void)? = nil
-    /// Tapped "Cancelar".
+    /// Tapped "Cancel".
     var onCancelUpNext: (() -> Void)? = nil
     /// Episodes of the collection this post belongs to (for the player's
     /// Episodes info tab). Empty hides the tab.
@@ -51,7 +51,7 @@ struct PlayerView: UIViewControllerRepresentable {
     var mediaURL: URL { source.url }
 
     /// Seconds before the end at which the Up Next card starts appearing.
-    static let upNextLeadSeconds: Double = 10
+    static let upNextLeadSeconds: Double = 15
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -285,7 +285,7 @@ final class PlayerHostViewController: UIViewController {
         [playerViewController]
     }
 
-    /// Show/hide the native Up Next action buttons (Siguiente / Cancelar).
+    /// Show/hide the native Up Next action buttons (Next / Cancel).
     /// Only reassigns `contextualActions` when the active state flips, so
     /// AVKit's focus isn't reset while the card's countdown ticks.
     func updateUpNext(isActive: Bool, onPlay: (() -> Void)?, onCancel: (() -> Void)?) {

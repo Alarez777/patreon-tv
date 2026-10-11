@@ -128,7 +128,7 @@ struct CreatorView: View {
                     PostCard(post: post, campaign: vm.campaign)
                 }
                 .buttonStyle(.card)
-                        .onPlayPauseCommand { onPlayPost?(post.id, nil) }
+                .onPlayPauseCommand { onPlayPost?(post.id, nil) }
                 .onAppear {
                     // Keep the feed loading forever as you scroll.
                     Task { await vm.loadMore(campaignID: campaignID, current: post) }
@@ -276,7 +276,7 @@ private struct CreatorPostSearchView: View {
                             PostCard(post: post, campaign: vm.campaign)
                         }
                         .buttonStyle(.card)
-                .onPlayPauseCommand { onPlayPost?(post.id, nil) }
+                        .onPlayPauseCommand { onPlayPost?(post.id, nil) }
                     }
                 }
                 .padding(60)
