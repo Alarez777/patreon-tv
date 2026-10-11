@@ -186,7 +186,8 @@ struct CollectionView: View {
             title: collection.attributes.title ?? "Collection",
             squareImageURL: collection.attributes.thumbnail?.bestImageURL,
             wideImageURL: collection.attributes.thumbnail?.wideImageURL,
-            numPosts: collection.attributes.numPosts
+            numPosts: collection.attributes.numPosts,
+            nextEpisodeTitle: CollectionPlaybackResolver.target(in: vm.posts)?.title
         ))
     }
 }

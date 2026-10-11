@@ -34,7 +34,8 @@ struct HomeView: View {
                 title: $0.title,
                 squareImageURL: $0.squareImageURL,
                 wideImageURL: $0.wideImageURL,
-                numPosts: $0.numPosts
+                numPosts: $0.numPosts,
+                episodeTitle: $0.nextEpisodeTitle
             )
         }
     }

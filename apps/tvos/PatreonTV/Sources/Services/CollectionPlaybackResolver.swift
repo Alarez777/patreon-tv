@@ -20,6 +20,8 @@ enum CollectionPlaybackResolver {
 
     struct Target {
         let postID: String
+        /// Episode title, used for the Continue Collection hint.
+        let title: String
         /// True when the whole collection is finished and we should restart from
         /// episode 1 (the caller should confirm first).
         let isRestart: Bool
@@ -29,40 +31,47 @@ enum CollectionPlaybackResolver {
 
     /// Next episode to play for a collection, or nil when it has no playable posts.
     static func resolve(collectionID: String) async -> Target? {
-        let posts = await orderedPosts(collectionID: collectionID)
-            .filter { UpNextResolver.isPlayable($0) }
-        guard let first = posts.first else { return nil }
-
-        guard let recent = PlaybackProgressStore.shared.mostRecent(in: posts.map(\.id)) else {
-            log.info("Collection \(collectionID): nothing watched, starting at \(first.id)")
-            return Target(postID: first.id, isRestart: false)
-        }
-        if !recent.isFinished {
-            log.info("Collection \(collectionID): resuming unfinished \(recent.postID)")
-            return Target(postID: recent.postID, isRestart: false)
-        }
-        guard let index = posts.firstIndex(where: { $0.id == recent.postID }) else {
-            return Target(postID: first.id, isRestart: false)
-        }
-        if let next = posts.dropFirst(index + 1).first {
-            log.info("Collection \(collectionID): finished \(recent.postID), next \(next.id)")
-            return Target(postID: next.id, isRestart: false)
-        }
-        log.info("Collection \(collectionID): finished last episode, restarting at \(first.id)")
-        return Target(postID: first.id, isRestart: true)
+        target(in: await collectionPosts(collectionID: collectionID))
     }
 
-    /// A collection's posts in oldest→newest order, from the cache or a fetch.
-    private static func orderedPosts(collectionID: String) async -> [Post] {
+    /// Pure selection core: given a collection's posts (in `post_ids` order,
+    /// newest-first), pick the next episode to play.
+    static func target(in posts: [Post]) -> Target? {
+        let ordered = posts.reversed().filter { UpNextResolver.isPlayable($0) }   // oldest→newest
+        guard let first = ordered.first else { return nil }
+
+        guard let recent = PlaybackProgressStore.shared.mostRecent(in: ordered.map(\.id)),
+              let index = ordered.firstIndex(where: { $0.id == recent.postID })
+        else {
+            log.info("Collection: nothing watched, starting at \(first.id)")
+            return make(first, isRestart: false)
+        }
+        if !recent.isFinished {
+            return make(ordered[index], isRestart: false)
+        }
+        if let next = ordered.dropFirst(index + 1).first {
+            log.info("Collection: finished \(recent.postID), next \(next.id)")
+            return make(next, isRestart: false)
+        }
+        log.info("Collection: finished last episode, restarting at \(first.id)")
+        return make(first, isRestart: true)
+    }
+
+    private static func make(_ post: Post, isRestart: Bool) -> Target {
+        Target(postID: post.id, title: post.attributes.title ?? "Untitled", isRestart: isRestart)
+    }
+
+    /// A collection's posts in `post_ids` order, from the cache or a fetch.
+    private static func collectionPosts(collectionID: String) async -> [Post] {
         if let cached = CollectionPostsCache.shared.posts(for: collectionID), !cached.isEmpty {
-            return Array(cached.reversed())
+            return cached
         }
         guard let doc = try? await PatreonClient.shared.collection(id: collectionID) else {
             return []
         }
         let ordered = doc.data.orderedPosts(from: doc.included ?? [])
         CollectionPostsCache.shared.store(collection: doc.data, posts: ordered)
-        return Array(ordered.reversed())
+        return ordered
     }
 }
 

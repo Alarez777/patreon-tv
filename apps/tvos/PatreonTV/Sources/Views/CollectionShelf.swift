@@ -15,6 +15,8 @@ struct CollectionCardModel: Identifiable {
     let squareImageURL: URL?
     let wideImageURL: URL?
     let numPosts: Int?
+    /// Title of the episode the Play would start (display hint). Nil hides it.
+    let episodeTitle: String?
 }
 
 struct CollectionShelf: View {
@@ -83,6 +85,12 @@ private struct CollectionShelfCard: View {
                     Text("\(count) posts")
                         .font(.subheadline)
                         .foregroundStyle(PatreonColors.secondaryText)
+                }
+                if let episodeTitle = card.episodeTitle {
+                    Text(episodeTitle)
+                        .font(.subheadline)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                        .lineLimit(1)
                 }
             }
             .frame(width: cardWidth, alignment: .leading)
