@@ -36,9 +36,13 @@ struct PlayerView: UIViewControllerRepresentable {
     /// Optional overlay (the Up Next card) hosted *inside* the player so it can
     /// render over the video.
     var upNextOverlay: AnyView? = nil
-    /// Native contextual action buttons (Up Next "Siguiente" / "Cancelar").
-    /// AVKit owns their focus, so they're reliably selectable.
-    var contextualActions: [UIAction] = []
+    /// Whether the native Up Next action buttons (Siguiente / Cancelar) are
+    /// visible. AVKit owns their focus, so they're reliably selectable.
+    var upNextActive: Bool = false
+    /// Tapped "Siguiente".
+    var onPlayNext: (() -> Void)? = nil
+    /// Tapped "Cancelar".
+    var onCancelUpNext: (() -> Void)? = nil
     /// Episodes of the collection this post belongs to (for the player's
     /// Episodes info tab). Empty hides the tab.
     var episodes: [Post] = []
@@ -76,7 +80,7 @@ struct PlayerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
-        host.playerViewController.contextualActions = contextualActions
+        host.updateUpNext(isActive: upNextActive, onPlay: onPlayNext, onCancel: onCancelUpNext)
         host.setUpNextOverlay(upNextOverlay)
     }
 
@@ -276,13 +280,42 @@ final class PlayerHostViewController: UIViewController {
     /// The Up Next card, hosted inside the player. Purely visual.
     private var upNextHost: UIHostingController<AnyView>?
 
+    /// Native Up Next action buttons state.
+    private var upNextActive = false
+    private var onPlayNext: (() -> Void)?
+    private var onCancelUpNext: (() -> Void)?
+
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
         [playerViewController]
     }
 
+    /// Show/hide the native Up Next action buttons (Siguiente / Cancelar).
+    /// Only reassigns `contextualActions` when the active state flips, so
+    /// AVKit's focus isn't reset while the card's countdown ticks.
+    func updateUpNext(isActive: Bool, onPlay: (() -> Void)?, onCancel: (() -> Void)?) {
+        onPlayNext = onPlay
+        onCancelUpNext = onCancel
+        guard isActive != upNextActive else { return }
+        upNextActive = isActive
+        playerViewController.contextualActions = isActive ? makeUpNextActions() : []
+    }
+
+    private func makeUpNextActions() -> [UIAction] {
+        let play = UIAction(
+            title: "Siguiente",
+            image: UIImage(systemName: "forward.end.fill")
+        ) { [weak self] _ in self?.onPlayNext?() }
+        let cancel = UIAction(
+            title: "Cancelar",
+            image: UIImage(systemName: "xmark")
+        ) { [weak self] _ in self?.onCancelUpNext?() }
+        return [play, cancel]
+    }
+
     /// Show or update the (non-interactive) Up Next card inside the player.
     /// Passing nil removes it. The actionable controls are the player's native
-    /// `contextualActions`, so the card never takes focus.
+    /// `contextualActions`, so the card never takes focus. The card lives in the
+    /// player's `contentOverlayView` so the native buttons draw above it.
     func setUpNextOverlay(_ view: AnyView?) {
         guard let view else {
             guard let host = upNextHost else { return }
@@ -298,17 +331,18 @@ final class PlayerHostViewController: UIViewController {
             return
         }
 
+        guard let overlay = playerViewController.contentOverlayView else { return }
         let host = UIHostingController(rootView: view)
         host.view.backgroundColor = .clear
         host.view.isUserInteractionEnabled = false
         addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false
-        self.view.addSubview(host.view)
+        overlay.addSubview(host.view)
         NSLayoutConstraint.activate([
-            host.view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
-            host.view.topAnchor.constraint(equalTo: self.view.topAnchor),
-            host.view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+            host.view.leadingAnchor.constraint(equalTo: overlay.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: overlay.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: overlay.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: overlay.bottomAnchor),
         ])
         host.didMove(toParent: self)
         upNextHost = host

@@ -165,7 +165,12 @@ struct PostDetailView: View {
                         countdown: upNextCountdown
                     ))
                 },
-                contextualActions: upNextActions,
+                upNextActive: upNext != nil,
+                onPlayNext: {
+                    guard let next = upNext else { return }
+                    Task { await playNext(next) }
+                },
+                onCancelUpNext: { cancelUpNext() },
                 episodes: collectionEpisodes,
                 onSelectEpisode: { id in selectEpisode(id) }
             )
@@ -570,25 +575,6 @@ struct PostDetailView: View {
         if ContentPreferences.shared.autoplayNext {
             upNextCountdown = max(0, Int(remaining.rounded()))
         }
-    }
-
-    /// Native Up Next controls (AVKit owns their focus): "Siguiente" advances,
-    /// "Cancelar" lets the current video finish without starting the next.
-    private var upNextActions: [UIAction] {
-        guard let next = upNext else { return [] }
-        let play = UIAction(
-            title: upNextCountdown.map { "Siguiente (\($0)s)" } ?? "Siguiente",
-            image: UIImage(systemName: "forward.end.fill")
-        ) { _ in
-            Task { await playNext(next) }
-        }
-        let cancel = UIAction(
-            title: "Cancelar",
-            image: UIImage(systemName: "xmark")
-        ) { _ in
-            cancelUpNext()
-        }
-        return [play, cancel]
     }
 
     /// Hide the Up Next card/actions and keep the current video playing to its
