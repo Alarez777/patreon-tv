@@ -33,9 +33,6 @@ struct PlayerView: UIViewControllerRepresentable {
     /// final `upNextLeadSeconds`, with the seconds still remaining. Lets the
     /// presenter show the Up Next card ahead of the end.
     var onUpNextTick: ((Double) -> Void)? = nil
-    /// Optional overlay (the Up Next card) hosted *inside* the player so it can
-    /// render over the video.
-    var upNextOverlay: AnyView? = nil
     /// Whether the native Up Next action buttons (Siguiente / Cancelar) are
     /// visible. AVKit owns their focus, so they're reliably selectable.
     var upNextActive: Bool = false
@@ -81,7 +78,6 @@ struct PlayerView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
         host.updateUpNext(isActive: upNextActive, onPlay: onPlayNext, onCancel: onCancelUpNext)
-        host.setUpNextOverlay(upNextOverlay)
     }
 
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
@@ -277,9 +273,6 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.didMove(toParent: self)
     }
 
-    /// The Up Next card, hosted inside the player. Purely visual.
-    private var upNextHost: UIHostingController<AnyView>?
-
     /// Native Up Next action buttons state.
     private var upNextActive = false
     private var onPlayNext: (() -> Void)?
@@ -310,45 +303,6 @@ final class PlayerHostViewController: UIViewController {
             image: UIImage(systemName: "xmark")
         ) { [weak self] _ in self?.onCancelUpNext?() }
         return [play, cancel]
-    }
-
-    /// Show or update the (non-interactive) Up Next card inside the player.
-    /// Passing nil removes it. The actionable controls are the player's native
-    /// `contextualActions`, so the card never takes focus. The card lives in the
-    /// player's `contentOverlayView` so the native buttons draw above it.
-    func setUpNextOverlay(_ view: AnyView?) {
-        guard let view else {
-            guard let host = upNextHost else { return }
-            host.willMove(toParent: nil)
-            host.view.removeFromSuperview()
-            host.removeFromParent()
-            upNextHost = nil
-            return
-        }
-
-        if let host = upNextHost {
-            host.rootView = view
-            return
-        }
-
-        guard let overlay = playerViewController.contentOverlayView else { return }
-        let host = UIHostingController(rootView: view)
-        host.view.backgroundColor = .clear
-        host.view.isUserInteractionEnabled = false
-        // The overlay lives in the player's content overlay, so the hosting
-        // controller must be a child of the player (not of self) to keep the
-        // view-controller hierarchy consistent.
-        playerViewController.addChild(host)
-        host.view.translatesAutoresizingMaskIntoConstraints = false
-        overlay.addSubview(host.view)
-        NSLayoutConstraint.activate([
-            host.view.leadingAnchor.constraint(equalTo: overlay.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: overlay.trailingAnchor),
-            host.view.topAnchor.constraint(equalTo: overlay.topAnchor),
-            host.view.bottomAnchor.constraint(equalTo: overlay.bottomAnchor),
-        ])
-        host.didMove(toParent: playerViewController)
-        upNextHost = host
     }
 
     /// Cancels in-flight authenticated requests and breaks the URLSession →

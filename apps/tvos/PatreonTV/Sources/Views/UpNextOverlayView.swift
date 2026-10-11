@@ -20,14 +20,7 @@ struct UpNextOverlayView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Dim the video behind so the card reads at 10 feet.
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.85)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
+            // No full-screen dim: it would darken AVKit's native action buttons.
             card
                 .padding(.trailing, 80)
                 // Sit above the native contextual-action buttons.

@@ -99,11 +99,22 @@ struct PostDetailView: View {
                 playbackErrorMessage = pending
             }
         }) { source in
-            player(for: source)
-                // Changing the source must rebuild the player — the host VC
-                // configures its AVPlayer exactly once.
-                .id(source.id)
-                .ignoresSafeArea()
+            ZStack {
+                player(for: source)
+                    // Changing the source must rebuild the player — the host VC
+                    // configures its AVPlayer exactly once.
+                    .id(source.id)
+                    .ignoresSafeArea()
+
+                if let next = upNext {
+                    UpNextOverlayView(
+                        post: next,
+                        creatorName: campaign?.attributes.name,
+                        countdown: upNextCountdown
+                    )
+                    .ignoresSafeArea()
+                }
+            }
         }
         .alert(
             "Playback Problem",
@@ -157,13 +168,6 @@ struct PostDetailView: View {
                 },
                 onUpNextTick: { remaining in
                     handleUpNextTick(remaining)
-                },
-                upNextOverlay: upNext.map { next in
-                    AnyView(UpNextOverlayView(
-                        post: next,
-                        creatorName: campaign?.attributes.name,
-                        countdown: upNextCountdown
-                    ))
                 },
                 upNextActive: upNext != nil,
                 onPlayNext: {
