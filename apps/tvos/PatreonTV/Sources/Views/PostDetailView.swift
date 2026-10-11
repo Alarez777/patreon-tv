@@ -95,27 +95,11 @@ struct PostDetailView: View {
                 playbackErrorMessage = pending
             }
         }) { source in
-            ZStack {
-                player(for: source)
-                    // Changing the source must rebuild the player — the host VC
-                    // configures its AVPlayer exactly once.
-                    .id(source.id)
-                    .ignoresSafeArea()
-
-                if let next = upNext {
-                    UpNextOverlayView(
-                        post: next,
-                        creatorName: campaign?.attributes.name,
-                        countdown: upNextCountdown,
-                        onPlay: { Task { await playNext(next) } },
-                        onDismiss: {
-                            upNext = nil
-                            upNextCountdown = nil
-                            playbackSource = nil
-                        }
-                    )
-                }
-            }
+            player(for: source)
+                // Changing the source must rebuild the player — the host VC
+                // configures its AVPlayer exactly once.
+                .id(source.id)
+                .ignoresSafeArea()
         }
         .alert(
             "Playback Problem",
@@ -170,7 +154,19 @@ struct PostDetailView: View {
                 onUpNextTick: { remaining in
                     handleUpNextTick(remaining)
                 },
-                prefersPlayerFocus: upNext == nil,
+                upNextOverlay: upNext.map { next in
+                    AnyView(UpNextOverlayView(
+                        post: next,
+                        creatorName: campaign?.attributes.name,
+                        countdown: upNextCountdown,
+                        onPlay: { Task { await playNext(next) } },
+                        onDismiss: {
+                            upNext = nil
+                            upNextCountdown = nil
+                            playbackSource = nil
+                        }
+                    ))
+                },
                 episodes: collectionEpisodes,
                 onSelectEpisode: { id in selectEpisode(id) }
             )

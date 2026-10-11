@@ -33,9 +33,9 @@ struct PlayerView: UIViewControllerRepresentable {
     /// final `upNextLeadSeconds`, with the seconds still remaining. Lets the
     /// presenter show the Up Next card ahead of the end.
     var onUpNextTick: ((Double) -> Void)? = nil
-    /// When false, the host stops forcing focus onto the player so an overlay
-    /// (e.g. the Up Next card) can take focus.
-    var prefersPlayerFocus: Bool = true
+    /// Optional overlay (the Up Next card) hosted *inside* the player so it can
+    /// take focus away from the AVPlayerViewController.
+    var upNextOverlay: AnyView? = nil
     /// Episodes of the collection this post belongs to (for the player's
     /// Episodes info tab). Empty hides the tab.
     var episodes: [Post] = []
@@ -73,7 +73,7 @@ struct PlayerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
-        host.setPrefersPlayerFocus(prefersPlayerFocus)
+        host.setUpNextOverlay(upNextOverlay)
     }
 
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
@@ -269,17 +269,46 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.didMove(toParent: self)
     }
 
-    private var prefersPlayerFocus = true
+    /// The Up Next card, hosted inside the player so it can own focus.
+    private var upNextHost: UIHostingController<AnyView>?
 
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
-        prefersPlayerFocus ? [playerViewController] : []
+        if let upNextHost { return [upNextHost] }
+        return [playerViewController]
     }
 
-    /// Toggle whether the host forces focus onto the player. When an overlay
-    /// (Up Next card) is visible we release focus so its buttons are reachable.
-    func setPrefersPlayerFocus(_ prefers: Bool) {
-        guard prefersPlayerFocus != prefers else { return }
-        prefersPlayerFocus = prefers
+    /// Show or update the Up Next overlay inside the player (and move focus to
+    /// it). Passing nil removes it and hands focus back to the player.
+    func setUpNextOverlay(_ view: AnyView?) {
+        guard let view else {
+            guard let host = upNextHost else { return }
+            host.willMove(toParent: nil)
+            host.view.removeFromSuperview()
+            host.removeFromParent()
+            upNextHost = nil
+            setNeedsFocusUpdate()
+            updateFocusIfNeeded()
+            return
+        }
+
+        if let host = upNextHost {
+            host.rootView = view
+            return
+        }
+
+        let host = UIHostingController(rootView: view)
+        host.view.backgroundColor = .clear
+        addChild(host)
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        self.view.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: self.view.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+        ])
+        host.didMove(toParent: self)
+        upNextHost = host
         setNeedsFocusUpdate()
         updateFocusIfNeeded()
     }
