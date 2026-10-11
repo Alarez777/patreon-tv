@@ -335,7 +335,10 @@ final class PlayerHostViewController: UIViewController {
         let host = UIHostingController(rootView: view)
         host.view.backgroundColor = .clear
         host.view.isUserInteractionEnabled = false
-        addChild(host)
+        // The overlay lives in the player's content overlay, so the hosting
+        // controller must be a child of the player (not of self) to keep the
+        // view-controller hierarchy consistent.
+        playerViewController.addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(host.view)
         NSLayoutConstraint.activate([
@@ -344,7 +347,7 @@ final class PlayerHostViewController: UIViewController {
             host.view.topAnchor.constraint(equalTo: overlay.topAnchor),
             host.view.bottomAnchor.constraint(equalTo: overlay.bottomAnchor),
         ])
-        host.didMove(toParent: self)
+        host.didMove(toParent: playerViewController)
         upNextHost = host
     }
 
