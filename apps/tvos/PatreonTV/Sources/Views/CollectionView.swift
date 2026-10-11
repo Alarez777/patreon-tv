@@ -187,6 +187,7 @@ struct CollectionView: View {
             squareImageURL: collection.attributes.thumbnail?.bestImageURL,
             wideImageURL: collection.attributes.thumbnail?.wideImageURL,
             numPosts: collection.attributes.numPosts,
+            campaignName: vm.campaignName,
             nextEpisodeTitle: CollectionPlaybackResolver.target(in: vm.posts)?.title
         ))
     }
@@ -207,11 +208,14 @@ final class CollectionViewModel {
     var state: State = .loading
     var collection: PatreonCollection?
     var posts: [Post] = []
+    /// The collection's creator (campaign) name, when known.
+    var campaignName: String?
 
     init(collectionID: String? = nil) {
         if let id = collectionID, let cached = CollectionPostsCache.shared.snapshot(for: id) {
             collection = cached.collection
             posts = cached.posts
+            campaignName = cached.campaignName
             state = .loaded
         }
     }
@@ -224,7 +228,11 @@ final class CollectionViewModel {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             collection = doc.data
             posts = doc.data.orderedPosts(from: doc.included ?? [])
-            CollectionPostsCache.shared.store(collection: doc.data, posts: posts)
+            campaignName = (doc.included ?? []).compactMap {
+                if case .campaign(let campaign) = $0 { return campaign.attributes.name }
+                return nil
+            }.first
+            CollectionPostsCache.shared.store(collection: doc.data, posts: posts, campaignName: campaignName)
             state = .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)

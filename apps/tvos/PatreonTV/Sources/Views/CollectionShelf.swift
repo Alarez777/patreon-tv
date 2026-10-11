@@ -15,6 +15,8 @@ struct CollectionCardModel: Identifiable {
     let squareImageURL: URL?
     let wideImageURL: URL?
     let numPosts: Int?
+    /// The collection's creator (campaign) name, when known.
+    let campaignName: String?
     /// Title of the episode the Play would start (display hint). Nil hides it.
     let episodeTitle: String?
 }
@@ -81,8 +83,8 @@ private struct CollectionShelfCard: View {
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                if let count = card.numPosts {
-                    Text("\(count) posts")
+                if let subtitle {
+                    Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(PatreonColors.secondaryText)
                 }
@@ -97,5 +99,13 @@ private struct CollectionShelfCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(card.title)
+    }
+
+    /// "N posts · Channel", whichever parts are available.
+    private var subtitle: String? {
+        var parts: [String] = []
+        if let count = card.numPosts { parts.append("\(count) posts") }
+        if let name = card.campaignName, !name.isEmpty { parts.append(name) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

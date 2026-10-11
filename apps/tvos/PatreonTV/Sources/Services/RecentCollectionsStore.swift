@@ -18,6 +18,9 @@ struct RecentCollection: Codable, Identifiable {
     /// Wide 16:9-ish art, used for the Home shelf card.
     let wideImageURL: URL?
     let numPosts: Int?
+    /// The collection's creator (campaign) name. Nil for entries recorded before
+    /// this field existed (they decode to nil).
+    let campaignName: String?
     /// Title of the episode the collection's Play would start — a display hint
     /// for the Continue Collection card. Nil for entries recorded before this
     /// field existed (they decode to nil).

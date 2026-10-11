@@ -35,6 +35,7 @@ struct HomeView: View {
                 squareImageURL: $0.squareImageURL,
                 wideImageURL: $0.wideImageURL,
                 numPosts: $0.numPosts,
+                campaignName: $0.campaignName,
                 episodeTitle: $0.nextEpisodeTitle
             )
         }
