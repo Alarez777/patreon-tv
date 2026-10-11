@@ -14,18 +14,17 @@ struct UpNextOverlayView: View {
 
     let post: Post
     let creatorName: String?
-    /// Seconds until auto-advance; nil disables the countdown ("Autoplay next"
-    /// setting off).
-    let countdownSeconds: Int?
+    /// Seconds left before auto-advance; nil hides the countdown ("Autoplay
+    /// next" setting off). Driven by the player so it matches the video.
+    let countdown: Int?
     let onPlay: () -> Void
     let onDismiss: () -> Void
 
-    @State private var remaining: Int = .max
     @Namespace private var focusNamespace
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Dim the (ended) video behind so the card reads at 10 feet.
+            // Dim the video behind so the card reads at 10 feet.
             LinearGradient(
                 colors: [.clear, .black.opacity(0.85)],
                 startPoint: .top,
@@ -38,18 +37,8 @@ struct UpNextOverlayView: View {
                 .padding(.trailing, 80)
                 .padding(.bottom, 80)
         }
-        // Claim focus from the (ended) player so the buttons are usable.
+        // Claim focus from the player so the buttons are usable.
         .focusScope(focusNamespace)
-        .task {
-            guard let total = countdownSeconds else { return }
-            remaining = total
-            while remaining > 0 {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { return }
-                remaining -= 1
-            }
-            onPlay()
-        }
     }
 
     private var card: some View {
@@ -116,8 +105,8 @@ struct UpNextOverlayView: View {
     }
 
     private var countdownLabel: String {
-        if countdownSeconds != nil, remaining != .max, remaining >= 0 {
-            return "Up Next in \(remaining)s"
+        if let countdown {
+            return "Up Next in \(max(countdown, 0))s"
         }
         return "Up Next"
     }
@@ -125,7 +114,7 @@ struct UpNextOverlayView: View {
     private var accessibilitySummary: String {
         var parts = ["Up next: \(post.attributes.title ?? "Untitled")"]
         if let creatorName { parts.append("from \(creatorName)") }
-        if countdownSeconds != nil { parts.append("playing automatically in \(remaining) seconds") }
+        if let countdown { parts.append("playing automatically in \(max(countdown, 0)) seconds") }
         return parts.joined(separator: ", ")
     }
 }

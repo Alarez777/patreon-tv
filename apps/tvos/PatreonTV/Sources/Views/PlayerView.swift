@@ -29,6 +29,13 @@ struct PlayerView: UIViewControllerRepresentable {
     /// Called on the main actor when the item plays to its end. The presenter
     /// can show an Up Next overlay or dismiss the player.
     var onPlaybackEnded: (() -> Void)? = nil
+    /// Called on the main actor roughly once a second once the item enters its
+    /// final `upNextLeadSeconds`, with the seconds still remaining. Lets the
+    /// presenter show the Up Next card ahead of the end.
+    var onUpNextTick: ((Double) -> Void)? = nil
+    /// When false, the host stops forcing focus onto the player so an overlay
+    /// (e.g. the Up Next card) can take focus.
+    var prefersPlayerFocus: Bool = true
     /// Episodes of the collection this post belongs to (for the player's
     /// Episodes info tab). Empty hides the tab.
     var episodes: [Post] = []
@@ -37,8 +44,16 @@ struct PlayerView: UIViewControllerRepresentable {
 
     var mediaURL: URL { source.url }
 
+    /// Seconds before the end at which the Up Next card starts appearing.
+    static let upNextLeadSeconds: Double = 10
+
     func makeCoordinator() -> Coordinator {
-        Coordinator(postID: postID, onFailure: onPlaybackFailure, onEnded: onPlaybackEnded)
+        Coordinator(
+            postID: postID,
+            onFailure: onPlaybackFailure,
+            onEnded: onPlaybackEnded,
+            onUpNextTick: onUpNextTick
+        )
     }
 
     func makeUIViewController(context: Context) -> PlayerHostViewController {
@@ -57,7 +72,9 @@ struct PlayerView: UIViewControllerRepresentable {
         return host
     }
 
-    func updateUIViewController(_ host: PlayerHostViewController, context: Context) {}
+    func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
+        host.setPrefersPlayerFocus(prefersPlayerFocus)
+    }
 
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
         coordinator.detach()
@@ -72,16 +89,24 @@ struct PlayerView: UIViewControllerRepresentable {
         let postID: String
         private let onFailure: ((String) -> Void)?
         private let onEnded: (() -> Void)?
+        private let onUpNextTick: ((Double) -> Void)?
         private var timeObserver: Any?
+        private var upNextObserver: Any?
         private var statusObserver: NSKeyValueObservation?
         private var endObserver: NSObjectProtocol?
         private weak var player: AVPlayer?
         private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
 
-        init(postID: String, onFailure: ((String) -> Void)? = nil, onEnded: (() -> Void)? = nil) {
+        init(
+            postID: String,
+            onFailure: ((String) -> Void)? = nil,
+            onEnded: (() -> Void)? = nil,
+            onUpNextTick: ((Double) -> Void)? = nil
+        ) {
             self.postID = postID
             self.onFailure = onFailure
             self.onEnded = onEnded
+            self.onUpNextTick = onUpNextTick
         }
 
         func attach(player: AVPlayer, item: AVPlayerItem) {
@@ -133,6 +158,29 @@ struct PlayerView: UIViewControllerRepresentable {
                     self.recordProgress(player: player, time: time)
                 }
             }
+
+            // Fast tick for the Up Next window (last `upNextLeadSeconds`).
+            let upNextInterval = CMTime(seconds: 1, preferredTimescale: 600)
+            upNextObserver = player.addPeriodicTimeObserver(
+                forInterval: upNextInterval,
+                queue: .main
+            ) { [weak self, weak player] _ in
+                guard let self, let player else { return }
+                MainActor.assumeIsolated {
+                    self.reportUpNextTick(player: player)
+                }
+            }
+        }
+
+        /// Fire `onUpNextTick(remaining)` while the item is within its final
+        /// `PlayerView.upNextLeadSeconds`.
+        private func reportUpNextTick(player: AVPlayer) {
+            let duration = player.currentItem?.duration.seconds ?? 0
+            let position = player.currentTime().seconds
+            guard duration.isFinite, duration > 0, position.isFinite else { return }
+            let remaining = duration - position
+            guard remaining >= 0, remaining <= PlayerView.upNextLeadSeconds else { return }
+            onUpNextTick?(remaining)
         }
 
         func detach() {
@@ -145,6 +193,10 @@ struct PlayerView: UIViewControllerRepresentable {
             if let obs = timeObserver {
                 player?.removeTimeObserver(obs)
                 timeObserver = nil
+            }
+            if let obs = upNextObserver {
+                player?.removeTimeObserver(obs)
+                upNextObserver = nil
             }
             if let player {
                 let position = player.currentTime().seconds
@@ -217,8 +269,19 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.didMove(toParent: self)
     }
 
+    private var prefersPlayerFocus = true
+
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
-        [playerViewController]
+        prefersPlayerFocus ? [playerViewController] : []
+    }
+
+    /// Toggle whether the host forces focus onto the player. When an overlay
+    /// (Up Next card) is visible we release focus so its buttons are reachable.
+    func setPrefersPlayerFocus(_ prefers: Bool) {
+        guard prefersPlayerFocus != prefers else { return }
+        prefersPlayerFocus = prefers
+        setNeedsFocusUpdate()
+        updateFocusIfNeeded()
     }
 
     /// Cancels in-flight authenticated requests and breaks the URLSession →

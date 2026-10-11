@@ -43,6 +43,11 @@ struct PostDetailView: View {
     @State private var currentPostID: String
     /// The next post queued by the Up Next overlay after playback finishes.
     @State private var upNext: Post?
+    /// The next post resolved ahead of time so the Up Next card can appear
+    /// instantly in the final seconds.
+    @State private var queuedNext: Post?
+    /// Seconds left shown on the Up Next card, driven by the player.
+    @State private var upNextCountdown: Int?
     @State private var post: Post?
     @State private var campaign: Campaign?
     /// Collections this post belongs to (for the "In this collection" shelf).
@@ -101,10 +106,11 @@ struct PostDetailView: View {
                     UpNextOverlayView(
                         post: next,
                         creatorName: campaign?.attributes.name,
-                        countdownSeconds: ContentPreferences.shared.autoplayNext ? 10 : nil,
+                        countdown: upNextCountdown,
                         onPlay: { Task { await playNext(next) } },
                         onDismiss: {
                             upNext = nil
+                            upNextCountdown = nil
                             playbackSource = nil
                         }
                     )
@@ -161,6 +167,10 @@ struct PostDetailView: View {
                 onPlaybackEnded: {
                     Task { await handlePlaybackEnded() }
                 },
+                onUpNextTick: { remaining in
+                    handleUpNextTick(remaining)
+                },
+                prefersPlayerFocus: upNext == nil,
                 episodes: collectionEpisodes,
                 onSelectEpisode: { id in selectEpisode(id) }
             )
@@ -554,30 +564,63 @@ struct PostDetailView: View {
 
     // MARK: - Up Next
 
-    /// Playback finished. Inside a collection, queue the immediate next episode
-    /// (oldest→newest). Otherwise queue the creator's next feed post. If there's
-    /// nothing to queue, just close the player.
+    /// Called ~once a second during the final seconds: shows the Up Next card
+    /// once we enter the window and keeps its countdown in sync with the video.
+    private func handleUpNextTick(_ remaining: Double) {
+        if upNext == nil, let next = queuedNext {
+            log.info("Up Next window: showing \(next.id)")
+            upNext = next
+        }
+        if ContentPreferences.shared.autoplayNext {
+            upNextCountdown = max(0, Int(remaining.rounded()))
+        }
+    }
+
+    /// Playback finished. If the card is already up, honor it (advance when
+    /// autoplay is on, else leave it for the viewer). Otherwise resolve a next
+    /// post, or close the player when there's none.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
-        log.info("Playback ended: collectionID=\(collectionID ?? "nil") campaignID=\(campaign?.id ?? "nil")")
+        log.info("Playback ended: collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil")")
 
-        if let collectionID {
-            // Only ever walk the collection; never jump to the creator's feed.
-            if let next = await nextEpisode(in: collectionID) {
-                upNext = next
-            } else {
-                playbackSource = nil
-            }
+        if let next = upNext {
+            if ContentPreferences.shared.autoplayNext { await playNext(next) }
             return
         }
 
-        guard let campaignID = campaign?.id,
-              let next = await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
-        else {
+        let resolved: Post?
+        if let queuedNext {
+            resolved = queuedNext
+        } else {
+            resolved = await resolveNext()
+        }
+        guard let next = resolved else {
             playbackSource = nil
             return
         }
-        upNext = next
+        if ContentPreferences.shared.autoplayNext {
+            await playNext(next)
+        } else {
+            upNext = next
+            upNextCountdown = nil
+        }
+    }
+
+    /// Resolve the post to play after this one: the next episode in the
+    /// collection (oldest→newest) when we came from a collection, else the
+    /// creator's next feed post.
+    private func resolveNext() async -> Post? {
+        if let collectionID {
+            return await nextEpisode(in: collectionID)
+        }
+        guard let campaignID = campaign?.id else { return nil }
+        return await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
+    }
+
+    /// Resolve the next post up front so the card appears instantly.
+    private func preloadNext() async {
+        queuedNext = await resolveNext()
+        log.info("Preloaded up next: \(queuedNext?.id ?? "none")")
     }
 
     /// The immediate next playable episode after the one playing, in the
@@ -608,6 +651,8 @@ struct PostDetailView: View {
     /// playback with a freshly fetched URL (Mux tokens are ephemeral).
     private func playNext(_ next: Post) async {
         upNext = nil
+        upNextCountdown = nil
+        queuedNext = nil
         currentPostID = next.id
         post = next            // provisional; prepareAndPlay refreshes the full doc
         heroImageURL = next.attributes.posterImageURL
@@ -655,6 +700,8 @@ struct PostDetailView: View {
             mediaURL = source.url
             log.info("Starting playback host=\(source.url.host() ?? "?") ext=\(source.url.pathExtension)")
             playbackSource = source
+            // Resolve the next post up front so the Up Next card is instant.
+            Task { await preloadNext() }
         } catch {
             presentPlaybackError(
                 (error as? PatreonError)?.errorDescription ?? error.localizedDescription
