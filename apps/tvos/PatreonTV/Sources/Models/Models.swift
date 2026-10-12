@@ -135,6 +135,16 @@ enum Included: Decodable {
     }
 }
 
+extension Collection where Element == Included {
+    /// The first campaign (creator) name present in a response's `included`.
+    var firstCampaignName: String? {
+        for item in self {
+            if case .campaign(let campaign) = item { return campaign.attributes.name }
+        }
+        return nil
+    }
+}
+
 // MARK: - User
 
 struct PatreonUser: JSONAPIResource {

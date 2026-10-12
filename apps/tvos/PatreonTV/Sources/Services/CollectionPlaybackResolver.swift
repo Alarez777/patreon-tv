@@ -70,7 +70,11 @@ enum CollectionPlaybackResolver {
             return []
         }
         let ordered = doc.data.orderedPosts(from: doc.included ?? [])
-        CollectionPostsCache.shared.store(collection: doc.data, posts: ordered)
+        CollectionPostsCache.shared.store(
+            collection: doc.data,
+            posts: ordered,
+            campaignName: (doc.included ?? []).firstCampaignName
+        )
         return ordered
     }
 }

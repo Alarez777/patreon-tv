@@ -228,10 +228,7 @@ final class CollectionViewModel {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             collection = doc.data
             posts = doc.data.orderedPosts(from: doc.included ?? [])
-            campaignName = (doc.included ?? []).compactMap {
-                if case .campaign(let campaign) = $0 { return campaign.attributes.name }
-                return nil
-            }.first
+            campaignName = (doc.included ?? []).firstCampaignName
             CollectionPostsCache.shared.store(collection: doc.data, posts: posts, campaignName: campaignName)
             state = .loaded
         } catch {

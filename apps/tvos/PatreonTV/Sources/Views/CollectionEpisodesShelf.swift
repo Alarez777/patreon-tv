@@ -139,7 +139,11 @@ final class CollectionEpisodesViewModel {
         do {
             let doc = try await PatreonClient.shared.collection(id: collectionID)
             let ordered = doc.data.orderedPosts(from: doc.included ?? [])
-            CollectionPostsCache.shared.store(collection: doc.data, posts: ordered)
+            CollectionPostsCache.shared.store(
+                collection: doc.data,
+                posts: ordered,
+                campaignName: (doc.included ?? []).firstCampaignName
+            )
             posts = Self.oldestFirst(ordered)
         } catch {
             posts = []
