@@ -89,8 +89,7 @@ struct HomeView: View {
                         onNearEnd: { post in
                             Task { await vm.loadMoreHomeFeed(current: post) }
                         },
-                        onPlay: onPlayPost,
-                        focusFirstCardOnEntry: true
+                        onPlay: onPlayPost
                     )
                 }
 
