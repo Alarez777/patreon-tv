@@ -2,11 +2,9 @@
 //  HomeView.swift
 //  PatreonTV
 //
-//  The couch-first landing screen. Structure follows Swiftfin's cinematic
-//  pattern: hero art at the top that follows the focused poster, then a
-//  vertical stack of horizontal shelves below.
-//
-//  See references/swiftfin_code/CinematicItemSelector.swift for the pattern.
+//  The couch-first landing screen: a vertical stack of horizontal shelves —
+//  "New from Your Creators" first, then Continue Watching, Continue Collection,
+//  and a row per creator.
 //
 
 import SwiftUI

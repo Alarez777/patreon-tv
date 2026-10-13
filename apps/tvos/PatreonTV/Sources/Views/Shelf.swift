@@ -17,8 +17,8 @@ struct Shelf: View {
 
     let title: String
     let posts: [Post]
-    /// Optional lookup: given a post, return its owning Campaign. Enables
-    /// creator names in the focused-poster metadata for the hero band.
+    /// Optional lookup: given a post, return its owning Campaign, so each card
+    /// can show the creator's name.
     var campaignFor: ((Post) -> Campaign?)? = nil
     /// Called when the shelf's data source should page in more items — we pass
     /// the last-visible post so the caller can decide whether to fetch more.

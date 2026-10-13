@@ -2,9 +2,9 @@
 //  HomeViewModel.swift
 //  PatreonTV
 //
-//  Data source for HomeView. Fetches the home feed, keeps a Post → Campaign
-//  lookup for creator names, and exposes a fallback hero item so the top
-//  band has something to show before the user has focused a card.
+//  Data source for HomeView. Fetches the paginated home feed, keeps a
+//  Post → Campaign lookup for creator names, and builds the per-creator rows
+//  and the Continue Watching shelf.
 //
 
 import Foundation
@@ -79,9 +79,9 @@ final class HomeViewModel {
         }
 
         // Creator rows and Continue Watching both load after the first paint
-        // (the hero and merged shelf are already interactive). Run them
-        // concurrently so resolving off-feed Continue Watching posts doesn't
-        // wait on the per-creator pages.
+        // (the merged shelf is already interactive). Run them concurrently so
+        // resolving off-feed Continue Watching posts doesn't wait on the
+        // per-creator pages.
         async let rows: Void = buildCreatorRows()
         async let continueWatch: Void = rebuildContinueWatching()
         _ = await (rows, continueWatch)

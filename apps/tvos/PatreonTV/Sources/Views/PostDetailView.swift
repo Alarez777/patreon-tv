@@ -13,8 +13,8 @@ import os.log
 struct PostDetailView: View {
 
     let postID: String
-    /// When true (Top Shelf "Play", the featured hero button, deep links with
-    /// /play), playback starts as soon as the post loads.
+    /// When true (Top Shelf "Play", deep links with /play), playback starts as
+    /// soon as the post loads.
     var autoplay: Bool = false
     /// Set when this post was opened from within a collection. Makes the Up Next
     /// overlay advance through the collection (oldest→newest) instead of the
@@ -524,8 +524,8 @@ struct PostDetailView: View {
         }
         isLoading = false
 
-        // Honor the autoplay flag from Top Shelf / deep links / featured Play,
-        // exactly once per presentation.
+        // Honor the autoplay flag from Top Shelf / deep links, exactly once per
+        // presentation.
         if autoplay, !didAutoplay, post != nil, mediaURL != nil {
             didAutoplay = true
             await prepareAndPlay()
