@@ -77,6 +77,7 @@ struct EpisodeCard: View {
             thumbnail
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
+                .overlay(alignment: .bottom) { ResumeBar(postID: post.id, width: cardWidth) }
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay {
                     if isCurrent {

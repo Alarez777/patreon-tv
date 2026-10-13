@@ -29,6 +29,7 @@ struct PostCard: View {
             posterImage
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
+                .overlay(alignment: .bottom) { ResumeBar(postID: post.id, width: cardWidth) }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .topTrailing) { badge }
 
