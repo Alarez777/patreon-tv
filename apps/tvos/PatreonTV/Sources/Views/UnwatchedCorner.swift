@@ -14,7 +14,7 @@ import SwiftUI
 struct UnwatchedCorner: View {
 
     let postID: String
-    var size: CGFloat = 44
+    var size: CGFloat = 64
 
     var body: some View {
         if shows {
