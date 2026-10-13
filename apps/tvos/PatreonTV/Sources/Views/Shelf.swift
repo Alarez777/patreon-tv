@@ -49,6 +49,7 @@ struct Shelf: View {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
+                        .postActionsMenu(postID: post.id)
                         .focused($focusedPostID, equals: post.id)
                         .onPlayPauseCommand { onPlay?(post.id) }
                         .onAppear {

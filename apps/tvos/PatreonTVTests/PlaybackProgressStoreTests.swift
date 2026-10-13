@@ -83,4 +83,12 @@ final class PlaybackProgressStoreTests: XCTestCase {
         store.clear(postID: "x")
         XCTAssertNil(store.progress(for: "x"))
     }
+
+    func test_markWatched_then_markUnwatched() {
+        store.markWatched(postID: "m")
+        XCTAssertEqual(store.progress(for: "m")?.isFinished, true)
+
+        store.markUnwatched(postID: "m")
+        XCTAssertNil(store.progress(for: "m"))
+    }
 }

@@ -10,6 +10,7 @@
 //
 
 import Foundation
+import Observation
 
 struct PlaybackProgress: Codable, Hashable {
     let postID: String
@@ -26,6 +27,7 @@ struct PlaybackProgress: Codable, Hashable {
 }
 
 @MainActor
+@Observable
 final class PlaybackProgressStore {
 
     static let shared = PlaybackProgressStore()
@@ -86,6 +88,23 @@ final class PlaybackProgressStore {
     func clear(postID: String) {
         records.removeValue(forKey: postID)
         save()
+    }
+
+    /// Marks a post as watched without knowing its runtime: store a record at
+    /// 100% so it reads as finished (hides the resume bar / unwatched corner,
+    /// and drops it from Continue Watching).
+    func markWatched(postID: String) {
+        record(PlaybackProgress(
+            postID: postID,
+            positionSeconds: 1,
+            durationSeconds: 1,
+            lastUpdated: Date()
+        ))
+    }
+
+    /// Clears any progress so the post reads as "not started" again.
+    func markUnwatched(postID: String) {
+        clear(postID: postID)
     }
 
     func clearAll() {

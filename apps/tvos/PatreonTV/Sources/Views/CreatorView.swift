@@ -128,6 +128,7 @@ struct CreatorView: View {
                     PostCard(post: post, campaign: vm.campaign)
                 }
                 .buttonStyle(.card)
+                .postActionsMenu(postID: post.id)
                 .onPlayPauseCommand { onPlayPost?(post.id, nil) }
                 .onAppear {
                     // Keep the feed loading forever as you scroll.
@@ -276,6 +277,7 @@ private struct CreatorPostSearchView: View {
                             PostCard(post: post, campaign: vm.campaign)
                         }
                         .buttonStyle(.card)
+                        .postActionsMenu(postID: post.id)
                         .onPlayPauseCommand { onPlayPost?(post.id, nil) }
                     }
                 }

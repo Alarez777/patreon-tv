@@ -43,6 +43,7 @@ struct CollectionEpisodesShelf: View {
                                     EpisodeCard(post: post, isCurrent: post.id == currentPostID)
                                 }
                                 .buttonStyle(.card)
+                                .postActionsMenu(postID: post.id)
                                 .onPlayPauseCommand { onPlay?(post.id) }
                                 .id(post.id)
                             }
