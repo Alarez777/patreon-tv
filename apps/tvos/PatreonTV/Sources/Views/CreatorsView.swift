@@ -74,14 +74,23 @@ struct CreatorsView: View {
             .padding(60)
         }
         .scrollClipDisabled()
-        // Keyed on the first entry id so it fires once entries decode. The
-        // delay lets the tab bar settle on launch before we move focus in.
-        .task(id: visibleEntries.first?.id) {
-            guard focusFirstCardOnEntry, !didFocusFirstCard, let first = visibleEntries.first?.id else { return }
+        // Keyed on the first entry id and the enabled flag so it fires once
+        // entries decode, and is cancelled if the page navigates away mid-delay
+        // (so the launch focus can't steal focus from a pushed creator).
+        .task(id: focusTaskID) {
+            guard focusFirstCardOnEntry, path.isEmpty, !didFocusFirstCard,
+                  let first = visibleEntries.first?.id else { return }
             didFocusFirstCard = true
             try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
             focusedCardID = first
         }
+    }
+
+    /// Identity for the focus task. Includes the flag/path so navigating away
+    /// cancels the pending focus instead of letting it fire under a pushed page.
+    private var focusTaskID: String {
+        "\(visibleEntries.first?.id ?? "")|\(focusFirstCardOnEntry && path.isEmpty)"
     }
 }
 

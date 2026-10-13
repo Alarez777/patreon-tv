@@ -69,6 +69,28 @@ final class HomeFocusUITests: XCTestCase {
             """
         )
     }
+
+    /// On launch, focus should land in the leading shelf's first card rather
+    /// than sitting on the tab bar.
+    func test_opens_focused_in_leading_shelf() {
+        let app = launchHome()
+        waitForHome(app)
+
+        let homeTab = app.buttons["Home"].firstMatch
+        XCTAssertFalse(
+            homeTab.hasFocus,
+            "Launch focus should move off the tab bar into Home's content"
+        )
+
+        let focused = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "hasFocus == true"))
+            .firstMatch
+        XCTAssertTrue(focused.exists, "A leading-shelf card should hold focus on launch")
+        XCTAssertTrue(
+            focused.label.contains("Episode"),
+            "Expected a leading-shelf card focused, got: \(focused.debugDescription)"
+        )
+    }
 }
 
 /// The creator page had the same trap: a tall non-focusable hero above the

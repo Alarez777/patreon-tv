@@ -67,14 +67,23 @@ struct Shelf: View {
             .scrollClipDisabled()
         }
         .focusSection()
-        // Keyed on the first post id so it fires once posts decode. The delay
-        // lets the tab bar settle on launch before we move focus into the shelf.
-        .task(id: posts.first?.id) {
+        // Keyed on the first post id and the enabled flag so it fires once posts
+        // decode, and is *cancelled* if focus-on-entry is withdrawn mid-delay
+        // (e.g. a deep link pushes a detail page right after launch), so the
+        // launch focus can never steal focus from a pushed page.
+        .task(id: focusTaskID) {
             guard focusFirstCardOnEntry, !didFocusFirstCard, let first = posts.first?.id else { return }
             didFocusFirstCard = true
             try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
             focusedPostID = first
         }
+    }
+
+    /// Identity for the focus task. Includes the flag so a later `false` cancels
+    /// the pending focus instead of letting it fire under a pushed page.
+    private var focusTaskID: String {
+        "\(posts.first?.id ?? "")|\(focusFirstCardOnEntry)"
     }
 
     @ViewBuilder

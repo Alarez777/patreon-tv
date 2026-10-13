@@ -109,8 +109,7 @@ struct GalleryHostView: View {
         default:
             // Home / Creators / Search / Settings and pushed detail screens all
             // render inside the real shell so the capture includes the tab bar.
-            // The gallery drives its own focus, so skip the launch-tab focus.
-            HomeShell(focusLaunchTab: false)
+            HomeShell()
         }
     }
 
