@@ -13,11 +13,18 @@ import os
 
 struct CreatorsView: View {
 
+    /// When the app opens pinned to Creators, focus the first card instead of
+    /// leaving focus on the tab bar.
+    var focusFirstCardOnEntry: Bool = false
+
     @State private var vm = CreatorsViewModel()
     @State private var prefs = ContentPreferences.shared
     /// Navigation path, so a Creator page here can start playback within this
     /// tab (remote Play button on a focused post).
     @State private var path: [DeepLinkDestination] = []
+
+    @FocusState private var focusedCardID: String?
+    @State private var didFocusFirstCard = false
 
     /// Entries after applying the mature-content gate.
     private var visibleEntries: [CreatorsViewModel.Entry] {
@@ -61,11 +68,20 @@ struct CreatorsView: View {
                         CreatorCard(campaign: entry.campaign)
                     }
                     .buttonStyle(.card)
+                    .focused($focusedCardID, equals: entry.campaign.id)
                 }
             }
             .padding(60)
         }
         .scrollClipDisabled()
+        // Keyed on the first entry id so it fires once entries decode. The
+        // delay lets the tab bar settle on launch before we move focus in.
+        .task(id: visibleEntries.first?.id) {
+            guard focusFirstCardOnEntry, !didFocusFirstCard, let first = visibleEntries.first?.id else { return }
+            didFocusFirstCard = true
+            try? await Task.sleep(for: .milliseconds(700))
+            focusedCardID = first
+        }
     }
 }
 

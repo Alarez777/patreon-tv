@@ -21,7 +21,11 @@ struct HomeShell: View {
     @Environment(AuthStore.self) private var auth
     @Environment(DeepLinkRouter.self) private var router
     @AppStorage("selected_tab") private var selectedTab: Tab = .home
-    @State private var prefs = ContentPreferences.shared
+
+    /// The tab the app opened on, resolved once at launch. Frozen so the
+    /// first-element focus only applies to the launch tab (a later tab change
+    /// doesn't steal focus), and so "Last used" lands focus on the restored tab.
+    @State private var launchTab: Tab = HomeShell.resolvedLaunchTab()
 
     /// Guards the launch-time tab pin so re-appearing (deep links, returning
     /// from a detail screen) doesn't yank the user back to the configured tab.
@@ -50,7 +54,7 @@ struct HomeShell: View {
                 HomeView(
                     onPlayPost: { playPost(id: $0, collectionID: nil) },
                     onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) },
-                    focusFirstShelfCard: prefs.initialTab == .home
+                    focusFirstShelfCard: launchTab == .home
                 )
                     .appNavigationDestinations(
                         onPlayPost: { playPost(id: $0, collectionID: $1) },
@@ -60,7 +64,7 @@ struct HomeShell: View {
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
             .tag(Tab.home)
 
-            CreatorsView()
+            CreatorsView(focusFirstCardOnEntry: launchTab == .creators)
                 .tabItem { Label(Tab.creators.title, systemImage: "person.2.fill") }
                 .tag(Tab.creators)
 
@@ -97,16 +101,24 @@ struct HomeShell: View {
         }
     }
 
-    /// Pins the configured launch tab, unless the user chose to resume the last
-    /// one. A fixed tab also lands focus on Home's first card (see HomeView).
+    /// Pins the resolved launch tab, unless the user chose to resume the last
+    /// one (in which case the selection already matches).
     private func resolveInitialTab() {
         guard !didResolveInitialTab else { return }
         didResolveInitialTab = true
-        switch prefs.initialTab {
-        case .home: selectedTab = .home
-        case .creators: selectedTab = .creators
-        case .search: selectedTab = .search
-        case .lastUsed: break
+        selectedTab = launchTab
+    }
+
+    /// Resolve the tab the app opens on, once: a tab pinned in Settings, or the
+    /// persisted selection when the user chose "Last used".
+    @MainActor
+    private static func resolvedLaunchTab() -> Tab {
+        switch ContentPreferences.shared.initialTab {
+        case .home: .home
+        case .creators: .creators
+        case .search: .search
+        case .lastUsed:
+            Tab(rawValue: UserDefaults.standard.string(forKey: "selected_tab") ?? "") ?? .home
         }
     }
 
