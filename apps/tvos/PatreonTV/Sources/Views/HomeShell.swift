@@ -35,6 +35,11 @@ struct HomeShell: View {
     /// NavigationStack; we route deep links to the Home tab and push there.
     @State private var homePath: [DeepLinkDestination] = []
 
+    /// Whether to move focus into the launch tab's first element. The gallery
+    /// (debug capture/test harness) sets this false so its captures and UI
+    /// tests stay deterministic and it can drive focus itself.
+    var focusLaunchTab: Bool = true
+
     enum Tab: String, CaseIterable, Identifiable {
         case home, creators, search, settings
         var id: String { rawValue }
@@ -54,7 +59,7 @@ struct HomeShell: View {
                 HomeView(
                     onPlayPost: { playPost(id: $0, collectionID: nil) },
                     onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) },
-                    focusFirstShelfCard: launchTab == .home
+                    focusFirstShelfCard: focusLaunchTab && launchTab == .home
                 )
                     .appNavigationDestinations(
                         onPlayPost: { playPost(id: $0, collectionID: $1) },
@@ -64,7 +69,7 @@ struct HomeShell: View {
             .tabItem { Label(Tab.home.title, systemImage: "house.fill") }
             .tag(Tab.home)
 
-            CreatorsView(focusFirstCardOnEntry: launchTab == .creators)
+            CreatorsView(focusFirstCardOnEntry: focusLaunchTab && launchTab == .creators)
                 .tabItem { Label(Tab.creators.title, systemImage: "person.2.fill") }
                 .tag(Tab.creators)
 
