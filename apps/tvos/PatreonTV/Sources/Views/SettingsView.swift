@@ -79,6 +79,21 @@ struct SettingsView: View {
             }
             .frame(maxWidth: 700)
 
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Initial tab")
+                    .foregroundStyle(PatreonColors.primaryText)
+                Text("Which tab opens when PatreonTV launches.")
+                    .font(.caption)
+                    .foregroundStyle(PatreonColors.secondaryText)
+                Picker("Initial tab", selection: $prefs.initialTab) {
+                    ForEach(ContentPreferences.InitialTab.allCases) { tab in
+                        Text(tab.title).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+            .frame(maxWidth: 700, alignment: .leading)
+
             Button {
                 auth.signOut()
             } label: {

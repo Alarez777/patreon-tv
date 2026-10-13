@@ -21,6 +21,11 @@ struct HomeShell: View {
     @Environment(AuthStore.self) private var auth
     @Environment(DeepLinkRouter.self) private var router
     @AppStorage("selected_tab") private var selectedTab: Tab = .home
+    @State private var prefs = ContentPreferences.shared
+
+    /// Guards the launch-time tab pin so re-appearing (deep links, returning
+    /// from a detail screen) doesn't yank the user back to the configured tab.
+    @State private var didResolveInitialTab = false
 
     /// Path used to push detail views from a deep link. Each tab has its own
     /// NavigationStack; we route deep links to the Home tab and push there.
@@ -44,7 +49,8 @@ struct HomeShell: View {
             NavigationStack(path: $homePath) {
                 HomeView(
                     onPlayPost: { playPost(id: $0, collectionID: nil) },
-                    onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) }
+                    onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) },
+                    focusFirstShelfCard: prefs.initialTab == .home
                 )
                     .appNavigationDestinations(
                         onPlayPost: { playPost(id: $0, collectionID: $1) },
@@ -68,6 +74,7 @@ struct HomeShell: View {
         }
         .background(PatreonColors.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .onAppear { resolveInitialTab() }
         .overlay(alignment: .topLeading) {
             Image("PTVMark")
                 .resizable()
@@ -87,6 +94,19 @@ struct HomeShell: View {
                 homePath = [.creator(id: id)]
             }
             router.consume()
+        }
+    }
+
+    /// Pins the configured launch tab, unless the user chose to resume the last
+    /// one. A fixed tab also lands focus on Home's first card (see HomeView).
+    private func resolveInitialTab() {
+        guard !didResolveInitialTab else { return }
+        didResolveInitialTab = true
+        switch prefs.initialTab {
+        case .home: selectedTab = .home
+        case .creators: selectedTab = .creators
+        case .search: selectedTab = .search
+        case .lastUsed: break
         }
     }
 

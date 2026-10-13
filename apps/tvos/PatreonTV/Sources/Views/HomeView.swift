@@ -21,6 +21,9 @@ struct HomeView: View {
     /// Starts a collection's playback (remote Play on a collection card).
     /// Args: collection, post. Keeps the collection in the back stack.
     var onPlayCollection: ((String, String) -> Void)? = nil
+    /// When the app opens pinned to Home, focus the leading shelf's first card
+    /// instead of leaving focus on the tab bar.
+    var focusFirstShelfCard: Bool = false
 
     /// Recently opened collections, shown under "Continue Collection" unless the
     /// user turned the shelf off in Settings.
@@ -87,7 +90,8 @@ struct HomeView: View {
                         onNearEnd: { post in
                             Task { await vm.loadMoreHomeFeed(current: post) }
                         },
-                        onPlay: onPlayPost
+                        onPlay: onPlayPost,
+                        focusFirstCardOnEntry: focusFirstShelfCard
                     )
                 }
 

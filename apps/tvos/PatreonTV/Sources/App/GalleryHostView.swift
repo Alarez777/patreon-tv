@@ -143,6 +143,8 @@ struct GalleryHostView: View {
         }
 
         // Pre-select the shell tab (detail screens live under the Home tab).
+        // Don't let a configured launch tab override the capture's choice.
+        ContentPreferences.shared.initialTab = .lastUsed
         let tab: String
         switch screen {
         case "creators": tab = "creators"

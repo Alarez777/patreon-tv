@@ -15,10 +15,28 @@ final class ContentPreferences {
 
     static let shared = ContentPreferences()
 
+    /// Which tab the app opens on. `lastUsed` restores whichever tab the user
+    /// had selected when they last quit; every other case pins that tab.
+    enum InitialTab: String, CaseIterable, Identifiable {
+        case home, creators, search, lastUsed
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .home: "Home"
+            case .creators: "Creators"
+            case .search: "Search"
+            case .lastUsed: "Last used"
+            }
+        }
+    }
+
     private let matureKey = "show_mature_content"
     private let autoplayKey = "autoplay_next"
     private let continueCollectionKey = "show_continue_collection"
     private let collectionOldestFirstKey = "collection_oldest_first"
+    private let initialTabKey = "initial_tab"
 
     /// When false (default), NSFW creators are hidden from Creators and Search.
     var showMatureContent: Bool {
@@ -45,10 +63,16 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(collectionOldestFirst, forKey: collectionOldestFirstKey) }
     }
 
+    /// Which tab to open on launch (default Home).
+    var initialTab: InitialTab {
+        didSet { UserDefaults.standard.set(initialTab.rawValue, forKey: initialTabKey) }
+    }
+
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
         autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
         showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
         collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false
+        initialTab = InitialTab(rawValue: UserDefaults.standard.string(forKey: initialTabKey) ?? "") ?? .home
     }
 }

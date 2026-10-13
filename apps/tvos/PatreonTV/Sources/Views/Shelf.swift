@@ -30,6 +30,13 @@ struct Shelf: View {
     /// Called when the user presses Play/Pause on a focused card: open the post
     /// and start playback directly, skipping the detail screen's Play button.
     var onPlay: ((String) -> Void)? = nil
+    /// When true, the shelf takes focus on its first card once posts are
+    /// available. Used for Home's leading shelf when the app opens on a pinned
+    /// tab, so focus lands in the content instead of the tab bar.
+    var focusFirstCardOnEntry: Bool = false
+
+    @FocusState private var focusedPostID: String?
+    @State private var didFocusFirstCard = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -42,6 +49,7 @@ struct Shelf: View {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
+                        .focused($focusedPostID, equals: post.id)
                         .onPlayPauseCommand { onPlay?(post.id) }
                         .onAppear {
                             // Cheap heuristic: if we're within 5 of the end,
@@ -59,6 +67,14 @@ struct Shelf: View {
             .scrollClipDisabled()
         }
         .focusSection()
+        // Keyed on the first post id so it fires once posts decode. The delay
+        // lets the tab bar settle on launch before we move focus into the shelf.
+        .task(id: posts.first?.id) {
+            guard focusFirstCardOnEntry, !didFocusFirstCard, let first = posts.first?.id else { return }
+            didFocusFirstCard = true
+            try? await Task.sleep(for: .milliseconds(700))
+            focusedPostID = first
+        }
     }
 
     @ViewBuilder
