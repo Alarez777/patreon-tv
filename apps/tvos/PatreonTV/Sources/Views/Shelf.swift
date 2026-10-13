@@ -42,7 +42,6 @@ struct Shelf: View {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
-                        .focusedValue(\.focusedPoster, focusedPoster(for: post))
                         .onPlayPauseCommand { onPlay?(post.id) }
                         .onAppear {
                             // Cheap heuristic: if we're within 5 of the end,
@@ -95,18 +94,5 @@ struct Shelf: View {
                 .padding(.horizontal, 60)
                 .accessibilityAddTraits(.isHeader)
         }
-    }
-
-    private func focusedPoster(for post: Post) -> FocusedPoster {
-        let campaign = campaignFor?(post)
-        return FocusedPoster(
-            postID: post.id,
-            title: post.attributes.title,
-            heroImageURL: post.attributes.posterImageURL,
-            creatorName: campaign?.attributes.name,
-            campaignID: campaign?.id ?? post.relationships?.campaign?.data?.id,
-            publishedAt: post.attributes.publishedAt,
-            isPaid: post.attributes.isPaid ?? false
-        )
     }
 }

@@ -48,24 +48,6 @@ struct HomeView: View {
         return posts.filter { vm.campaign(for: $0)?.attributes.isNSFW != true }
     }
 
-    /// Slides for the featured carousel: the newest visible posts, mapped to
-    /// the lightweight FocusedPoster the hero renders. NSFW gating is inherited
-    /// from `visible`, so mature art never appears while the toggle is off.
-    private var featuredItems: [FocusedPoster] {
-        visible(vm.homeFeed).prefix(6).map { post in
-            let campaign = vm.campaign(for: post)
-            return FocusedPoster(
-                postID: post.id,
-                title: post.attributes.title,
-                heroImageURL: post.attributes.posterImageURL,
-                creatorName: campaign?.attributes.name,
-                campaignID: campaign?.id,
-                publishedAt: post.attributes.publishedAt,
-                isPaid: post.attributes.isPaid ?? false
-            )
-        }
-    }
-
     var body: some View {
         // No NavigationStack here — HomeShell already wraps the Home tab in one.
         // Nesting a second NavigationStack trapped upward focus so the tab bar
@@ -97,13 +79,15 @@ struct HomeView: View {
         // children of a LazyVStack. Shelves inside stay lazy via LazyHStack.
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 40) {
-                // The featured carousel is a full-width focus section pinned
-                // above the shelves. Because it always holds a focusable slide,
-                // swiping up from any shelf reliably lands here, and one more
-                // swipe up reveals the tab bar — no dependence on a conditional
-                // Play pill or TabView's finicky top-edge escape.
-                if !featuredItems.isEmpty {
-                    FeaturedHero(items: featuredItems, onPlay: onPlayPost)
+                // Short merged shelf of the latest posts across creators; the
+                // per-creator rows below carry the depth.
+                if !feed.isEmpty {
+                    Shelf(
+                        title: "New from Your Creators",
+                        posts: Array(feed.prefix(10)),
+                        campaignFor: { vm.campaign(for: $0) },
+                        onPlay: onPlayPost
+                    )
                 }
 
                 if !continueWatching.isEmpty {
@@ -120,17 +104,6 @@ struct HomeView: View {
                         title: "Continue Collection",
                         cards: recentCollectionCards,
                         onPlayCollection: onPlayCollection
-                    )
-                }
-
-                // Short merged shelf of the latest posts across creators; the
-                // per-creator rows below carry the depth.
-                if !feed.isEmpty {
-                    Shelf(
-                        title: "New from Your Creators",
-                        posts: Array(feed.prefix(10)),
-                        campaignFor: { vm.campaign(for: $0) },
-                        onPlay: onPlayPost
                     )
                 }
 
