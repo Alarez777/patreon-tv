@@ -52,6 +52,12 @@ final class HomeViewModel {
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Home")
 
+    /// Page size for the merged feed (initial load and each "load more"). The
+    /// "New from Your Creators" shelf shows the loaded pages and grows.
+    private let homeFeedPageSize = 20
+    private var homeFeedCursor: String?
+    private var isFetchingHomeFeed = false
+
     func load() async {
         guard state == .idle else { return }
         await reload()
@@ -60,8 +66,9 @@ final class HomeViewModel {
     func reload() async {
         state = .loading
         do {
-            let page = try await PatreonClient.shared.homeFeed(limit: 30)
+            let page = try await PatreonClient.shared.homeFeed(limit: homeFeedPageSize)
             homeFeed = page.data
+            homeFeedCursor = page.nextCursor
             indexCampaigns(from: page.included ?? [])
             writeTopShelfSnapshot()
             state = homeFeed.isEmpty ? .empty : .loaded
@@ -78,6 +85,30 @@ final class HomeViewModel {
         async let rows: Void = buildCreatorRows()
         async let continueWatch: Void = rebuildContinueWatching()
         _ = await (rows, continueWatch)
+    }
+
+    /// Page in more of the merged feed when the viewer nears its end. Mirrors
+    /// `loadMoreCreatorRow`: only fires within the last few cards, one request
+    /// at a time, and stops once the stream is exhausted (no cursor).
+    func loadMoreHomeFeed(current: Post) async {
+        guard let cursor = homeFeedCursor, !isFetchingHomeFeed else { return }
+        guard let index = homeFeed.firstIndex(where: { $0.id == current.id }),
+              index >= homeFeed.count - 5
+        else { return }
+
+        isFetchingHomeFeed = true
+        defer { isFetchingHomeFeed = false }
+
+        do {
+            let page = try await PatreonClient.shared.homeFeed(cursor: cursor, limit: homeFeedPageSize)
+            let known = Set(homeFeed.map(\.id))
+            homeFeed.append(contentsOf: page.data.filter { !known.contains($0.id) })
+            homeFeed.sort { ($0.attributes.publishedAt ?? "") > ($1.attributes.publishedAt ?? "") }
+            homeFeedCursor = page.nextCursor
+            indexCampaigns(from: page.included ?? [])
+        } catch {
+            log.error("Home feed pagination failed: \(String(describing: error))")
+        }
     }
 
     // MARK: - Per-creator rows

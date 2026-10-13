@@ -30,6 +30,12 @@ struct Shelf: View {
     /// Called when the user presses Play/Pause on a focused card: open the post
     /// and start playback directly, skipping the detail screen's Play button.
     var onPlay: ((String) -> Void)? = nil
+    /// When true, entering the shelf focuses its first card rather than the
+    /// geometry-chosen one (tvOS otherwise lands on the second visible card).
+    /// Used for Home's leading shelf; the other shelves keep the default.
+    var focusFirstCardOnEntry: Bool = false
+
+    @FocusState private var focusedPostID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -42,6 +48,7 @@ struct Shelf: View {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
+                        .focused($focusedPostID, equals: post.id)
                         .onPlayPauseCommand { onPlay?(post.id) }
                         .onAppear {
                             // Cheap heuristic: if we're within 5 of the end,
@@ -55,6 +62,7 @@ struct Shelf: View {
                 }
                 .padding(.horizontal, 60)
                 .padding(.vertical, 30)   // Breathing room for focused-card scale
+                .defaultFocus($focusedPostID, focusFirstCardOnEntry ? posts.first?.id : nil)
             }
             .scrollClipDisabled()
         }

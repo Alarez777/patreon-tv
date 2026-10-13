@@ -84,9 +84,13 @@ struct HomeView: View {
                 if !feed.isEmpty {
                     Shelf(
                         title: "New from Your Creators",
-                        posts: Array(feed.prefix(10)),
+                        posts: feed,
                         campaignFor: { vm.campaign(for: $0) },
-                        onPlay: onPlayPost
+                        onNearEnd: { post in
+                            Task { await vm.loadMoreHomeFeed(current: post) }
+                        },
+                        onPlay: onPlayPost,
+                        focusFirstCardOnEntry: true
                     )
                 }
 
