@@ -29,9 +29,10 @@ struct PostCard: View {
             posterImage
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
+                .overlay(alignment: .topTrailing) { UnwatchedCorner(postID: post.id) }
                 .overlay(alignment: .bottom) { ResumeBar(postID: post.id, width: cardWidth) }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(alignment: .topTrailing) { badge }
+                .overlay(alignment: .bottomLeading) { badge }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(post.attributes.title ?? "Untitled")
@@ -90,7 +91,7 @@ struct PostCard: View {
                 .background(PatreonColors.brand.opacity(0.9))
                 .foregroundStyle(.white)
                 .clipShape(Capsule())
-                .padding(8)
+                .padding(14)
         }
     }
 

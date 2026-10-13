@@ -77,6 +77,7 @@ struct EpisodeCard: View {
             thumbnail
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
+                .overlay(alignment: .topTrailing) { UnwatchedCorner(postID: post.id) }
                 .overlay(alignment: .bottom) { ResumeBar(postID: post.id, width: cardWidth) }
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay {
@@ -93,7 +94,7 @@ struct EpisodeCard: View {
                             .padding(.vertical, 4)
                             .background(PatreonColors.brand, in: Capsule())
                             .foregroundStyle(.white)
-                            .padding(10)
+                            .padding(14)
                     }
                 }
 

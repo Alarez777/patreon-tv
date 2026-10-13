@@ -18,7 +18,7 @@ struct ResumeBar: View {
     /// Width of the poster it sits on; the bar tracks it.
     let width: CGFloat
 
-    private let barHeight: CGFloat = 5
+    private let barHeight: CGFloat = 10
     /// Ignore trivially small progress (an accidental tap into a video).
     private let minPositionSeconds: Double = 5
 
