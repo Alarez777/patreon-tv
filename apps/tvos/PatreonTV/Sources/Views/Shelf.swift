@@ -36,6 +36,7 @@ struct Shelf: View {
     var focusFirstCardOnEntry: Bool = false
 
     @FocusState private var focusedPostID: String?
+    @Namespace private var shelfScope
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -62,6 +63,7 @@ struct Shelf: View {
                 }
                 .padding(.horizontal, 60)
                 .padding(.vertical, 30)   // Breathing room for focused-card scale
+                .focusScope(shelfScope)
                 .defaultFocus($focusedPostID, focusFirstCardOnEntry ? posts.first?.id : nil)
             }
             .scrollClipDisabled()
