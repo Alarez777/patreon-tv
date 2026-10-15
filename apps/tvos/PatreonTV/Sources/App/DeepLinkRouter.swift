@@ -5,6 +5,7 @@
 //  Handles patreontv:// URLs from the Top Shelf extension and system opens.
 //
 //  Recognized URL shapes:
+//    patreontv://home               — open the Home tab
 //    patreontv://post/<id>          — open the post detail
 //    patreontv://post/<id>/play     — open the post detail and auto-play
 //    patreontv://creator/<id>       — open the creator detail
@@ -18,6 +19,7 @@ import Observation
 final class DeepLinkRouter {
 
     enum Destination: Equatable {
+        case home
         case post(id: String, autoplay: Bool)
         case creator(id: String)
     }
@@ -38,6 +40,8 @@ final class DeepLinkRouter {
         let pathSegments = comps.path.split(separator: "/").map(String.init)
 
         switch host {
+        case "home":
+            pending = .home
         case "post":
             guard let id = pathSegments.first, !id.isEmpty else { return }
             let autoplay = pathSegments.contains("play")

@@ -24,6 +24,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 BRAND = ROOT / "PatreonTV/Resources/Assets.xcassets/App Icon & Top Shelf Image.brandassets"
+# Plain bundle resources for the Top Shelf extension (NOT an asset catalog): the
+# extension must hand tvOS a file:// URL, which asset catalogs don't expose.
+FALLBACK = ROOT / "PatreonTVTopShelf/Resources"
 SRC = Path(__file__).resolve().parent / "brand"
 
 MARK = Image.open(SRC / "ptv_mark.png").convert("RGBA")
@@ -127,12 +130,27 @@ def make_top_shelf(name: str, size: tuple[int, int]) -> None:
     bg.resize((size[0] * 2, size[1] * 2), Image.LANCZOS).save(imageset / f"{slug}@2x.png")
 
 
+def make_top_shelf_fallback(size: tuple[int, int]) -> None:
+    """A 16:9 branded board the Top Shelf extension shows when it has no content
+    to draw (fresh install / unavailable App Group). Written as plain bundle
+    resources so the extension can pass tvOS a file URL."""
+    FALLBACK.mkdir(parents=True, exist_ok=True)
+    bg = gradient(size)
+    bg.alpha_composite(fitted(WORDMARK, size, 0.55))
+    bg.save(FALLBACK / "top-shelf-fallback.png")
+    bg.resize((size[0] * 2, size[1] * 2), Image.LANCZOS).save(
+        FALLBACK / "top-shelf-fallback@2x.png"
+    )
+
+
 def main() -> None:
     make_icon("App Icon", (400, 240))
     make_icon("App Icon - App Store", (1280, 768))
     make_top_shelf("Top Shelf Image", (1920, 720))
     make_top_shelf("Top Shelf Image Wide", (2320, 720))
-    print(f"Wrote branded tvOS assets to {BRAND}")
+    # Sectioned Top Shelf items are 16:9; actual size 908×512 pt (@2x 1816×1024).
+    make_top_shelf_fallback((908, 512))
+    print(f"Wrote branded tvOS assets to {BRAND} and {FALLBACK}")
 
 
 if __name__ == "__main__":

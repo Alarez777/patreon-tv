@@ -29,6 +29,12 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertEqual(r.pending, .creator(id: "6789"))
     }
 
+    func test_open_home() {
+        let r = DeepLinkRouter()
+        r.handle(url: URL(string: "patreontv://home")!)
+        XCTAssertEqual(r.pending, .home)
+    }
+
     func test_wrong_scheme_ignored() {
         let r = DeepLinkRouter()
         r.handle(url: URL(string: "https://patreon.com/post/12345")!)

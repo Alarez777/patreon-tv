@@ -92,6 +92,8 @@ struct HomeShell: View {
             guard let pending else { return }
             selectedTab = .home
             switch pending {
+            case .home:
+                homePath = []
             case .post(let id, let autoplay):
                 homePath = [.post(id: id, autoplay: autoplay, collectionID: nil)]
             case .creator(let id):
