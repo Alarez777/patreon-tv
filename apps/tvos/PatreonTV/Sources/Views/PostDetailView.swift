@@ -61,6 +61,13 @@ struct PostDetailView: View {
     @State private var campaign: Campaign?
     /// Collections this post belongs to (for the "In this collection" shelf).
     @State private var collections: [PatreonCollection] = []
+    /// Poll attached to this post, rendered read-only.
+    @State private var poll: Poll?
+    @State private var pollChoices: [PollChoice] = []
+    @State private var pollSelectedChoiceIDs: Set<String> = []
+    /// Images attached to an `image_file` post, in response order.
+    @State private var imageURLs: [URL] = []
+    @State private var showImageViewer = false
     @State private var showCollectionPicker = false
     @State private var videoDuration: Double?
     @State private var heroImageURL: URL?
@@ -214,6 +221,8 @@ struct PostDetailView: View {
 
                 playbackSection(post: post)
 
+                imageSection(post: post)
+
                 if let collection = collections.first {
                     CollectionEpisodesShelf(
                         title: collection.attributes.title ?? "Collection",
@@ -224,6 +233,8 @@ struct PostDetailView: View {
                 }
 
                 descriptionSection(post: post)
+
+                pollSection(post: post)
 
                 Spacer(minLength: 60)
             }
@@ -434,8 +445,8 @@ struct PostDetailView: View {
                 .frame(maxWidth: 1400, alignment: .leading)
         }
 
-        if let content = post.attributes.content, !content.isEmpty {
-            Text(HTMLRenderer.attributedString(from: content))
+        if let content = PostBody.attributed(post.attributes) {
+            Text(content)
                 .font(.body)
                 .foregroundStyle(PatreonColors.primaryText.opacity(0.9))
                 .padding(.horizontal, 60)
@@ -443,6 +454,56 @@ struct PostDetailView: View {
         }
         // No filler when both teaser and content are empty — many video posts
         // have no description text, and "Video from <creator>" added nothing.
+    }
+
+    @ViewBuilder
+    private func imageSection(post: Post) -> some View {
+        if post.attributes.postType == .imageFile, let first = imageURLs.first {
+            VStack(alignment: .leading, spacing: 20) {
+                LazyImage(url: first) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFit()
+                    } else if state.isLoading {
+                        ProgressView()
+                    } else {
+                        PatreonColors.cardSurface
+                    }
+                }
+                .frame(maxWidth: 1200, maxHeight: 640)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                Button {
+                    showImageViewer = true
+                } label: {
+                    Label(
+                        imageURLs.count > 1 ? "View \(imageURLs.count) images" : "View",
+                        systemImage: "arrow.up.left.and.arrow.down.right"
+                    )
+                    .font(.title3.weight(.semibold))
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 16)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(PatreonColors.brand)
+            }
+            .padding(.horizontal, 60)
+            .focusSection()
+            .fullScreenCover(isPresented: $showImageViewer) {
+                ImageViewer(images: imageURLs)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pollSection(post: Post) -> some View {
+        if post.attributes.postType == .poll, let poll, !pollChoices.isEmpty {
+            PollSection(
+                poll: poll,
+                choices: pollChoices,
+                selectedChoiceIDs: pollSelectedChoiceIDs
+            )
+            .padding(.horizontal, 60)
+        }
     }
 
     private func heroSubtitle(post: Post) -> String? {
@@ -570,6 +631,37 @@ struct PostDetailView: View {
         collections = (doc.included ?? []).compactMap {
             if case .collection(let collection) = $0 { return collection }
             return nil
+        }
+
+        poll = (doc.included ?? []).compactMap {
+            if case .poll(let poll) = $0 { return poll }
+            return nil
+        }.first
+        pollChoices = (doc.included ?? []).compactMap {
+            if case .pollChoice(let choice) = $0 { return choice }
+            return nil
+        }.sorted { ($0.attributes.position ?? 0) < ($1.attributes.position ?? 0) }
+        pollSelectedChoiceIDs = Set((doc.included ?? []).compactMap { inc -> String? in
+            guard case .pollResponse(let response) = inc,
+                  let choiceID = response.relationships?.choice?.data?.id
+            else { return nil }
+            return choiceID
+        })
+
+        var mediaByID: [String: Media] = [:]
+        for inc in doc.included ?? [] {
+            if case .media(let media) = inc { mediaByID[media.id] = media }
+        }
+        let orderedImages = (doc.data.relationships?.images?.data ?? []).compactMap { ref -> URL? in
+            guard let urls = mediaByID[ref.id]?.attributes.imageURLs else { return nil }
+            return urls.original ?? urls.defaultLarge ?? urls.url
+        }
+        if !orderedImages.isEmpty {
+            imageURLs = orderedImages
+        } else if let single = doc.data.attributes.image?.largeURL ?? doc.data.attributes.image?.url {
+            imageURLs = [single]
+        } else {
+            imageURLs = []
         }
     }
 

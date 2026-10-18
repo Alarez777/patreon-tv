@@ -43,7 +43,7 @@ struct CollectionEpisodesShelf: View {
                                     EpisodeCard(post: post, isCurrent: post.id == currentPostID)
                                 }
                                 .buttonStyle(.card)
-                                .postActionsMenu(postID: post.id)
+                                .postActionsMenu(post: post)
                                 .onPlayPauseCommand { onPlay?(post.id) }
                                 .id(post.id)
                             }
@@ -73,13 +73,20 @@ struct EpisodeCard: View {
     private let cardWidth: CGFloat = 340
     private let cardHeight: CGFloat = 191   // 16:9
 
+    /// Watched/resume cues only for playable posts (video/audio).
+    private var showsProgress: Bool { UpNextResolver.isPlayable(post) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             thumbnail
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
-                .overlay(alignment: .topTrailing) { UnwatchedCorner(postID: post.id) }
-                .overlay(alignment: .bottom) { ResumeBar(postID: post.id, width: cardWidth) }
+                .overlay(alignment: .topTrailing) {
+                    if showsProgress { UnwatchedCorner(postID: post.id) }
+                }
+                .overlay(alignment: .bottom) {
+                    if showsProgress { ResumeBar(postID: post.id, width: cardWidth) }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay {
                     if isCurrent {

@@ -15,35 +15,44 @@
 import SwiftUI
 
 extension View {
-    /// Adds the watched/unwatched context menu for the given post.
-    func postActionsMenu(postID: String) -> some View {
-        modifier(PostActionsMenu(postID: postID))
+    /// Adds the watched/unwatched context menu for the given post. Only offered
+    /// for playable content (video/audio); polls, text, images and links never
+    /// accumulate watch progress.
+    func postActionsMenu(post: Post) -> some View {
+        modifier(PostActionsMenu(postID: post.id, isPlayable: UpNextResolver.isPlayable(post)))
     }
 }
 
 private struct PostActionsMenu: ViewModifier {
 
     let postID: String
+    let isPlayable: Bool
 
     func body(content: Content) -> some View {
-        content.contextMenu {
-            let finished = PlaybackProgressStore.shared.progress(for: postID)?.isFinished == true
-            let started = PlaybackProgressStore.shared.progress(for: postID) != nil && !finished
+        Group {
+            if isPlayable {
+                content.contextMenu {
+                    let finished = PlaybackProgressStore.shared.progress(for: postID)?.isFinished == true
+                    let started = PlaybackProgressStore.shared.progress(for: postID) != nil && !finished
 
-            if !finished {
-                Button {
-                    PlaybackProgressStore.shared.markWatched(postID: postID)
-                } label: {
-                    Label("Mark as Watched", systemImage: "checkmark.circle")
-                }
-            }
+                    if !finished {
+                        Button {
+                            PlaybackProgressStore.shared.markWatched(postID: postID)
+                        } label: {
+                            Label("Mark as Watched", systemImage: "checkmark.circle")
+                        }
+                    }
 
-            if started || finished {
-                Button {
-                    PlaybackProgressStore.shared.markUnwatched(postID: postID)
-                } label: {
-                    Label("Mark as Unwatched", systemImage: "arrow.uturn.backward.circle")
+                    if started || finished {
+                        Button {
+                            PlaybackProgressStore.shared.markUnwatched(postID: postID)
+                        } label: {
+                            Label("Mark as Unwatched", systemImage: "arrow.uturn.backward.circle")
+                        }
+                    }
                 }
+            } else {
+                content
             }
         }
     }

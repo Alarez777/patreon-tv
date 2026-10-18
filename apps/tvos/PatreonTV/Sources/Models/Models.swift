@@ -86,6 +86,9 @@ enum Included: Decodable {
     case member(Membership)
     case tier(Tier)
     case collection(PatreonCollection)
+    case poll(Poll)
+    case pollChoice(PollChoice)
+    case pollResponse(PollResponse)
     case unknown(type: String, id: String)
 
     private enum CodingKeys: String, CodingKey { case type, id }
@@ -113,6 +116,12 @@ enum Included: Decodable {
                 self = .tier(try Tier(from: decoder))
             case "collection":
                 self = .collection(try PatreonCollection(from: decoder))
+            case "poll":
+                self = .poll(try Poll(from: decoder))
+            case "poll_choice":
+                self = .pollChoice(try PollChoice(from: decoder))
+            case "poll_response":
+                self = .pollResponse(try PollResponse(from: decoder))
             default:
                 self = .unknown(type: type, id: id)
             }
@@ -130,6 +139,9 @@ enum Included: Decodable {
         case .member(let x): x.id
         case .tier(let x): x.id
         case .collection(let x): x.id
+        case .poll(let x): x.id
+        case .pollChoice(let x): x.id
+        case .pollResponse(let x): x.id
         case .unknown(_, let id): id
         }
     }
@@ -317,6 +329,8 @@ struct Post: JSONAPIResource {
     struct Attributes: Decodable, Hashable {
         let title: String?
         let content: String?              // HTML body (may be null for gated posts)
+        /// Newer posts store the body as ProseMirror JSON instead of HTML.
+        let contentJSONString: String?
         let teaser: String?
         let postType: PostType?
         let publishedAt: String?
@@ -340,6 +354,7 @@ struct Post: JSONAPIResource {
 
         enum CodingKeys: String, CodingKey {
             case title, content, teaser, url, image
+            case contentJSONString = "content_json_string"
             case postType = "post_type"
             case publishedAt = "published_at"
             case isPaid = "is_paid"
@@ -356,9 +371,14 @@ struct Post: JSONAPIResource {
     struct PostImageRef: Decodable, Hashable {
         let url: URL?
         let thumbURL: URL?
+        /// Full-size variant (used by the image post viewer).
+        let largeURL: URL?
+        let width: Int?
+        let height: Int?
         enum CodingKeys: String, CodingKey {
-            case url
+            case url, width, height
             case thumbURL = "thumb_url"
+            case largeURL = "large_url"
         }
     }
 
@@ -369,11 +389,88 @@ struct Post: JSONAPIResource {
         let images: RelationList?
         let audio: RelationRef?
         let attachmentsMedia: RelationList?
+        let poll: RelationRef?
 
         enum CodingKeys: String, CodingKey {
-            case campaign, user, media, images, audio
+            case campaign, user, media, images, audio, poll
             case attachmentsMedia = "attachments_media"
         }
+    }
+}
+
+// MARK: - Poll
+
+/// A Patreon poll. `choices` and `current_user_responses` arrive as separated
+/// resources in the post document's `included` array.
+struct Poll: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+    let relationships: Relationships?
+
+    struct Attributes: Decodable, Hashable {
+        let questionText: String?
+        let questionType: String?
+        let numResponses: Int?
+        let closesAt: String?
+
+        enum CodingKeys: String, CodingKey {
+            case questionText = "question_text"
+            case questionType = "question_type"
+            case numResponses = "num_responses"
+            case closesAt = "closes_at"
+        }
+    }
+
+    struct Relationships: Decodable, Hashable {
+        let choices: RelationList?
+        let currentUserResponses: RelationList?
+
+        enum CodingKeys: String, CodingKey {
+            case choices
+            case currentUserResponses = "current_user_responses"
+        }
+    }
+}
+
+struct PollChoice: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+
+    struct Attributes: Decodable, Hashable {
+        let textContent: String?
+        let position: Int?
+        let numResponses: Int?
+        let choiceType: String?
+
+        enum CodingKeys: String, CodingKey {
+            case position
+            case textContent = "text_content"
+            case numResponses = "num_responses"
+            case choiceType = "choice_type"
+        }
+    }
+}
+
+struct PollResponse: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+    let relationships: Relationships?
+
+    struct Attributes: Decodable, Hashable {
+        let respondedAt: String?
+        let textContent: String?
+
+        enum CodingKeys: String, CodingKey {
+            case respondedAt = "responded_at"
+            case textContent = "text_content"
+        }
+    }
+
+    struct Relationships: Decodable, Hashable {
+        let choice: RelationRef?
     }
 }
 
@@ -452,11 +549,26 @@ struct Media: JSONAPIResource {
         let fileName: String?
         let downloadURL: URL?
         let display: Display?
+        /// Image media carry their size variants here.
+        let imageURLs: ImageURLs?
 
         enum CodingKeys: String, CodingKey {
             case mimetype, state, display
             case fileName = "file_name"
             case downloadURL = "download_url"
+            case imageURLs = "image_urls"
+        }
+    }
+
+    /// The `image_urls` map on image media.
+    struct ImageURLs: Decodable, Hashable {
+        let url: URL?
+        let original: URL?
+        let defaultLarge: URL?
+
+        enum CodingKeys: String, CodingKey {
+            case url, original
+            case defaultLarge = "default_large"
         }
     }
 

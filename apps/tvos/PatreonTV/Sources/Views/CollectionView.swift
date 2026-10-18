@@ -160,7 +160,7 @@ struct CollectionView: View {
                     PostCard(post: post)
                 }
                 .buttonStyle(.card)
-                .postActionsMenu(postID: post.id)
+                .postActionsMenu(post: post)
                 .focused($focusedPostID, equals: post.id)
                 .onPlayPauseCommand { onPlayPost?(post.id, collectionID) }
                 .id(post.id)

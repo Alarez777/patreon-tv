@@ -445,8 +445,8 @@ final class PlayerHostViewController: UIViewController {
     /// list and surface it as native navigation markers (transport-bar chapter
     /// skipping + the Chapters info tab).
     private func attachChapterMarkers(to item: AVPlayerItem, post: Post?, duration: Double?) {
-        guard let html = post?.attributes.content else { return }
-        let chapters = ChapterParser.chapters(fromHTML: html, duration: duration)
+        guard let post, let source = PostBody.source(post.attributes) else { return }
+        let chapters = ChapterParser.chapters(fromHTML: source, duration: duration)
         guard !chapters.isEmpty else { return }
 
         log.info("Parsed \(chapters.count) chapters from post content")
@@ -497,14 +497,15 @@ final class PlayerHostViewController: UIViewController {
     /// Info panel body: the title on its own line, then (when present) the
     /// post's text body. Falls back to whichever of the two exists.
     private func playerDescription(title: String, post: Post?) -> String? {
-        let body = post
-            .flatMap { post in
-                [post.attributes.content, post.attributes.teaser]
-                    .compactMap { $0 }
-                    .first { !$0.isEmpty }
+        let body = post.flatMap { post -> String? in
+            if let body = PostBody.plainText(post.attributes), !body.isEmpty {
+                return body
             }
-            .map(HTMLRenderer.stripToPlainText)
-            .flatMap { $0.isEmpty ? nil : $0 }
+            if let teaser = post.attributes.teaser, !teaser.isEmpty {
+                return teaser
+            }
+            return nil
+        }
 
         let heading = title.trimmingCharacters(in: .whitespacesAndNewlines)
         switch (heading.isEmpty, body) {

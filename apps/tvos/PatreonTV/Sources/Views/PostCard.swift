@@ -29,8 +29,12 @@ struct PostCard: View {
             posterImage
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
-                .overlay(alignment: .topTrailing) { UnwatchedCorner(postID: post.id) }
-                .overlay(alignment: .bottom) { ResumeBar(postID: post.id, width: cardWidth) }
+                .overlay(alignment: .topTrailing) {
+                    if showsProgress { UnwatchedCorner(postID: post.id) }
+                }
+                .overlay(alignment: .bottom) {
+                    if showsProgress { ResumeBar(postID: post.id, width: cardWidth) }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(alignment: .bottomLeading) { badge }
 
@@ -97,6 +101,12 @@ struct PostCard: View {
 
     private var subtitle: String? {
         campaign?.attributes.name
+    }
+
+    /// Watched/resume cues only make sense for content that can actually be
+    /// played (video/audio). Polls, text, images and links never get progress.
+    private var showsProgress: Bool {
+        UpNextResolver.isPlayable(post)
     }
 
     private var accessibilityLabel: String {

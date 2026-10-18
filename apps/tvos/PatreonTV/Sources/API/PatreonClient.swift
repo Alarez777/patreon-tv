@@ -257,10 +257,12 @@ final class PatreonClient {
     func post(id: String) async throws -> SingleResource<Post> {
         let url = baseURL.appending(path: "posts/\(id)")
             .appending(queryItems: [
-                URLQueryItem(name: "include", value: "campaign,user,attachments_media,post_file,audio,media,images,collections"),
+                URLQueryItem(name: "include", value: "campaign,user,attachments_media,post_file,audio,media,images,collections,poll"),
                 URLQueryItem(name: "fields[post]", value: PostFields.full),
                 URLQueryItem(name: "fields[media]", value: MediaFields.full),
                 URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url,is_nsfw"),
+                URLQueryItem(name: "fields[poll]", value: "question_text,question_type,num_responses,closes_at"),
+                URLQueryItem(name: "fields[poll_choice]", value: "text_content,position,num_responses,choice_type"),
             ])
         return try await fetch(SingleResource<Post>.self, from: url)
     }
@@ -402,13 +404,13 @@ enum PostFields {
     static let `default` = [
         "title", "teaser", "post_type", "published_at",
         "thumbnail", "thumbnail_url", "image", "meta_image_url",
-        "url", "is_paid", "current_user_can_view", "content",
+        "url", "is_paid", "current_user_can_view", "content", "content_json_string",
         "embed_url", "embed",
     ].joined(separator: ",")
 
     /// Everything a post detail screen might need.
     static let full = [
-        "title", "content", "teaser", "post_type", "published_at",
+        "title", "content", "content_json_string", "teaser", "post_type", "published_at",
         "thumbnail", "thumbnail_url", "image", "meta_image_url",
         "url", "is_paid", "current_user_can_view",
         "embed_url", "embed", "post_file", "video_preview",
