@@ -48,6 +48,8 @@ struct Page<T: JSONAPIResource>: Decodable, Sendable {
 
 struct PageMeta: Decodable, Sendable {
     let pagination: PageCursors?
+    /// Comment lists report their total here.
+    let count: Int?
 }
 
 struct PageCursors: Decodable, Sendable {
@@ -89,6 +91,7 @@ enum Included: Decodable {
     case poll(Poll)
     case pollChoice(PollChoice)
     case pollResponse(PollResponse)
+    case comment(Comment)
     case unknown(type: String, id: String)
 
     private enum CodingKeys: String, CodingKey { case type, id }
@@ -122,6 +125,8 @@ enum Included: Decodable {
                 self = .pollChoice(try PollChoice(from: decoder))
             case "poll_response":
                 self = .pollResponse(try PollResponse(from: decoder))
+            case "comment":
+                self = .comment(try Comment(from: decoder))
             default:
                 self = .unknown(type: type, id: id)
             }
@@ -142,6 +147,7 @@ enum Included: Decodable {
         case .poll(let x): x.id
         case .pollChoice(let x): x.id
         case .pollResponse(let x): x.id
+        case .comment(let x): x.id
         case .unknown(_, let id): id
         }
     }
@@ -460,6 +466,44 @@ struct PollResponse: JSONAPIResource {
 
     struct Relationships: Decodable, Hashable {
         let choice: RelationRef?
+    }
+}
+
+// MARK: - Comment
+
+/// A post comment. `commenter` is the author; `parent` points at the comment
+/// this one replies to (nil for top-level comments).
+struct Comment: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+    let relationships: Relationships?
+
+    struct Attributes: Decodable, Hashable {
+        let body: String?
+        let created: String?
+        let deletedAt: String?
+        let isByCreator: Bool?
+        let isByPatron: Bool?
+        let isLikedByCreator: Bool?
+        let visibilityState: String?
+        /// Net like count.
+        let voteSum: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case body, created
+            case deletedAt = "deleted_at"
+            case isByCreator = "is_by_creator"
+            case isByPatron = "is_by_patron"
+            case isLikedByCreator = "is_liked_by_creator"
+            case visibilityState = "visibility_state"
+            case voteSum = "vote_sum"
+        }
+    }
+
+    struct Relationships: Decodable, Hashable {
+        let commenter: RelationRef?
+        let parent: RelationRef?
     }
 }
 

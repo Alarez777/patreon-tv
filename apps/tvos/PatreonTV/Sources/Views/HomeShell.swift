@@ -140,6 +140,7 @@ enum DeepLinkDestination: Hashable, Codable {
     case creator(id: String)
     case collections(campaignID: String)
     case collection(id: String, focusPostID: String?)
+    case comments(postID: String)
 }
 
 extension Array where Element == DeepLinkDestination {
@@ -173,6 +174,8 @@ struct AppNavigationDestinations: ViewModifier {
                 CollectionsView(campaignID: campaignID, onPlayCollection: onPlayCollection)
             case .collection(let id, let focusPostID):
                 CollectionView(collectionID: id, focusPostID: focusPostID, onPlayPost: onPlayPost)
+            case .comments(let postID):
+                CommentsView(postID: postID)
             }
         }
     }

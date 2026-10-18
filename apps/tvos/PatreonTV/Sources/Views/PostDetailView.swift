@@ -378,9 +378,12 @@ struct PostDetailView: View {
             }
 
             if let comments = post.attributes.commentCount, comments > 0 {
-                Label("\(comments)", systemImage: "bubble.left")
-                    .font(.title3)
-                    .foregroundStyle(PatreonColors.secondaryText)
+                NavigationLink(value: DeepLinkDestination.comments(postID: post.id)) {
+                    Label("Comments (\(comments))", systemImage: "bubble.left")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Comments, \(comments)")
             }
         }
         .padding(.horizontal, 60)

@@ -298,6 +298,21 @@ final class PatreonClient {
         return try await fetch(SingleResource<Post>.self, from: url)
     }
 
+    /// GET /api/posts/{id}/comments — newest-first comments with their authors
+    /// and parent pointers. Paginates by comment id via `page[cursor]`.
+    func comments(postID: String, cursor: String? = nil, limit: Int = 50) async throws -> Page<Comment> {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "include", value: "commenter,parent"),
+            URLQueryItem(name: "page[count]", value: String(limit)),
+            URLQueryItem(name: "sort", value: "created"),
+        ]
+        if let cursor {
+            qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
+        let url = baseURL.appending(path: "posts/\(postID)/comments").appending(queryItems: qi)
+        return try await fetch(Page<Comment>.self, from: url)
+    }
+
     /// GET /api/search — Patreon's internal search. Returns `campaign-document`
     /// resources (creators) with all fields inline; there is no `included` array.
     func searchCreators(query: String, limit: Int = 20) async throws -> [CampaignSearchResult] {
