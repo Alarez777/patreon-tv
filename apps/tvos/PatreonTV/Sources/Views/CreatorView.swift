@@ -87,6 +87,9 @@ struct CreatorView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
             Spacer()
+
+            filterMenu
+
             NavigationLink(value: DeepLinkDestination.collections(campaignID: campaignID)) {
                 Label("Collections", systemImage: "square.stack")
                     .font(.title3.weight(.semibold))
@@ -118,6 +121,44 @@ struct CreatorView: View {
         // Full-width focus target: lets "up" from any grid card (incl. left
         // columns) reliably reach the search button, per Apple's tvOS guidance.
         .focusSection()
+    }
+
+    /// Content-type filter, next to Collections. Only categories with posts are
+    /// listed, each with its count from the campaign's `post_count` map.
+    private var filterMenu: some View {
+        let counts = vm.campaign?.attributes.postCount
+        let available = CreatorPostFilter.allCases.filter { filter in
+            filter == .all || (filter.count(in: counts) ?? 0) > 0
+        }
+        return Menu {
+            ForEach(available) { filter in
+                Button {
+                    Task { await vm.select(filter: filter, campaignID: campaignID) }
+                } label: {
+                    if filter == vm.selectedFilter {
+                        Label(filterItemTitle(filter, counts: counts), systemImage: "checkmark")
+                    } else {
+                        Text(filterItemTitle(filter, counts: counts))
+                    }
+                }
+            }
+        } label: {
+            Label(filterMenuLabel, systemImage: "line.3.horizontal.decrease.circle")
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityLabel("Filter posts by type")
+    }
+
+    private func filterItemTitle(_ filter: CreatorPostFilter, counts: Campaign.PostCount?) -> String {
+        guard filter != .all, let count = filter.count(in: counts) else { return filter.title }
+        return "\(filter.title) (\(count))"
+    }
+
+    private var filterMenuLabel: String {
+        vm.selectedFilter == .all ? "Filter" : vm.selectedFilter.title
     }
 
     @ViewBuilder
@@ -292,8 +333,14 @@ private struct CreatorPostSearchView: View {
         .scrollClipDisabled()
         .searchable(text: $query, prompt: "Search \(vm.campaign?.attributes.name ?? "posts")")
         .background(PatreonColors.background.ignoresSafeArea())
-        // Pull the rest of the catalog so search isn't limited to loaded pages.
-        .task { await vm.loadAllRemaining(campaignID: campaignID) }
+        // Search covers the whole catalog, so drop any content-type filter the
+        // grid had applied, then pull every remaining page.
+        .task {
+            if vm.selectedFilter != .all {
+                await vm.select(filter: .all, campaignID: campaignID)
+            }
+            await vm.loadAllRemaining(campaignID: campaignID)
+        }
     }
 
     private var emptyMessage: String {
@@ -314,6 +361,8 @@ final class CreatorViewModel {
     private(set) var isLoadingAll = false
     private var nextCursor: String?
     private var isFetchingMore = false
+    /// Active content-type filter for the grid.
+    private(set) var selectedFilter: CreatorPostFilter = .all
 
     /// True while more pages remain to fetch.
     var hasMore: Bool { nextCursor != nil }
@@ -329,7 +378,11 @@ final class CreatorViewModel {
         state = .loading
         do {
             async let campaignTask = PatreonClient.shared.campaign(id: campaignID)
-            async let postsTask = PatreonClient.shared.campaignPosts(campaignID: campaignID, limit: 30)
+            async let postsTask = PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: selectedFilter.postTypes,
+                limit: 30
+            )
             let (campaignDoc, postsPage) = try await (campaignTask, postsTask)
             self.campaign = campaignDoc.data
             self.posts = postsPage.data
@@ -337,6 +390,28 @@ final class CreatorViewModel {
             state = .loaded
         } catch {
             log.error("Creator load failed: \(String(describing: error))")
+            state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Switch the content-type filter and reload the first page.
+    func select(filter: CreatorPostFilter, campaignID: String) async {
+        guard filter != selectedFilter else { return }
+        selectedFilter = filter
+        posts = []
+        nextCursor = nil
+        state = .loading
+        do {
+            let page = try await PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: filter.postTypes,
+                limit: 30
+            )
+            posts = page.data
+            nextCursor = page.nextCursor
+            state = .loaded
+        } catch {
+            log.error("Creator filter load failed: \(String(describing: error))")
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
         }
     }
@@ -349,7 +424,12 @@ final class CreatorViewModel {
         isFetchingMore = true
         defer { isFetchingMore = false }
         do {
-            let page = try await PatreonClient.shared.campaignPosts(campaignID: campaignID, cursor: cursor, limit: 30)
+            let page = try await PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: selectedFilter.postTypes,
+                cursor: cursor,
+                limit: 30
+            )
             append(page.data)
             nextCursor = page.nextCursor
         } catch {
@@ -370,8 +450,11 @@ final class CreatorViewModel {
         while let cursor = nextCursor, pages < 50, !Task.isCancelled {
             pages += 1
             do {
-                let page = try await PatreonClient.shared.campaignPosts(
-                    campaignID: campaignID, cursor: cursor, limit: 60
+                let page = try await PatreonClient.shared.campaignStream(
+                    campaignID: campaignID,
+                    postTypes: selectedFilter.postTypes,
+                    cursor: cursor,
+                    limit: 60
                 )
                 append(page.data)
                 nextCursor = page.nextCursor

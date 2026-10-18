@@ -202,7 +202,7 @@ final class PatreonClient {
                     "name", "vanity", "url", "summary", "creation_name",
                     "patron_count", "is_nsfw", "image_url", "image_small_url",
                     "cover_photo_url", "main_video_url", "main_video_embed",
-                    "has_rss", "rss_feed_title",
+                    "has_rss", "rss_feed_title", "post_count",
                 ].joined(separator: ",")),
             ])
         return try await fetch(SingleResource<Campaign>.self, from: url)
@@ -220,6 +220,37 @@ final class PatreonClient {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
         let url = baseURL.appending(path: "campaigns/\(campaignID)/posts").appending(queryItems: qi)
+        return try await fetch(Page<Post>.self, from: url)
+    }
+
+    /// GET /api/stream filtered to one campaign, optionally limited to a set of
+    /// post types. `/campaigns/{id}/posts` ignores `filter[post_type]`, but
+    /// `/api/stream` honours `filter[campaign_id]` and a comma-separated
+    /// `filter[post_type]`.
+    func campaignStream(
+        campaignID: String,
+        postTypes: [Post.PostType],
+        cursor: String? = nil,
+        limit: Int = 30
+    ) async throws -> Page<Post> {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "filter[campaign_id]", value: campaignID),
+            URLQueryItem(name: "include", value: "user,campaign,attachments_media,post_file,media,audio,images"),
+            URLQueryItem(name: "fields[post]", value: PostFields.default),
+            URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,cover_photo_url,url,creation_name,patron_count,is_nsfw"),
+            URLQueryItem(name: "fields[media]", value: MediaFields.default),
+            URLQueryItem(name: "page[count]", value: String(limit)),
+        ]
+        if !postTypes.isEmpty {
+            qi.append(URLQueryItem(
+                name: "filter[post_type]",
+                value: postTypes.map(\.rawValue).joined(separator: ",")
+            ))
+        }
+        if let cursor {
+            qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
+        let url = baseURL.appending(path: "stream").appending(queryItems: qi)
         return try await fetch(Page<Post>.self, from: url)
     }
 

@@ -209,6 +209,8 @@ struct Campaign: JSONAPIResource {
         /// Only present on some endpoints (e.g., campaign detail).
         let coverPhotoURL: URL?
         let hasRSS: Bool?
+        /// Per-media-type post counts (request `fields[campaign]=post_count`).
+        let postCount: Campaign.PostCount?
 
         /// Best avatar to display: the real avatar photo, falling back to image_url.
         var bestAvatarURL: URL? { avatarPhotoURL ?? imageURL }
@@ -223,7 +225,21 @@ struct Campaign: JSONAPIResource {
             case avatarPhotoURL = "avatar_photo_url"
             case coverPhotoURL = "cover_photo_url"
             case hasRSS = "has_rss"
+            case postCount = "post_count"
         }
+    }
+
+    /// The campaign's `post_count` breakdown, grouped by media category.
+    struct PostCount: Decodable, Hashable {
+        let total: Int?
+        let video: Int?
+        let image: Int?
+        let text: Int?
+        let audio: Int?
+        let podcast: Int?
+        let poll: Int?
+        let link: Int?
+        let livestream: Int?
     }
 }
 
