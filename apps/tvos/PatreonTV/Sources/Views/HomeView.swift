@@ -16,8 +16,8 @@ struct HomeView: View {
 
     /// Opens a post and starts playback immediately. Wired to the Siri Remote
     /// Play/Pause button on a focused card; a normal select still opens the
-    /// detail screen.
-    var onPlayPost: (String) -> Void = { _ in }
+    /// detail screen. The second argument is the shelf's playback queue.
+    var onPlayPost: (String, [String]?) -> Void = { _, _ in }
     /// Starts a collection's playback (remote Play on a collection card).
     /// Args: collection, post. Keeps the collection in the back stack.
     var onPlayCollection: ((String, String) -> Void)? = nil
@@ -91,6 +91,7 @@ struct HomeView: View {
                             Task { await vm.loadMoreHomeFeed(current: post) }
                         },
                         onPlay: onPlayPost,
+                        playbackQueue: feed.filter { UpNextResolver.isPlayable($0) }.map(\.id),
                         focusFirstCardOnEntry: focusFirstShelfCard
                     )
                 }

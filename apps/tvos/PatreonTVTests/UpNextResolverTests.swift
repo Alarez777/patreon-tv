@@ -101,4 +101,41 @@ final class UpNextResolverTests: XCTestCase {
         let next = UpNextResolver.selectNext(afterPostID: "1", in: feed) { _ in false }
         XCTAssertEqual(next?.id, "2")
     }
+
+    // MARK: - Shelf queue ("New from Your Creators")
+
+    func test_shelf_queue_picks_next_to_the_right() {
+        let queue = ["1", "2", "3"]
+        XCTAssertEqual(
+            UpNextResolver.selectNextID(afterPostID: "1", in: queue) { _ in false },
+            "2"
+        )
+    }
+
+    func test_shelf_queue_skips_finished() {
+        let queue = ["1", "2", "3"]
+        XCTAssertEqual(
+            UpNextResolver.selectNextID(afterPostID: "1", in: queue) { $0 == "2" },
+            "3"
+        )
+    }
+
+    func test_shelf_queue_nil_at_end() {
+        XCTAssertNil(
+            UpNextResolver.selectNextID(afterPostID: "2", in: ["1", "2"]) { _ in false }
+        )
+    }
+
+    func test_shelf_queue_nil_when_all_remaining_finished() {
+        let queue = ["1", "2", "3"]
+        XCTAssertNil(
+            UpNextResolver.selectNextID(afterPostID: "1", in: queue) { $0 != "1" }
+        )
+    }
+
+    func test_shelf_queue_nil_when_current_not_in_queue() {
+        XCTAssertNil(
+            UpNextResolver.selectNextID(afterPostID: "9", in: ["1", "2"]) { _ in false }
+        )
+    }
 }

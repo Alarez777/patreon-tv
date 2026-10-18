@@ -29,7 +29,12 @@ struct Shelf: View {
     var headerAvatarURL: URL? = nil
     /// Called when the user presses Play/Pause on a focused card: open the post
     /// and start playback directly, skipping the detail screen's Play button.
-    var onPlay: ((String) -> Void)? = nil
+    /// Args: post id, the shelf's playback queue (see `playbackQueue`).
+    var onPlay: ((String, [String]?) -> Void)? = nil
+    /// Ordered playable post IDs for this shelf, in display order (left→right).
+    /// Passed into the detail so Up Next follows the shelf instead of the
+    /// creator's feed. Nil keeps the default (creator-feed) behavior.
+    var playbackQueue: [String]? = nil
     /// When true, the shelf takes focus on its first card once posts are
     /// available. Used for Home's leading shelf when the app opens on a pinned
     /// tab, so focus lands in the content instead of the tab bar.
@@ -45,13 +50,13 @@ struct Shelf: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 32) {
                     ForEach(posts) { post in
-                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil)) {
+                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: playbackQueue)) {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
                         .postActionsMenu(postID: post.id)
                         .focused($focusedPostID, equals: post.id)
-                        .onPlayPauseCommand { onPlay?(post.id) }
+                        .onPlayPauseCommand { onPlay?(post.id, playbackQueue) }
                         .onAppear {
                             // Cheap heuristic: if we're within 5 of the end,
                             // ask for more. Real prefetch policy lives in the

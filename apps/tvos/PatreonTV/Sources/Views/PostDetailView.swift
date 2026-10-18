@@ -20,6 +20,10 @@ struct PostDetailView: View {
     /// overlay advance through the collection (oldest→newest) instead of the
     /// creator's feed.
     var collectionID: String? = nil
+    /// Ordered playable post IDs from the shelf the post was opened from
+    /// (left→right). When set, Up Next advances to the next card on the right
+    /// (skipping finished posts) instead of the creator's feed.
+    var queue: [String]? = nil
     /// Opens an episode with autoplay (remote Play button). The second argument
     /// is the collection the episode belongs to, when known. Supplied by the
     /// hosting stack.
@@ -29,11 +33,13 @@ struct PostDetailView: View {
         postID: String,
         autoplay: Bool = false,
         collectionID: String? = nil,
+        queue: [String]? = nil,
         onPlayPost: ((String, String?) -> Void)? = nil
     ) {
         self.postID = postID
         self.autoplay = autoplay
         self.collectionID = collectionID
+        self.queue = queue
         self.onPlayPost = onPlayPost
         _currentPostID = State(initialValue: postID)
     }
@@ -625,15 +631,38 @@ struct PostDetailView: View {
         }
     }
 
-    /// Resolve the post to play after this one: the next episode in the
-    /// collection (oldest→newest) when we came from a collection, else the
-    /// creator's next feed post.
+    /// Resolve the post to play after this one: the next card in the shelf we
+    /// came from, else the next episode in the collection, else the creator's
+    /// next feed post.
     private func resolveNext() async -> Post? {
         if let collectionID {
             return await nextEpisode(in: collectionID)
         }
+        if let queue, !queue.isEmpty {
+            return await nextInShelfQueue(queue)
+        }
         guard let campaignID = campaign?.id else { return nil }
         return await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
+    }
+
+    /// The next playable card to the right in the shelf playback started from,
+    /// skipping posts that are already finished. Returns nil at the end of the
+    /// shelf — deliberately no fallback to the creator feed.
+    private func nextInShelfQueue(_ queue: [String]) async -> Post? {
+        guard let nextID = UpNextResolver.selectNextID(
+            afterPostID: currentPostID,
+            in: queue,
+            isFinished: { PlaybackProgressStore.shared.progress(for: $0)?.isFinished == true }
+        ) else {
+            log.info("Up Next: no next shelf card after \(currentPostID)")
+            return nil
+        }
+        guard let doc = try? await PatreonClient.shared.post(id: nextID) else {
+            log.info("Up Next: failed to fetch shelf neighbor \(nextID)")
+            return nil
+        }
+        log.info("Up Next: shelf neighbor \(nextID)")
+        return doc.data
     }
 
     /// Resolve the next post up front so the card appears instantly.

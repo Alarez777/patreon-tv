@@ -40,6 +40,19 @@ enum UpNextResolver {
         return candidates.first { !isFinished($0.id) } ?? candidates.first
     }
 
+    /// Pure selection core for shelf playback (unit-tested): given the shelf's
+    /// ordered playable post IDs (left→right) and the current one, return the
+    /// next ID to the right that the viewer hasn't finished. Nil at the end of
+    /// the shelf (deliberately no fallback to the creator's feed).
+    nonisolated static func selectNextID(
+        afterPostID currentID: String,
+        in queue: [String],
+        isFinished: (String) -> Bool
+    ) -> String? {
+        guard let index = queue.firstIndex(of: currentID) else { return nil }
+        return queue[(index + 1)...].first { !isFinished($0) }
+    }
+
     /// Fetches the campaign feed (following the cursor a bounded number of
     /// pages until the current post is located) and picks the next post.
     /// Returns nil on any failure — Up Next is best-effort.

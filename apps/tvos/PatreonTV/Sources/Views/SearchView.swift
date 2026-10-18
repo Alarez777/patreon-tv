@@ -61,7 +61,7 @@ struct SearchView: View {
             }
             .background(PatreonColors.background.ignoresSafeArea())
             .appNavigationDestinations(
-                onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: $1)) },
+                onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: $1, queue: nil)) },
                 onPlayCollection: { path.playCollection(collectionID: $0, postID: $1) }
             )
         }

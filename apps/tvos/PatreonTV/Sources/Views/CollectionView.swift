@@ -156,7 +156,7 @@ struct CollectionView: View {
     private var postsGrid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(displayedPosts) { post in
-                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID)) {
+                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID, queue: nil)) {
                     PostCard(post: post)
                 }
                 .buttonStyle(.card)
