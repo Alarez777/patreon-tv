@@ -28,6 +28,7 @@ struct ImageViewer: View {
 
             image(images.indices.contains(index) ? images[index] : nil)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .focusable()
                 .focused($isFocused)

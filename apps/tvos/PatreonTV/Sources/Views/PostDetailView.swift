@@ -482,6 +482,7 @@ struct PostDetailView: View {
             .buttonStyle(.borderedProminent)
             .tint(PatreonColors.brand)
             .focused($focusedControl, equals: .viewImages)
+            .onPlayPauseCommand { showImageViewer = true }
             .padding(.horizontal, 60)
             .focusSection()
             .fullScreenCover(isPresented: $showImageViewer) {
@@ -587,11 +588,16 @@ struct PostDetailView: View {
         }
         isLoading = false
 
-        // Honor the autoplay flag from Top Shelf / deep links, exactly once per
-        // presentation.
-        if autoplay, !didAutoplay, post != nil, mediaURL != nil {
+        // Honor the autoplay flag from Top Shelf / deep links / remote Play,
+        // exactly once per presentation. Image posts open their viewer instead
+        // of trying (and failing) to start playback.
+        if autoplay, !didAutoplay, post != nil {
             didAutoplay = true
-            await prepareAndPlay()
+            if post?.attributes.postType == .imageFile, !imageURLs.isEmpty {
+                showImageViewer = true
+            } else if mediaURL != nil {
+                await prepareAndPlay()
+            }
         }
     }
 

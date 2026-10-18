@@ -60,24 +60,23 @@ struct PollSection: View {
             VStack(spacing: 10) {
                 ForEach(choices) { choice in
                     // Focusable so tvOS can scroll to the poll and the viewer
-                    // can move through each line. Voting isn't wired yet, so
-                    // selecting does nothing.
-                    Button {} label: {
-                        PollChoiceRow(
-                            choice: choice,
-                            total: total,
-                            isSelected: selectedChoiceIDs.contains(choice.id)
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            focusedChoiceID == choice.id
-                                ? Color.black.opacity(0.55)
-                                : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    // can move through each line. A plain focusable view avoids
+                    // the white Button focus ring. Selecting does nothing yet.
+                    PollChoiceRow(
+                        choice: choice,
+                        total: total,
+                        isSelected: selectedChoiceIDs.contains(choice.id)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        focusedChoiceID == choice.id
+                            ? Color.black.opacity(0.55)
+                            : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+                    .contentShape(Rectangle())
+                    .focusable()
                     .focusEffectDisabled()
                     .focused($focusedChoiceID, equals: choice.id)
                 }
