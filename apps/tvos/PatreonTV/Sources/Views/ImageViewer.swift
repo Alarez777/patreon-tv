@@ -4,10 +4,11 @@
 //
 //  Full-screen viewer for an image post: black background, centered image.
 //
-//  Navigation uses the tvOS-native focus + move-command pipeline (left/right),
-//  because TabView(.page) doesn't react to the Siri Remote and
-//  UISwipeGestureRecognizer isn't available on tvOS. A transient "n/N" counter
-//  appears while navigating and fades out when idle.
+//  Paging is a focus carousel: full-screen focusable pages inside a horizontal
+//  ScrollView. The tvOS focus engine moves between pages, which gives the
+//  natural swipe direction (right→left = next) and keeps the left/right button
+//  presses working as usual. This replaces TabView(.page) and .onMoveCommand,
+//  which can't tell a swipe from a button press.
 //
 
 import NukeUI
@@ -18,7 +19,7 @@ struct ImageViewer: View {
     let images: [URL]
 
     @State private var index = 0
-    @FocusState private var isFocused: Bool
+    @FocusState private var focusedIndex: Int?
     @State private var showCounter = false
     @State private var hideTask: Task<Void, Never>?
 
@@ -26,32 +27,65 @@ struct ImageViewer: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            image(images.indices.contains(index) ? images[index] : nil)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .focusable()
-                .focused($isFocused)
-                .focusEffectDisabled()
-                .onMoveCommand { direction in
-                    switch direction {
-                    case .left: step(-1)
-                    case .right: step(1)
-                    default: break
-                    }
-                }
+            if images.count <= 1 {
+                singleImage
+            } else {
+                pager
+            }
 
             if images.count > 1, showCounter {
                 counter
             }
         }
         .task {
-            // Let the focus engine settle inside the cover, then take focus.
+            guard images.count > 1 else { return }
+            // Let the focus engine settle inside the cover, then focus page 0.
             try? await Task.sleep(for: .milliseconds(300))
-            isFocused = true
+            focusedIndex = 0
         }
         .onAppear { flashCounter() }
         .onDisappear { hideTask?.cancel() }
+    }
+
+    private var singleImage: some View {
+        image(images.first)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .focusable()
+            .focusEffectDisabled()
+    }
+
+    private var pager: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            // Plain HStack, not LazyHStack: off-screen pages must be realized so
+            // the focus engine can move to them and scroll the pager.
+            HStack(spacing: 0) {
+                ForEach(Array(images.enumerated()), id: \.offset) { offset, url in
+                    page(url, offset: offset)
+                        .containerRelativeFrame(.horizontal)
+                        .id(offset)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .ignoresSafeArea()
+        .onChange(of: focusedIndex) { _, new in
+            guard let new else { return }
+            index = new
+            flashCounter()
+        }
+    }
+
+    private func page(_ url: URL, offset: Int) -> some View {
+        image(url)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .focusable()
+            .focusEffectDisabled()
+            .focused($focusedIndex, equals: offset)
+            .accessibilityLabel("Image \(offset + 1) of \(images.count)")
     }
 
     @ViewBuilder
@@ -82,14 +116,6 @@ struct ImageViewer: View {
             .padding(.bottom, 48)
             .transition(.opacity)
             .allowsHitTesting(false)
-    }
-
-    /// Move by `delta` when there is a neighbouring image.
-    private func step(_ delta: Int) {
-        let next = index + delta
-        guard images.indices.contains(next) else { return }
-        index = next
-        flashCounter()
     }
 
     /// Show the counter, then hide it after a short idle delay.
