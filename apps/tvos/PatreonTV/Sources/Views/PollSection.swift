@@ -72,8 +72,8 @@ struct PollSection: View {
                         .padding(.vertical, 10)
                         .background(
                             focusedChoiceID == choice.id
-                                ? PatreonColors.primaryText.opacity(0.08)
-                                : .clear,
+                                ? Color.black.opacity(0.55)
+                                : Color.clear,
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                         )
                     }
