@@ -78,6 +78,7 @@ struct PollSection: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .focusEffectDisabled()
                     .focused($focusedChoiceID, equals: choice.id)
                 }
             }

@@ -4,10 +4,10 @@
 //
 //  Full-screen viewer for an image post: black background, centered image.
 //
-//  Paging uses the tvOS focus engine (not TabView(.page), which doesn't react
-//  to the Siri Remote): each image is a full-screen focusable page, so a swipe
-//  or a left/right press moves focus to the neighbouring page. A transient
-//  "n/N" counter appears while navigating and fades out when idle.
+//  Navigation uses the tvOS-native focus + move-command pipeline (left/right),
+//  because TabView(.page) doesn't react to the Siri Remote and
+//  UISwipeGestureRecognizer isn't available on tvOS. A transient "n/N" counter
+//  appears while navigating and fades out when idle.
 //
 
 import NukeUI
@@ -18,7 +18,7 @@ struct ImageViewer: View {
     let images: [URL]
 
     @State private var index = 0
-    @FocusState private var focusedIndex: Int?
+    @FocusState private var isFocused: Bool
     @State private var showCounter = false
     @State private var hideTask: Task<Void, Never>?
 
@@ -26,59 +26,31 @@ struct ImageViewer: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if images.count <= 1 {
-                image(images.first)
-                    .padding(40)
-            } else {
-                pager
-            }
+            image(images.indices.contains(index) ? images[index] : nil)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .focusable()
+                .focused($isFocused)
+                .focusEffectDisabled()
+                .onMoveCommand { direction in
+                    switch direction {
+                    case .left: step(-1)
+                    case .right: step(1)
+                    default: break
+                    }
+                }
 
             if images.count > 1, showCounter {
                 counter
             }
         }
         .task {
-            guard images.count > 1 else { return }
-            // Let the focus engine settle inside the cover, then focus page 0.
+            // Let the focus engine settle inside the cover, then take focus.
             try? await Task.sleep(for: .milliseconds(300))
-            focusedIndex = 0
+            isFocused = true
         }
+        .onAppear { flashCounter() }
         .onDisappear { hideTask?.cancel() }
-    }
-
-    private var pager: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(Array(images.enumerated()), id: \.offset) { offset, url in
-                        page(url, offset: offset)
-                            .containerRelativeFrame(.horizontal)
-                            .id(offset)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.paging)
-            .ignoresSafeArea()
-            .onChange(of: focusedIndex) { _, new in
-                guard let new else { return }
-                index = new
-                proxy.scrollTo(new, anchor: .center)
-                flashCounter()
-            }
-        }
-    }
-
-    private func page(_ url: URL, offset: Int) -> some View {
-        Button {} label: {
-            image(url)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
-        .focused($focusedIndex, equals: offset)
-        .accessibilityLabel("Image \(offset + 1) of \(images.count)")
     }
 
     @ViewBuilder
@@ -109,6 +81,14 @@ struct ImageViewer: View {
             .padding(.bottom, 48)
             .transition(.opacity)
             .allowsHitTesting(false)
+    }
+
+    /// Move by `delta` when there is a neighbouring image.
+    private func step(_ delta: Int) {
+        let next = index + delta
+        guard images.indices.contains(next) else { return }
+        index = next
+        flashCounter()
     }
 
     /// Show the counter, then hide it after a short idle delay.
