@@ -58,6 +58,17 @@ final class PlaybackProgressStoreTests: XCTestCase {
         XCTAssertFalse(zeroDuration.isFinished)
     }
 
+    func test_isStarted_thresholds() {
+        let notStarted = PlaybackProgress(postID: "a", positionSeconds: 4, durationSeconds: 100, lastUpdated: Date())
+        XCTAssertFalse(notStarted.isStarted)
+
+        let started = PlaybackProgress(postID: "b", positionSeconds: 5, durationSeconds: 100, lastUpdated: Date())
+        XCTAssertTrue(started.isStarted)
+
+        let zeroDuration = PlaybackProgress(postID: "c", positionSeconds: 50, durationSeconds: 0, lastUpdated: Date())
+        XCTAssertFalse(zeroDuration.isStarted)
+    }
+
     func test_continueWatching_excludes_finished_and_unknown() {
         let now = Date()
         store.record(.init(postID: "watching-1", positionSeconds: 10, durationSeconds: 100, lastUpdated: now))

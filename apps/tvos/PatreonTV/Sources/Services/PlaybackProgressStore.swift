@@ -24,6 +24,17 @@ struct PlaybackProgress: Codable, Hashable {
         guard durationSeconds > 0 else { return false }
         return positionSeconds / durationSeconds >= 0.95
     }
+
+    /// Fraction of the runtime that counts as "started". Below it the post still
+    /// reads as not started, so a brief tap or a couple of seconds of playback
+    /// don't make a card look watched.
+    static let startedFraction: Double = 0.05
+
+    /// True once playback has meaningfully begun (past `startedFraction`).
+    var isStarted: Bool {
+        guard durationSeconds > 0 else { return false }
+        return positionSeconds / durationSeconds >= Self.startedFraction
+    }
 }
 
 @MainActor

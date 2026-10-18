@@ -4,7 +4,8 @@
 //
 //  A thin resume indicator pinned to the bottom edge of a poster: the filled
 //  fraction is how much of the post has been watched. Hidden when there's no
-//  progress, the post is finished, or playback barely started.
+//  progress, the post is finished, or playback has only just started (below
+//  PlaybackProgress.startedFraction) — the unwatched cue stays in that case.
 //
 //  Reads the persisted progress at render time (no live observation), so it
 //  refreshes when the card is re-rendered — e.g. when you return to a collection.
@@ -19,8 +20,6 @@ struct ResumeBar: View {
     let width: CGFloat
 
     private let barHeight: CGFloat = 10
-    /// Ignore trivially small progress (an accidental tap into a video).
-    private let minPositionSeconds: Double = 5
 
     var body: some View {
         if let fraction {
@@ -36,9 +35,8 @@ struct ResumeBar: View {
 
     private var fraction: Double? {
         guard let progress = PlaybackProgressStore.shared.progress(for: postID),
-              progress.durationSeconds > 0,
               !progress.isFinished,
-              progress.positionSeconds > minPositionSeconds
+              progress.isStarted
         else { return nil }
         return min(max(progress.positionSeconds / progress.durationSeconds, 0), 1)
     }
