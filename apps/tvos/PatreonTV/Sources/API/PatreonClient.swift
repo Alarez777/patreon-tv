@@ -262,7 +262,7 @@ final class PatreonClient {
                 URLQueryItem(name: "fields[media]", value: MediaFields.full),
                 URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url,is_nsfw"),
                 URLQueryItem(name: "fields[poll]", value: "question_text,question_type,num_responses,closes_at"),
-                URLQueryItem(name: "fields[poll_choice]", value: "text_content,position,num_responses,choice_type"),
+                URLQueryItem(name: "fields[poll_choice]", value: "text_content,position,num_responses"),
             ])
         return try await fetch(SingleResource<Post>.self, from: url)
     }

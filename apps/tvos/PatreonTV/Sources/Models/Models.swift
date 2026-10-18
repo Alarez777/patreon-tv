@@ -373,10 +373,8 @@ struct Post: JSONAPIResource {
         let thumbURL: URL?
         /// Full-size variant (used by the image post viewer).
         let largeURL: URL?
-        let width: Int?
-        let height: Int?
         enum CodingKeys: String, CodingKey {
-            case url, width, height
+            case url
             case thumbURL = "thumb_url"
             case largeURL = "large_url"
         }
@@ -389,10 +387,9 @@ struct Post: JSONAPIResource {
         let images: RelationList?
         let audio: RelationRef?
         let attachmentsMedia: RelationList?
-        let poll: RelationRef?
 
         enum CodingKeys: String, CodingKey {
-            case campaign, user, media, images, audio, poll
+            case campaign, user, media, images, audio
             case attachmentsMedia = "attachments_media"
         }
     }
@@ -406,7 +403,6 @@ struct Poll: JSONAPIResource {
     let id: String
     let type: String
     let attributes: Attributes
-    let relationships: Relationships?
 
     struct Attributes: Decodable, Hashable {
         let questionText: String?
@@ -421,16 +417,6 @@ struct Poll: JSONAPIResource {
             case closesAt = "closes_at"
         }
     }
-
-    struct Relationships: Decodable, Hashable {
-        let choices: RelationList?
-        let currentUserResponses: RelationList?
-
-        enum CodingKeys: String, CodingKey {
-            case choices
-            case currentUserResponses = "current_user_responses"
-        }
-    }
 }
 
 struct PollChoice: JSONAPIResource {
@@ -442,13 +428,11 @@ struct PollChoice: JSONAPIResource {
         let textContent: String?
         let position: Int?
         let numResponses: Int?
-        let choiceType: String?
 
         enum CodingKeys: String, CodingKey {
             case position
             case textContent = "text_content"
             case numResponses = "num_responses"
-            case choiceType = "choice_type"
         }
     }
 }
@@ -456,18 +440,7 @@ struct PollChoice: JSONAPIResource {
 struct PollResponse: JSONAPIResource {
     let id: String
     let type: String
-    let attributes: Attributes
     let relationships: Relationships?
-
-    struct Attributes: Decodable, Hashable {
-        let respondedAt: String?
-        let textContent: String?
-
-        enum CodingKeys: String, CodingKey {
-            case respondedAt = "responded_at"
-            case textContent = "text_content"
-        }
-    }
 
     struct Relationships: Decodable, Hashable {
         let choice: RelationRef?
