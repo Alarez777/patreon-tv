@@ -82,7 +82,7 @@ struct PostDetailView: View {
     /// focusable (the creator-name link), which felt arbitrary.
     @FocusState private var focusedControl: FocusTarget?
 
-    private enum FocusTarget: Hashable { case play }
+    private enum FocusTarget: Hashable { case play, viewImages }
     @State private var isLoading = true
     @State private var playbackSource: MediaPlaybackSource?
     @State private var isPreparingPlayback = false
@@ -240,7 +240,16 @@ struct PostDetailView: View {
             }
         }
         .scrollClipDisabled()
-        .defaultFocus($focusedControl, .play)
+        .defaultFocus($focusedControl, defaultFocusTarget(post: post))
+    }
+
+    /// Where focus lands when the page opens: the image "View" button for image
+    /// posts, otherwise the Play button.
+    private func defaultFocusTarget(post: Post) -> FocusTarget? {
+        if post.attributes.postType == .imageFile, !imageURLs.isEmpty {
+            return .viewImages
+        }
+        return .play
     }
 
     @ViewBuilder
@@ -458,34 +467,21 @@ struct PostDetailView: View {
 
     @ViewBuilder
     private func imageSection(post: Post) -> some View {
-        if post.attributes.postType == .imageFile, let first = imageURLs.first {
-            VStack(alignment: .leading, spacing: 20) {
-                LazyImage(url: first) { state in
-                    if let image = state.image {
-                        image.resizable().scaledToFit()
-                    } else if state.isLoading {
-                        ProgressView()
-                    } else {
-                        PatreonColors.cardSurface
-                    }
-                }
-                .frame(maxWidth: 1200, maxHeight: 640)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                Button {
-                    showImageViewer = true
-                } label: {
-                    Label(
-                        imageURLs.count > 1 ? "View \(imageURLs.count) images" : "View",
-                        systemImage: "arrow.up.left.and.arrow.down.right"
-                    )
-                    .font(.title3.weight(.semibold))
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 16)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(PatreonColors.brand)
+        if post.attributes.postType == .imageFile, !imageURLs.isEmpty {
+            Button {
+                showImageViewer = true
+            } label: {
+                Label(
+                    imageURLs.count > 1 ? "View \(imageURLs.count) images" : "View",
+                    systemImage: "arrow.up.left.and.arrow.down.right"
+                )
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 32)
+                .padding(.vertical, 18)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(PatreonColors.brand)
+            .focused($focusedControl, equals: .viewImages)
             .padding(.horizontal, 60)
             .focusSection()
             .fullScreenCover(isPresented: $showImageViewer) {

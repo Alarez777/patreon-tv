@@ -17,6 +17,8 @@ struct PollSection: View {
     let choices: [PollChoice]
     let selectedChoiceIDs: Set<String>
 
+    @FocusState private var focusedChoiceID: String?
+
     private var total: Int {
         let sum = choices.reduce(0) { $0 + ($1.attributes.numResponses ?? 0) }
         return max(poll.attributes.numResponses ?? sum, 1)
@@ -55,13 +57,28 @@ struct PollSection: View {
                 }
             }
 
-            VStack(spacing: 14) {
+            VStack(spacing: 10) {
                 ForEach(choices) { choice in
-                    PollChoiceRow(
-                        choice: choice,
-                        total: total,
-                        isSelected: selectedChoiceIDs.contains(choice.id)
-                    )
+                    // Focusable so tvOS can scroll to the poll and the viewer
+                    // can move through each line. Voting isn't wired yet, so
+                    // selecting does nothing.
+                    Button {} label: {
+                        PollChoiceRow(
+                            choice: choice,
+                            total: total,
+                            isSelected: selectedChoiceIDs.contains(choice.id)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            focusedChoiceID == choice.id
+                                ? PatreonColors.primaryText.opacity(0.08)
+                                : .clear,
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .focused($focusedChoiceID, equals: choice.id)
                 }
             }
         }
