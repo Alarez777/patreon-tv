@@ -140,7 +140,7 @@ struct CommentsView: View {
     }
 
     private func avatar(_ user: PatreonUser?) -> some View {
-        LazyImage(url: user?.attributes.bestAvatarURL) { state in
+        LazyImage(url: user?.attributes.imageURL ?? user?.attributes.thumbURL) { state in
             if let image = state.image {
                 image.resizable().aspectRatio(contentMode: .fill)
             } else {
