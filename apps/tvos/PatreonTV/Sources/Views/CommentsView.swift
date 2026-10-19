@@ -171,43 +171,39 @@ private struct CommentRow: View {
     var body: some View {
         let blocks = item.isTextExpanded ? readingBlocks : []
 
-        return HStack(alignment: .top, spacing: 16) {
-            avatar
+        return VStack(alignment: .leading, spacing: 8) {
+            Button(action: handleSelect) {
+                VStack(alignment: .leading, spacing: 8) {
+                    metadata
+                    parentLine
+                    headerBody(blocks: blocks)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .focusEffectDisabled()
+            .focused($focusedID, equals: item.id)
+            // Right toggles the body. Left is deliberately free so the focus
+            // engine can reach a future left-side tab bar.
+            .onMoveCommand { direction in
+                guard direction == .right else { return }
+                toggleText()
+            }
+            .accessibilityHint(headerHint)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Button(action: handleSelect) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        metadata
-                        parentLine
-                        headerBody(blocks: blocks)
+            if item.isTextExpanded {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(blocks.indices.dropFirst()), id: \.self) { index in
+                        readingBlock(blocks[index], index: index)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .focusEffectDisabled()
-                .focused($focusedID, equals: item.id)
-                // Right toggles the body. Left is deliberately free so the
-                // focus engine can reach a future left-side tab bar.
-                .onMoveCommand { direction in
-                    guard direction == .right else { return }
-                    toggleText()
-                }
-                .accessibilityHint(headerHint)
+                .padding(.top, 2)
 
-                if item.isTextExpanded {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(blocks.indices.dropFirst()), id: \.self) { index in
-                            readingBlock(blocks[index], index: index)
-                        }
-                    }
-                    .padding(.top, 2)
-
-                    Label("Show less", systemImage: "arrow.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(accentColor)
-                        .padding(.top, 4)
-                }
+                Label("Show less", systemImage: "arrow.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(accentColor)
+                    .padding(.top, 4)
             }
         }
         .padding(18)
@@ -216,6 +212,9 @@ private struct CommentRow: View {
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .padding(.leading, CGFloat(item.depth) * 40)
+        // Override any focus effect set by children: the avatar and text stay
+        // one static card, highlighted only by `cardBackground`.
+        .focusEffectDisabled()
     }
 
     /// The card stays highlighted while any of its reading blocks has focus.
@@ -251,29 +250,37 @@ private struct CommentRow: View {
     }
 
     private var metadata: some View {
-        HStack(spacing: 12) {
-            Text(item.author?.attributes.fullName ?? "Someone")
-                .font(.headline)
-                .foregroundStyle(foregroundColor)
+        HStack(alignment: .center, spacing: 12) {
+            avatar
 
-            if item.comment.attributes.isByCreator == true {
-                badge("Creator")
-            }
-            if item.comment.attributes.isByPatron == true {
-                badge("Patron")
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(item.author?.attributes.fullName ?? "Someone")
+                        .font(.headline)
+                        .foregroundStyle(foregroundColor)
+                        .lineLimit(1)
+
+                    if item.comment.attributes.isByCreator == true {
+                        badge("Creator")
+                    }
+                    if item.comment.attributes.isByPatron == true {
+                        badge("Patron")
+                    }
+                }
+
+                if let date = dateText(item.comment.attributes.created) {
+                    Text(date)
+                        .font(.caption)
+                        .foregroundStyle(tertiaryColor)
+                }
             }
 
-            if let date = dateText(item.comment.attributes.created) {
-                Text(date)
-                    .font(.subheadline)
-                    .foregroundStyle(tertiaryColor)
-            }
-
-            Spacer()
+            Spacer(minLength: 12)
 
             Label("\(item.comment.attributes.voteSum ?? 0)", systemImage: "heart")
                 .font(.subheadline)
                 .foregroundStyle(secondaryColor)
+                .fixedSize()
 
             Label(
                 "\(item.replyCount)",
@@ -281,6 +288,7 @@ private struct CommentRow: View {
             )
             .font(.subheadline)
             .foregroundStyle(secondaryColor)
+            .fixedSize()
         }
     }
 
@@ -398,12 +406,12 @@ private struct CommentRow: View {
                 ZStack {
                     PatreonColors.cardSurface
                     Image(systemName: "person.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: 16))
                         .foregroundStyle(PatreonColors.tertiaryText)
                 }
             }
         }
-        .frame(width: 56, height: 56)
+        .frame(width: 40, height: 40)
         .clipShape(Circle())
     }
 
