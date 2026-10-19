@@ -57,8 +57,8 @@ struct CommentsView: View {
                         focusedID: $focusedCommentID,
                         onExpandText: { vm.setTextExpanded(item.comment.id, true) },
                         onCollapseText: { vm.setTextExpanded(item.comment.id, false) },
-                        onToggleReplies: { Task { await vm.toggleReplies(item.comment) } },
-                        onCollapseReplies: { vm.collapseReplies(item.comment.id) }
+                        onShowReplies: { showReplies(for: item.comment) },
+                        onHideReplies: { vm.collapseReplies(item.comment.id) }
                     )
                     .onAppear {
                         if item.id == vm.lastRootID {
@@ -119,6 +119,19 @@ struct CommentsView: View {
         .accessibilityLabel("Sort comments")
     }
 
+    /// Shows a comment's replies, then moves focus to the first one so the
+    /// viewer can keep drilling in without hunting for it.
+    private func showReplies(for comment: Comment) {
+        Task {
+            await vm.expandReplies(comment)
+            guard vm.isRepliesExpanded(comment.id),
+                  let firstReplyID = vm.firstReplyID(of: comment.id) else { return }
+            // Let the freshly inserted rows lay out before moving focus.
+            try? await Task.sleep(for: .milliseconds(250))
+            focusedCommentID = firstReplyID
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "bubble.left.and.bubble.right")
@@ -140,8 +153,8 @@ private struct CommentRow: View {
     @FocusState.Binding var focusedID: String?
     let onExpandText: () -> Void
     let onCollapseText: () -> Void
-    let onToggleReplies: () -> Void
-    let onCollapseReplies: () -> Void
+    let onShowReplies: () -> Void
+    let onHideReplies: () -> Void
 
     /// Whether the body exceeds the visible line limit. Measured by the body
     /// view and used to decide what a click does.
@@ -167,6 +180,16 @@ private struct CommentRow: View {
         .buttonStyle(.plain)
         .focusEffectDisabled()
         .focused($focusedID, equals: item.id)
+        // Right toggles the clamped body. Left is deliberately left alone so
+        // the focus engine can reach a future left-side tab bar.
+        .onMoveCommand { direction in
+            guard direction == .right, isTruncated else { return }
+            if item.isTextExpanded {
+                onCollapseText()
+            } else {
+                onExpandText()
+            }
+        }
         .padding(.leading, CGFloat(item.depth) * 40)
         .accessibilityElement(children: .combine)
         .accessibilityHint(accessibilityHint)
@@ -231,13 +254,8 @@ private struct CommentRow: View {
                 isTruncated: $isTruncated
             )
 
-            if isTruncated && !item.isTextExpanded {
-                Label("Show more", systemImage: "chevron.down")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(PatreonColors.brand)
-                    .padding(.top, 2)
-            } else if isTruncated && item.isTextExpanded && !item.hasReplies {
-                Label("Show less", systemImage: "chevron.up")
+            if isTruncated {
+                Label(item.isTextExpanded ? "Show less" : "Show more", systemImage: "arrow.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(PatreonColors.brand)
                     .padding(.top, 2)
@@ -245,26 +263,26 @@ private struct CommentRow: View {
         }
     }
 
-    /// Click order: expand clipped text → show replies → hide replies → clip
-    /// the text again. A short comment skips straight to its replies.
+    /// Select only deals with replies. Right (handled in `body`) toggles the
+    /// clipped text.
     private func handleSelect() {
-        if isTruncated && !item.isTextExpanded {
-            onExpandText()
-        } else if item.hasReplies && !item.isRepliesExpanded {
-            onToggleReplies()
-        } else if item.hasReplies && item.isRepliesExpanded {
-            onCollapseReplies()
-        } else if item.isTextExpanded {
-            onCollapseText()
+        guard item.hasReplies else { return }
+        if item.isRepliesExpanded {
+            onHideReplies()
+        } else {
+            onShowReplies()
         }
     }
 
     private var accessibilityHint: String {
-        if isTruncated && !item.isTextExpanded { return "Shows the full comment" }
-        if item.hasReplies && !item.isRepliesExpanded { return "Shows replies" }
-        if item.hasReplies && item.isRepliesExpanded { return "Hides replies" }
-        if item.isTextExpanded { return "Collapses the comment" }
-        return ""
+        var hints: [String] = []
+        if item.hasReplies {
+            hints.append(item.isRepliesExpanded ? "Select to hide replies" : "Select to show replies")
+        }
+        if isTruncated {
+            hints.append(item.isTextExpanded ? "Right to collapse the comment" : "Right to show the full comment")
+        }
+        return hints.joined(separator: ". ")
     }
 
     private var avatar: some View {
@@ -548,14 +566,9 @@ final class CommentsViewModel {
         rebuild()
     }
 
-    func toggleReplies(_ comment: Comment) async {
+    func expandReplies(_ comment: Comment) async {
         guard (comment.attributes.replyCount ?? 0) > 0 else { return }
-
-        if expandedReplies.contains(comment.id) {
-            expandedReplies.remove(comment.id)
-            rebuild()
-            return
-        }
+        guard !expandedReplies.contains(comment.id) else { return }
 
         expandedReplies.insert(comment.id)
         rebuild()
@@ -563,6 +576,14 @@ final class CommentsViewModel {
         if replies[comment.id] == nil {
             await loadReplies(comment.id)
         }
+    }
+
+    func isRepliesExpanded(_ commentID: String) -> Bool {
+        expandedReplies.contains(commentID)
+    }
+
+    func firstReplyID(of commentID: String) -> String? {
+        replies[commentID]?.first?.id
     }
 
     func collapseReplies(_ commentID: String) {
