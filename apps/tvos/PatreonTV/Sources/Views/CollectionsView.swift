@@ -52,11 +52,7 @@ struct CollectionsView: View {
     private var content: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 32) {
-                Text("Collections")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(PatreonColors.primaryText)
-                    .padding(.horizontal, 60)
-                    .padding(.top, 60)
+                header
 
                 LazyVGrid(columns: columns, spacing: 32) {
                     ForEach(vm.collections) { collection in
@@ -75,6 +71,59 @@ struct CollectionsView: View {
         .scrollClipDisabled()
     }
 
+    private var header: some View {
+        HStack(spacing: 16) {
+            Text("Collections")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(PatreonColors.primaryText)
+
+            Spacer()
+
+            sortMenu
+
+            NavigationLink {
+                CollectionsSearchView(
+                    collections: vm.collections,
+                    onPlayCollection: onPlayCollection
+                )
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.title3.weight(.semibold))
+                    .padding(14)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .accessibilityLabel("Search collections")
+        }
+        .padding(.horizontal, 60)
+        .padding(.top, 60)
+        // Lets Up from the first card reach the sort and search buttons.
+        .focusSection()
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            ForEach(CollectionSort.allCases) { sort in
+                Button {
+                    vm.select(sort: sort)
+                } label: {
+                    if sort == vm.sort {
+                        Label(sort.title, systemImage: "checkmark")
+                    } else {
+                        Text(sort.title)
+                    }
+                }
+            }
+        } label: {
+            Label(vm.sort.title, systemImage: "arrow.up.arrow.down")
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityLabel("Sort collections")
+    }
+
     private var empty: some View {
         VStack(spacing: 16) {
             Image(systemName: "square.stack")
@@ -85,6 +134,57 @@ struct CollectionsView: View {
                 .foregroundStyle(PatreonColors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Search
+
+private struct CollectionsSearchView: View {
+
+    let collections: [PatreonCollection]
+    let onPlayCollection: ((String, String) -> Void)?
+
+    @State private var query = ""
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 32),
+        GridItem(.flexible(), spacing: 32),
+    ]
+
+    private var results: [PatreonCollection] {
+        CollectionSearch.filter(collections, query: query)
+    }
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            if results.isEmpty {
+                Text(emptyMessage)
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+                    .frame(maxWidth: .infinity, minHeight: 400)
+            } else {
+                LazyVGrid(columns: columns, spacing: 32) {
+                    ForEach(results) { collection in
+                        NavigationLink(value: DeepLinkDestination.collection(id: collection.id, focusPostID: nil)) {
+                            CollectionRow(collection: collection)
+                        }
+                        .buttonStyle(.card)
+                        .collectionPlay(collectionID: collection.id, onPlay: onPlayCollection)
+                    }
+                }
+                .padding(60)
+            }
+        }
+        .scrollClipDisabled()
+        .searchable(text: $query, prompt: "Search collections")
+        .background(PatreonColors.background.ignoresSafeArea())
+    }
+
+    private var emptyMessage: String {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty
+            ? "No collections"
+            : "No collections match \"\(query)\""
     }
 }
 
@@ -145,7 +245,10 @@ final class CollectionsViewModel {
     }
 
     var state: State = .loading
-    var collections: [PatreonCollection] = []
+    private(set) var collections: [PatreonCollection] = []
+    private(set) var sort: CollectionSort = .created
+    /// The order Patreon sent, kept as the stable source for every sort.
+    private var fetched: [PatreonCollection] = []
     /// The campaign already loaded; guards against a re-fetch on re-appear.
     private var loadedCampaignID: String?
 
@@ -153,12 +256,22 @@ final class CollectionsViewModel {
         guard loadedCampaignID != campaignID else { return }
         state = .loading
         do {
-            let collections = try await PatreonClient.shared.collections(campaignID: campaignID)
-            self.collections = collections
+            fetched = try await PatreonClient.shared.collections(campaignID: campaignID)
             loadedCampaignID = campaignID
-            state = collections.isEmpty ? .empty : .loaded
+            applySort()
+            state = fetched.isEmpty ? .empty : .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
         }
+    }
+
+    func select(sort newSort: CollectionSort) {
+        guard newSort != sort else { return }
+        sort = newSort
+        applySort()
+    }
+
+    private func applySort() {
+        collections = sort.sorted(fetched)
     }
 }
