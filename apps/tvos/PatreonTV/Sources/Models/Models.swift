@@ -456,6 +456,13 @@ struct Post: JSONAPIResource {
             case attachmentsMedia = "attachments_media"
         }
     }
+
+    /// Number of images on an image post, shown only for galleries (2+).
+    var galleryImageCount: Int? {
+        guard attributes.postType == .imageFile else { return nil }
+        let count = relationships?.images?.data?.count ?? 0
+        return count > 1 ? count : nil
+    }
 }
 
 // MARK: - Poll

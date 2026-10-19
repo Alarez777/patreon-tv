@@ -87,11 +87,32 @@ final class PostPayloadDecodingTests: XCTestCase {
         XCTAssertEqual(doc.data.attributes.postType, Post.PostType.imageFile)
         XCTAssertEqual(doc.data.attributes.image?.largeURL?.absoluteString, "https://cdn.example/al.png")
         XCTAssertEqual(doc.data.relationships?.images?.data?.map(\.id), ["m1", "m2"])
+        XCTAssertEqual(doc.data.galleryImageCount, 2)
 
         let media = (doc.included ?? []).compactMap { inc -> Media? in
             if case .media(let media) = inc { return media }
             return nil
         }
         XCTAssertEqual(media.first?.attributes.imageURLs?.original?.absoluteString, "https://cdn.example/m1-orig.png")
+    }
+
+    func test_single_image_has_no_gallery_count() throws {
+        let json = """
+        {
+          "data": {
+            "type": "post", "id": "3",
+            "attributes": {
+              "post_type": "image_file",
+              "image": { "url": "https://cdn.example/one.png" }
+            },
+            "relationships": {
+              "images": { "data": [ { "type": "media", "id": "m1" } ] }
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json)
+        XCTAssertNil(doc.data.galleryImageCount)
     }
 }
