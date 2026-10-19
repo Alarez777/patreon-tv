@@ -253,6 +253,8 @@ enum CommentThread {
         let parentID: String?
         /// True for the last reply a parent has loaded (drives reply paging).
         let isLastSibling: Bool
+        /// Whether this comment's replies are currently shown.
+        let isExpanded: Bool
 
         var id: String { comment.id }
         var replyCount: Int { comment.attributes.replyCount ?? 0 }
@@ -274,7 +276,8 @@ enum CommentThread {
                 parentAuthor: parentID.flatMap { authorByID[$0] },
                 depth: depth,
                 parentID: parentID,
-                isLastSibling: isLastSibling
+                isLastSibling: isLastSibling,
+                isExpanded: expanded.contains(comment.id)
             ))
             guard expanded.contains(comment.id) else { return }
             let children = replies[comment.id] ?? []

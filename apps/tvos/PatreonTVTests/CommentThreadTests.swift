@@ -23,6 +23,7 @@ final class CommentThreadTests: XCTestCase {
         XCTAssertEqual(items.map(\.id), ["a", "b"])
         XCTAssertEqual(items.map(\.depth), [0, 0])
         XCTAssertEqual(items.map(\.parentID), [nil, nil])
+        XCTAssertEqual(items.map(\.isExpanded), [false, false])
     }
 
     func test_expanded_nests_replies_under_parent() {
@@ -39,6 +40,7 @@ final class CommentThreadTests: XCTestCase {
         XCTAssertEqual(items.map(\.depth), [0, 1, 1, 0])
         XCTAssertEqual(items.map(\.parentID), [nil, "a", "a", nil])
         XCTAssertEqual(items.map(\.isLastSibling), [false, false, true, true])
+        XCTAssertEqual(items.map(\.isExpanded), [true, false, false, false])
     }
 
     func test_expansion_is_recursive() {
