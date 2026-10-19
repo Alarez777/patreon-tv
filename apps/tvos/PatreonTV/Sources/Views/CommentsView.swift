@@ -268,7 +268,8 @@ final class CommentsViewModel {
     }
 
     private func author(for comment: Comment) -> PatreonUser? {
-        comment.relationships?.commenter?.data?.id.flatMap { usersByID[$0] }
+        guard let userID = comment.relationships?.commenter?.data?.id else { return nil }
+        return usersByID[userID]
     }
 
     /// Rebuild the flattened reply tree from the flat comment list. Comments
@@ -292,7 +293,10 @@ final class CommentsViewModel {
 
         var flattened: [Item] = []
         func walk(_ comment: Comment, depth: Int) {
-            let parentAuthor = comment.relationships?.parent?.data?.id.flatMap { usersByID[$0] }
+            var parentAuthor: PatreonUser?
+            if let parentID = comment.relationships?.parent?.data?.id {
+                parentAuthor = usersByID[parentID]
+            }
             flattened.append(Item(
                 comment: comment,
                 author: author(for: comment),
