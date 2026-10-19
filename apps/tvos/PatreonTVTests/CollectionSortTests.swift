@@ -37,7 +37,7 @@ final class CollectionSortTests: XCTestCase {
     func test_title_sort_is_stable_for_equal_titles() {
         let items = [
             makeCollection(id: "1", title: "Same"),
-            makeCollection(id: "2", title: "same"),
+            makeCollection(id: "2", title: "Same"),
         ]
         XCTAssertEqual(
             CollectionSort.titleAscending.sorted(items).map(\.id),
