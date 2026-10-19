@@ -18,7 +18,8 @@ final class CommentDecodingTests: XCTestCase {
               "type": "comment", "id": "c1",
               "attributes": {
                 "body": "Top", "created": "2026-01-01T00:00:00.000+00:00",
-                "vote_sum": 2, "is_by_creator": false, "is_by_patron": true
+                "vote_sum": 2, "reply_count": 3, "is_by_creator": false,
+                "is_by_patron": true
               },
               "relationships": {
                 "commenter": { "data": { "type": "user", "id": "u1" } },
@@ -50,6 +51,7 @@ final class CommentDecodingTests: XCTestCase {
         XCTAssertEqual(page.data.count, 2)
         XCTAssertEqual(page.data.first?.attributes.body, "Top")
         XCTAssertEqual(page.data.first?.attributes.voteSum, 2)
+        XCTAssertEqual(page.data.first?.attributes.replyCount, 3)
         XCTAssertNil(page.data.first?.relationships?.parent?.data?.id)
         XCTAssertEqual(page.data.last?.relationships?.parent?.data?.id, "c1")
         XCTAssertEqual(page.meta?.count, 2)

@@ -378,7 +378,7 @@ struct PostDetailView: View {
             }
 
             if let comments = post.attributes.commentCount, comments > 0 {
-                NavigationLink(value: DeepLinkDestination.comments(postID: post.id)) {
+                NavigationLink(value: DeepLinkDestination.comments(postID: post.id, commentCount: comments)) {
                     Label("Comments (\(comments))", systemImage: "bubble.left")
                         .font(.title3.weight(.medium))
                 }

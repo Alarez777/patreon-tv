@@ -298,20 +298,56 @@ final class PatreonClient {
         return try await fetch(SingleResource<Post>.self, from: url)
     }
 
-    /// GET /api/posts/{id}/comments — newest-first comments with their authors
-    /// and parent pointers. Paginates by comment id via `page[cursor]`.
-    func comments(postID: String, cursor: String? = nil, limit: Int = 50) async throws -> Page<Comment> {
+    /// GET /api/posts/{id}/comments2 — top-level comments only, each carrying a
+    /// `reply_count`. Replies are fetched per comment via `replies(commentID:)`.
+    func comments(
+        postID: String,
+        sort: CommentSort = .best,
+        cursor: String? = nil,
+        limit: Int = 50
+    ) async throws -> Page<Comment> {
         var qi: [URLQueryItem] = [
-            URLQueryItem(name: "include", value: "commenter,parent"),
+            URLQueryItem(name: "include", value: "commenter"),
+            URLQueryItem(name: "fields[comment]", value: Self.commentFields),
+            URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
             URLQueryItem(name: "page[count]", value: String(limit)),
-            URLQueryItem(name: "sort", value: "created"),
+            URLQueryItem(name: "sort", value: sort.apiValue),
+            URLQueryItem(name: "json-api-version", value: "1.0"),
+            URLQueryItem(name: "json-api-use-default-includes", value: "false"),
         ]
         if let cursor {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
-        let url = baseURL.appending(path: "posts/\(postID)/comments").appending(queryItems: qi)
+        let url = baseURL.appending(path: "posts/\(postID)/comments2").appending(queryItems: qi)
         return try await fetch(Page<Comment>.self, from: url)
     }
+
+    /// GET /api/comments/{id}/replies2 — direct replies, oldest first.
+    func replies(
+        commentID: String,
+        cursor: String? = nil,
+        limit: Int = 50
+    ) async throws -> Page<Comment> {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "include", value: "commenter,parent"),
+            URLQueryItem(name: "fields[comment]", value: Self.commentFields),
+            URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
+            URLQueryItem(name: "page[count]", value: String(limit)),
+            URLQueryItem(name: "sort", value: "created"),
+            URLQueryItem(name: "json-api-version", value: "1.0"),
+            URLQueryItem(name: "json-api-use-default-includes", value: "false"),
+        ]
+        if let cursor {
+            qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
+        let url = baseURL.appending(path: "comments/\(commentID)/replies2").appending(queryItems: qi)
+        return try await fetch(Page<Comment>.self, from: url)
+    }
+
+    private static let commentFields = [
+        "body", "created", "deleted_at", "is_by_creator", "is_by_patron",
+        "is_liked_by_creator", "vote_sum", "reply_count", "visibility_state",
+    ].joined(separator: ",")
 
     /// GET /api/search — Patreon's internal search. Returns `campaign-document`
     /// resources (creators) with all fields inline; there is no `included` array.

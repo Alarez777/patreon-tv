@@ -489,6 +489,8 @@ struct Comment: JSONAPIResource {
         let visibilityState: String?
         /// Net like count.
         let voteSum: Int?
+        /// Number of direct replies (present on top-level comments).
+        let replyCount: Int?
 
         enum CodingKeys: String, CodingKey {
             case body, created
@@ -498,6 +500,7 @@ struct Comment: JSONAPIResource {
             case isLikedByCreator = "is_liked_by_creator"
             case visibilityState = "visibility_state"
             case voteSum = "vote_sum"
+            case replyCount = "reply_count"
         }
     }
 

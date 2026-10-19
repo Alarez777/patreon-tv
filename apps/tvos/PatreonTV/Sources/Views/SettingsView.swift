@@ -17,103 +17,117 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var prefs = prefs
 
-        return VStack(spacing: 32) {
-            Spacer()
+        return ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 28) {
+                if let user = auth.currentUser {
+                    avatar(for: user)
 
-            if let user = auth.currentUser {
-                avatar(for: user)
+                    VStack(spacing: 8) {
+                        Text(user.attributes.fullName ?? "Signed in")
+                            .font(.title)
+                            .foregroundStyle(PatreonColors.primaryText)
+                        if let email = user.attributes.email {
+                            Text(email)
+                                .foregroundStyle(PatreonColors.secondaryText)
+                        }
+                    }
+                }
 
-                VStack(spacing: 8) {
-                    Text(user.attributes.fullName ?? "Signed in")
-                        .font(.title)
-                        .foregroundStyle(PatreonColors.primaryText)
-                    if let email = user.attributes.email {
-                        Text(email)
+                Toggle(isOn: $prefs.showMatureContent) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Show mature content")
+                            .foregroundStyle(PatreonColors.primaryText)
+                        Text("Reveal creators and posts flagged as NSFW.")
+                            .font(.caption)
                             .foregroundStyle(PatreonColors.secondaryText)
                     }
                 }
-            }
+                .frame(maxWidth: 700)
 
-            Toggle(isOn: $prefs.showMatureContent) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Show mature content")
-                        .foregroundStyle(PatreonColors.primaryText)
-                    Text("Reveal creators and posts flagged as NSFW.")
-                        .font(.caption)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                }
-            }
-            .frame(maxWidth: 700)
-            .padding(.top, 8)
-
-            Toggle(isOn: $prefs.autoplayNext) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Autoplay next")
-                        .foregroundStyle(PatreonColors.primaryText)
-                    Text("When something ends, start the creator's next post after a countdown.")
-                        .font(.caption)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                }
-            }
-            .frame(maxWidth: 700)
-
-            Toggle(isOn: $prefs.showContinueCollection) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Show Continue Collection")
-                        .foregroundStyle(PatreonColors.primaryText)
-                    Text("Show the collection you opened most recently on Home.")
-                        .font(.caption)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                }
-            }
-            .frame(maxWidth: 700)
-
-            Toggle(isOn: $prefs.collectionOldestFirst) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Oldest episodes first")
-                        .foregroundStyle(PatreonColors.primaryText)
-                    Text("Open a collection's episodes oldest-first; off lists newest first.")
-                        .font(.caption)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                }
-            }
-            .frame(maxWidth: 700)
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Initial tab")
-                    .foregroundStyle(PatreonColors.primaryText)
-                Text("Which tab opens when PatreonTV launches.")
-                    .font(.caption)
-                    .foregroundStyle(PatreonColors.secondaryText)
-                Picker("Initial tab", selection: $prefs.initialTab) {
-                    ForEach(ContentPreferences.InitialTab.allCases) { tab in
-                        Text(tab.title).tag(tab)
+                Toggle(isOn: $prefs.autoplayNext) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Autoplay next")
+                            .foregroundStyle(PatreonColors.primaryText)
+                        Text("When something ends, start the creator's next post after a countdown.")
+                            .font(.caption)
+                            .foregroundStyle(PatreonColors.secondaryText)
                     }
                 }
-                .pickerStyle(.segmented)
+                .frame(maxWidth: 700)
+
+                Toggle(isOn: $prefs.showContinueCollection) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Show Continue Collection")
+                            .foregroundStyle(PatreonColors.primaryText)
+                        Text("Show the collection you opened most recently on Home.")
+                            .font(.caption)
+                            .foregroundStyle(PatreonColors.secondaryText)
+                    }
+                }
+                .frame(maxWidth: 700)
+
+                Toggle(isOn: $prefs.collectionOldestFirst) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Oldest episodes first")
+                            .foregroundStyle(PatreonColors.primaryText)
+                        Text("Open a collection's episodes oldest-first; off lists newest first.")
+                            .font(.caption)
+                            .foregroundStyle(PatreonColors.secondaryText)
+                    }
+                }
+                .frame(maxWidth: 700)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Initial tab")
+                        .foregroundStyle(PatreonColors.primaryText)
+                    Text("Which tab opens when PatreonTV launches.")
+                        .font(.caption)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                    Picker("Initial tab", selection: $prefs.initialTab) {
+                        ForEach(ContentPreferences.InitialTab.allCases) { tab in
+                            Text(tab.title).tag(tab)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .frame(maxWidth: 700, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Comment order")
+                        .foregroundStyle(PatreonColors.primaryText)
+                    Text("How a post's comments open. The comments screen can still reorder them for that visit.")
+                        .font(.caption)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                    Picker("Comment order", selection: $prefs.commentSort) {
+                        ForEach(CommentSort.allCases) { sort in
+                            Text(sort.title).tag(sort)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .frame(maxWidth: 700, alignment: .leading)
+
+                Button {
+                    auth.signOut()
+                } label: {
+                    Text("Sign Out")
+                        .font(.title3.weight(.semibold))
+                        .padding(.horizontal, 48)
+                        .padding(.vertical, 20)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(PatreonColors.brand)
+                .padding(.top, 8)
+
+                Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                    .font(.footnote)
+                    .foregroundStyle(PatreonColors.tertiaryText)
+                    .padding(.top, 8)
             }
-            .frame(maxWidth: 700, alignment: .leading)
-
-            Button {
-                auth.signOut()
-            } label: {
-                Text("Sign Out")
-                    .font(.title3.weight(.semibold))
-                    .padding(.horizontal, 48)
-                    .padding(.vertical, 20)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(PatreonColors.brand)
-            .padding(.top, 16)
-
-            Spacer()
-
-            Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
-                .font(.footnote)
-                .foregroundStyle(PatreonColors.tertiaryText)
-                .padding(.bottom, 40)
+            .padding(.horizontal, 60)
+            .padding(.vertical, 40)
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PatreonColors.background.ignoresSafeArea())
     }
 

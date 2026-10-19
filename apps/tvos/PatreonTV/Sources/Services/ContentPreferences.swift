@@ -2,9 +2,8 @@
 //  ContentPreferences.swift
 //  PatreonTV
 //
-//  User-facing content settings, persisted in UserDefaults. Currently just the
-//  mature-content gate: NSFW creators are hidden by default and revealed via a
-//  Settings toggle.
+//  User-facing content settings, persisted in UserDefaults: mature-content
+//  gate, playback behavior, launch tab and default comment order.
 //
 
 import Foundation
@@ -37,6 +36,7 @@ final class ContentPreferences {
     private let continueCollectionKey = "show_continue_collection"
     private let collectionOldestFirstKey = "collection_oldest_first"
     private let initialTabKey = "initial_tab"
+    private let commentSortKey = "comments_sort"
 
     /// When false (default), NSFW creators are hidden from Creators and Search.
     var showMatureContent: Bool {
@@ -68,11 +68,18 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(initialTab.rawValue, forKey: initialTabKey) }
     }
 
+    /// Default order for a post's comments (default Best). The on-screen sort
+    /// menu still overrides it for the current visit.
+    var commentSort: CommentSort {
+        didSet { UserDefaults.standard.set(commentSort.rawValue, forKey: commentSortKey) }
+    }
+
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
         autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
         showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
         collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false
         initialTab = InitialTab(rawValue: UserDefaults.standard.string(forKey: initialTabKey) ?? "") ?? .home
+        commentSort = CommentSort(rawValue: UserDefaults.standard.string(forKey: commentSortKey) ?? "") ?? .best
     }
 }
