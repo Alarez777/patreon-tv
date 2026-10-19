@@ -7,8 +7,9 @@
 
 import Foundation
 
-enum CollectionSort: String, CaseIterable, Identifiable {
-    case created
+enum CollectionSort: String, CaseIterable, Identifiable, Codable {
+    case oldest
+    case newest
     case titleAscending
     case titleDescending
 
@@ -16,17 +17,25 @@ enum CollectionSort: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .created: "Creation date"
+        case .oldest: "Oldest first"
+        case .newest: "Newest first"
         case .titleAscending: "Title A–Z"
         case .titleDescending: "Title Z–A"
         }
     }
 
-    /// Patreon returns collections in creation order, so `.created` keeps the
-    /// fetched order untouched. Title sorts are stable: equal titles retain
-    /// their original relative order.
+    /// Patreon returns collections in creation order, so `.oldest` keeps the
+    /// fetched order untouched and `.newest` reverses it. Title sorts are
+    /// stable: equal titles retain their original relative order.
     func sorted(_ collections: [PatreonCollection]) -> [PatreonCollection] {
-        guard self != .created else { return collections }
+        switch self {
+        case .oldest:
+            return collections
+        case .newest:
+            return Array(collections.reversed())
+        case .titleAscending, .titleDescending:
+            break
+        }
 
         let ascending = self == .titleAscending
         return collections.enumerated().sorted { lhs, rhs in

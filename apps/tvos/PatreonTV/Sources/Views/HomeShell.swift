@@ -139,6 +139,7 @@ enum DeepLinkDestination: Hashable, Codable {
     case post(id: String, autoplay: Bool, collectionID: String?, queue: [String]?)
     case creator(id: String)
     case collections(campaignID: String)
+    case collectionSearch(campaignID: String, sort: CollectionSort)
     case collection(id: String, focusPostID: String?)
     case comments(postID: String, commentCount: Int?)
 }
@@ -172,6 +173,12 @@ struct AppNavigationDestinations: ViewModifier {
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):
                 CollectionsView(campaignID: campaignID, onPlayCollection: onPlayCollection)
+            case .collectionSearch(let campaignID, let sort):
+                CollectionsSearchView(
+                    campaignID: campaignID,
+                    sort: sort,
+                    onPlayCollection: onPlayCollection
+                )
             case .collection(let id, let focusPostID):
                 CollectionView(collectionID: id, focusPostID: focusPostID, onPlayPost: onPlayPost)
             case .comments(let postID, let commentCount):

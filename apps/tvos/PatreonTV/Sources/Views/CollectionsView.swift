@@ -81,12 +81,9 @@ struct CollectionsView: View {
 
             sortMenu
 
-            NavigationLink {
-                CollectionsSearchView(
-                    collections: vm.collections,
-                    onPlayCollection: onPlayCollection
-                )
-            } label: {
+            NavigationLink(
+                value: DeepLinkDestination.collectionSearch(campaignID: campaignID, sort: vm.sort)
+            ) {
                 Image(systemName: "magnifyingglass")
                     .font(.title3.weight(.semibold))
                     .padding(14)
@@ -139,11 +136,12 @@ struct CollectionsView: View {
 
 // MARK: - Search
 
-private struct CollectionsSearchView: View {
+struct CollectionsSearchView: View {
 
-    let collections: [PatreonCollection]
+    let campaignID: String
     let onPlayCollection: ((String, String) -> Void)?
 
+    @State private var vm: CollectionsViewModel
     @State private var query = ""
 
     private let columns = [
@@ -151,11 +149,51 @@ private struct CollectionsSearchView: View {
         GridItem(.flexible(), spacing: 32),
     ]
 
+    init(
+        campaignID: String,
+        sort: CollectionSort,
+        onPlayCollection: ((String, String) -> Void)?
+    ) {
+        self.campaignID = campaignID
+        self.onPlayCollection = onPlayCollection
+
+        // The search is only reachable from the Collections screen, which has
+        // already fetched this campaign. Seed from that list to avoid a reload.
+        let vm = CollectionsViewModel(sort: sort)
+        if let cached = CollectionsCache.shared.collections(for: campaignID) {
+            vm.seed(cached, campaignID: campaignID)
+        }
+        _vm = State(initialValue: vm)
+    }
+
     private var results: [PatreonCollection] {
-        CollectionSearch.filter(collections, query: query)
+        CollectionSearch.filter(vm.collections, query: query)
     }
 
     var body: some View {
+        Group {
+            switch vm.state {
+            case .loading:
+                ProgressView().controlSize(.large)
+            case .error(let message):
+                ErrorView(message: message) {
+                    Task { await vm.load(campaignID: campaignID, preferCache: true) }
+                }
+            case .empty:
+                Text("No collections yet")
+                    .font(.title3)
+                    .foregroundStyle(PatreonColors.secondaryText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .loaded:
+                content
+            }
+        }
+        .searchable(text: $query, prompt: "Search collections")
+        .task { await vm.load(campaignID: campaignID, preferCache: true) }
+        .background(PatreonColors.background.ignoresSafeArea())
+    }
+
+    private var content: some View {
         ScrollView(.vertical, showsIndicators: false) {
             if results.isEmpty {
                 Text(emptyMessage)
@@ -176,8 +214,6 @@ private struct CollectionsSearchView: View {
             }
         }
         .scrollClipDisabled()
-        .searchable(text: $query, prompt: "Search collections")
-        .background(PatreonColors.background.ignoresSafeArea())
     }
 
     private var emptyMessage: String {
@@ -246,17 +282,37 @@ final class CollectionsViewModel {
 
     var state: State = .loading
     private(set) var collections: [PatreonCollection] = []
-    private(set) var sort: CollectionSort = .created
+    private(set) var sort: CollectionSort
     /// The order Patreon sent, kept as the stable source for every sort.
     private var fetched: [PatreonCollection] = []
     /// The campaign already loaded; guards against a re-fetch on re-appear.
     private var loadedCampaignID: String?
 
-    func load(campaignID: String) async {
+    init(sort: CollectionSort = .oldest) {
+        self.sort = sort
+    }
+
+    /// Seeds the view model from an already-fetched list (used by search).
+    func seed(_ collections: [PatreonCollection], campaignID: String) {
+        guard loadedCampaignID == nil else { return }
+        fetched = collections
+        loadedCampaignID = campaignID
+        applySort()
+        state = fetched.isEmpty ? .empty : .loaded
+    }
+
+    func load(campaignID: String, preferCache: Bool = false) async {
         guard loadedCampaignID != campaignID else { return }
+
+        if preferCache, let cached = CollectionsCache.shared.collections(for: campaignID) {
+            seed(cached, campaignID: campaignID)
+            return
+        }
+
         state = .loading
         do {
             fetched = try await PatreonClient.shared.collections(campaignID: campaignID)
+            CollectionsCache.shared.store(fetched, for: campaignID)
             loadedCampaignID = campaignID
             applySort()
             state = fetched.isEmpty ? .empty : .loaded
