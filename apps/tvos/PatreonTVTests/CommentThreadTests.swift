@@ -16,14 +16,15 @@ final class CommentThreadTests: XCTestCase {
         let items = CommentThread.flatten(
             roots: [a, b],
             replies: ["a": [comment("r1"), comment("r2")]],
-            expanded: [],
+            expandedReplies: [],
+            expandedText: [],
             authorByID: [:]
         )
 
         XCTAssertEqual(items.map(\.id), ["a", "b"])
         XCTAssertEqual(items.map(\.depth), [0, 0])
         XCTAssertEqual(items.map(\.parentID), [nil, nil])
-        XCTAssertEqual(items.map(\.isExpanded), [false, false])
+        XCTAssertEqual(items.map(\.isRepliesExpanded), [false, false])
     }
 
     func test_expanded_nests_replies_under_parent() {
@@ -32,7 +33,8 @@ final class CommentThreadTests: XCTestCase {
         let items = CommentThread.flatten(
             roots: [a, b],
             replies: ["a": [comment("r1"), comment("r2")]],
-            expanded: ["a"],
+            expandedReplies: ["a"],
+            expandedText: [],
             authorByID: [:]
         )
 
@@ -40,7 +42,7 @@ final class CommentThreadTests: XCTestCase {
         XCTAssertEqual(items.map(\.depth), [0, 1, 1, 0])
         XCTAssertEqual(items.map(\.parentID), [nil, "a", "a", nil])
         XCTAssertEqual(items.map(\.isLastSibling), [false, false, true, true])
-        XCTAssertEqual(items.map(\.isExpanded), [true, false, false, false])
+        XCTAssertEqual(items.map(\.isRepliesExpanded), [true, false, false, false])
     }
 
     func test_expansion_is_recursive() {
@@ -51,7 +53,8 @@ final class CommentThreadTests: XCTestCase {
                 "a": [comment("r1", replyCount: 1)],
                 "r1": [comment("rr1")],
             ],
-            expanded: ["a", "r1"],
+            expandedReplies: ["a", "r1"],
+            expandedText: [],
             authorByID: [:]
         )
 
@@ -66,11 +69,27 @@ final class CommentThreadTests: XCTestCase {
         let items = CommentThread.flatten(
             roots: [a],
             replies: ["a": [reply]],
-            expanded: ["a"],
+            expandedReplies: ["a"],
+            expandedText: [],
             authorByID: ["a": alice]
         )
 
         XCTAssertEqual(items.last?.parentAuthor?.attributes.fullName, "Alice")
+    }
+
+    func test_text_expansion_is_independent_from_replies() {
+        let a = comment("a", replyCount: 1)
+        let items = CommentThread.flatten(
+            roots: [a],
+            replies: ["a": [comment("r1")]],
+            expandedReplies: [],
+            expandedText: ["a"],
+            authorByID: [:]
+        )
+
+        XCTAssertEqual(items.map(\.id), ["a"])
+        XCTAssertEqual(items.first?.isTextExpanded, true)
+        XCTAssertEqual(items.first?.isRepliesExpanded, false)
     }
 
     // MARK: - Helpers

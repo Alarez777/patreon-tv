@@ -52,15 +52,22 @@ struct CommentsView: View {
                 header
 
                 ForEach(vm.items) { item in
-                    row(item)
-                        .onAppear {
-                            if item.id == vm.lastRootID {
-                                Task { await vm.loadMoreRoots() }
-                            }
-                            if let parentID = item.parentID, item.isLastSibling {
-                                Task { await vm.loadMoreReplies(parentID) }
-                            }
+                    CommentRow(
+                        item: item,
+                        focusedID: $focusedCommentID,
+                        onExpandText: { vm.setTextExpanded(item.comment.id, true) },
+                        onCollapseText: { vm.setTextExpanded(item.comment.id, false) },
+                        onToggleReplies: { Task { await vm.toggleReplies(item.comment) } },
+                        onCollapseReplies: { vm.collapseReplies(item.comment.id) }
+                    )
+                    .onAppear {
+                        if item.id == vm.lastRootID {
+                            Task { await vm.loadMoreRoots() }
                         }
+                        if let parentID = item.parentID, item.isLastSibling {
+                            Task { await vm.loadMoreReplies(parentID) }
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 60)
@@ -112,82 +119,156 @@ struct CommentsView: View {
         .accessibilityLabel("Sort comments")
     }
 
-    private func row(_ item: CommentThread.Item) -> some View {
-        Button {
-            Task { await vm.toggleReplies(item.comment) }
-        } label: {
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "bubble.left.and.bubble.right")
+                .font(.system(size: 60))
+                .foregroundStyle(PatreonColors.secondaryText)
+            Text("No comments yet")
+                .font(.title2)
+                .foregroundStyle(PatreonColors.primaryText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Row
+
+private struct CommentRow: View {
+
+    let item: CommentThread.Item
+    @FocusState.Binding var focusedID: String?
+    let onExpandText: () -> Void
+    let onCollapseText: () -> Void
+    let onToggleReplies: () -> Void
+    let onCollapseReplies: () -> Void
+
+    /// Whether the body exceeds the visible line limit. Measured by the body
+    /// view and used to decide what a click does.
+    @State private var isTruncated = false
+
+    var body: some View {
+        Button(action: handleSelect) {
             HStack(alignment: .top, spacing: 16) {
-                avatar(item.author)
+                avatar
 
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
-                        Text(item.author?.attributes.fullName ?? "Someone")
-                            .font(.headline)
-                            .foregroundStyle(PatreonColors.primaryText)
-
-                        if item.comment.attributes.isByCreator == true {
-                            badge("Creator")
-                        }
-                        if item.comment.attributes.isByPatron == true {
-                            badge("Patron")
-                        }
-
-                        if let date = dateText(item.comment.attributes.created) {
-                            Text(date)
-                                .font(.subheadline)
-                                .foregroundStyle(PatreonColors.tertiaryText)
-                        }
-
-                        Spacer()
-
-                        Label("\(item.comment.attributes.voteSum ?? 0)", systemImage: "heart")
-                            .font(.subheadline)
-                            .foregroundStyle(PatreonColors.secondaryText)
-
-                        Label("\(item.replyCount)", systemImage: "bubble.left")
-                            .font(.subheadline)
-                            .foregroundStyle(PatreonColors.secondaryText)
-
-                        if item.hasReplies {
-                            Image(systemName: item.isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(PatreonColors.tertiaryText)
-                        }
-                    }
-
-                    if let parentAuthor = item.parentAuthor {
-                        Text("Reply to \(parentAuthor.attributes.fullName ?? "someone")")
-                            .font(.caption)
-                            .foregroundStyle(PatreonColors.tertiaryText)
-                    }
-
-                    if item.comment.attributes.deletedAt != nil {
-                        Text("This comment was deleted.")
-                            .italic()
-                            .foregroundStyle(PatreonColors.secondaryText)
-                    } else if let body = item.comment.attributes.body, !body.isEmpty {
-                        Text(HTMLRenderer.attributedString(from: body))
-                            .font(.body)
-                            .foregroundStyle(PatreonColors.primaryText.opacity(0.92))
-                    }
+                    metadata
+                    parentLine
+                    bodyContent
                 }
             }
             .padding(18)
             .background(
-                focusedCommentID == item.id ? Color.black.opacity(0.55) : Color.clear,
+                focusedID == item.id ? Color.black.opacity(0.55) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
         }
         .buttonStyle(.plain)
         .focusEffectDisabled()
-        .focused($focusedCommentID, equals: item.id)
+        .focused($focusedID, equals: item.id)
         .padding(.leading, CGFloat(item.depth) * 40)
         .accessibilityElement(children: .combine)
-        .accessibilityHint(item.hasReplies ? (item.isExpanded ? "Collapses replies" : "Shows replies") : "")
+        .accessibilityHint(accessibilityHint)
     }
 
-    private func avatar(_ user: PatreonUser?) -> some View {
-        LazyImage(url: user?.attributes.imageURL ?? user?.attributes.thumbURL) { state in
+    private var metadata: some View {
+        HStack(spacing: 12) {
+            Text(item.author?.attributes.fullName ?? "Someone")
+                .font(.headline)
+                .foregroundStyle(PatreonColors.primaryText)
+
+            if item.comment.attributes.isByCreator == true {
+                badge("Creator")
+            }
+            if item.comment.attributes.isByPatron == true {
+                badge("Patron")
+            }
+
+            if let date = dateText(item.comment.attributes.created) {
+                Text(date)
+                    .font(.subheadline)
+                    .foregroundStyle(PatreonColors.tertiaryText)
+            }
+
+            Spacer()
+
+            Label("\(item.comment.attributes.voteSum ?? 0)", systemImage: "heart")
+                .font(.subheadline)
+                .foregroundStyle(PatreonColors.secondaryText)
+
+            Label("\(item.replyCount)", systemImage: "bubble.left")
+                .font(.subheadline)
+                .foregroundStyle(PatreonColors.secondaryText)
+
+            if item.hasReplies {
+                Image(systemName: item.isRepliesExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(PatreonColors.tertiaryText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var parentLine: some View {
+        if let parentAuthor = item.parentAuthor {
+            Text("Reply to \(parentAuthor.attributes.fullName ?? "someone")")
+                .font(.caption)
+                .foregroundStyle(PatreonColors.tertiaryText)
+        }
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
+        if item.comment.attributes.deletedAt != nil {
+            Text("This comment was deleted.")
+                .italic()
+                .foregroundStyle(PatreonColors.secondaryText)
+        } else if let body = item.comment.attributes.body, !body.isEmpty {
+            CommentBodyText(
+                text: HTMLRenderer.attributedString(from: body),
+                isExpanded: item.isTextExpanded,
+                isTruncated: $isTruncated
+            )
+
+            if isTruncated && !item.isTextExpanded {
+                Label("Show more", systemImage: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(PatreonColors.brand)
+                    .padding(.top, 2)
+            } else if isTruncated && item.isTextExpanded && !item.hasReplies {
+                Label("Show less", systemImage: "chevron.up")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(PatreonColors.brand)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    /// Click order: expand clipped text → show replies → hide replies → clip
+    /// the text again. A short comment skips straight to its replies.
+    private func handleSelect() {
+        if isTruncated && !item.isTextExpanded {
+            onExpandText()
+        } else if item.hasReplies && !item.isRepliesExpanded {
+            onToggleReplies()
+        } else if item.hasReplies && item.isRepliesExpanded {
+            onCollapseReplies()
+        } else if item.isTextExpanded {
+            onCollapseText()
+        }
+    }
+
+    private var accessibilityHint: String {
+        if isTruncated && !item.isTextExpanded { return "Shows the full comment" }
+        if item.hasReplies && !item.isRepliesExpanded { return "Shows replies" }
+        if item.hasReplies && item.isRepliesExpanded { return "Hides replies" }
+        if item.isTextExpanded { return "Collapses the comment" }
+        return ""
+    }
+
+    private var avatar: some View {
+        LazyImage(url: item.author?.attributes.imageURL ?? item.author?.attributes.thumbURL) { state in
             if let image = state.image {
                 image.resizable().aspectRatio(contentMode: .fill)
             } else {
@@ -223,17 +304,76 @@ struct CommentsView: View {
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
     }
+}
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 60))
-                .foregroundStyle(PatreonColors.secondaryText)
-            Text("No comments yet")
-                .font(.title2)
-                .foregroundStyle(PatreonColors.primaryText)
+// MARK: - Clamped body
+
+/// Renders a comment body clamped to five lines. Two hidden copies (full and
+/// clamped) are measured to know whether anything was cut off.
+private struct CommentBodyText: View {
+
+    let text: AttributedString
+    let isExpanded: Bool
+    @Binding var isTruncated: Bool
+
+    private static let maxLines = 5
+
+    @State private var fullHeight: CGFloat = 0
+    @State private var clampedHeight: CGFloat = 0
+
+    var body: some View {
+        Text(text)
+            .lineLimit(isExpanded ? nil : Self.maxLines)
+            .background(alignment: .topLeading) {
+                ZStack(alignment: .topLeading) {
+                    Text(text)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hidden()
+                        .background(measure(FullHeightKey.self))
+                    Text(text)
+                        .lineLimit(Self.maxLines)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hidden()
+                        .background(measure(ClampedHeightKey.self))
+                }
+            }
+            .onPreferenceChange(FullHeightKey.self) { height in
+                fullHeight = height
+                updateTruncation()
+            }
+            .onPreferenceChange(ClampedHeightKey.self) { height in
+                clampedHeight = height
+                updateTruncation()
+            }
+    }
+
+    private func updateTruncation() {
+        guard fullHeight > 0, clampedHeight > 0 else { return }
+        let truncated = fullHeight > clampedHeight + 1
+        if truncated != isTruncated {
+            isTruncated = truncated
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func measure<K: PreferenceKey>(_ key: K.Type) -> some View where K.Value == CGFloat {
+        GeometryReader { proxy in
+            Color.clear.preference(key: key, value: proxy.size.height)
+        }
+    }
+}
+
+private struct FullHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ClampedHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
@@ -241,7 +381,7 @@ struct CommentsView: View {
 
 /// Pure tree flattening so the visible rows are easy to test. Replies are kept
 /// in `replies` by their direct parent id and only included when that parent is
-/// in `expanded`.
+/// in `expandedReplies`.
 enum CommentThread {
 
     struct Item: Identifiable {
@@ -253,8 +393,10 @@ enum CommentThread {
         let parentID: String?
         /// True for the last reply a parent has loaded (drives reply paging).
         let isLastSibling: Bool
+        /// Whether the body is showing in full.
+        let isTextExpanded: Bool
         /// Whether this comment's replies are currently shown.
-        let isExpanded: Bool
+        let isRepliesExpanded: Bool
 
         var id: String { comment.id }
         var replyCount: Int { comment.attributes.replyCount ?? 0 }
@@ -264,7 +406,8 @@ enum CommentThread {
     static func flatten(
         roots: [Comment],
         replies: [String: [Comment]],
-        expanded: Set<String>,
+        expandedReplies: Set<String>,
+        expandedText: Set<String>,
         authorByID: [String: PatreonUser]
     ) -> [Item] {
         var items: [Item] = []
@@ -277,9 +420,10 @@ enum CommentThread {
                 depth: depth,
                 parentID: parentID,
                 isLastSibling: isLastSibling,
-                isExpanded: expanded.contains(comment.id)
+                isTextExpanded: expandedText.contains(comment.id),
+                isRepliesExpanded: expandedReplies.contains(comment.id)
             ))
-            guard expanded.contains(comment.id) else { return }
+            guard expandedReplies.contains(comment.id) else { return }
             let children = replies[comment.id] ?? []
             for (index, child) in children.enumerated() {
                 append(child, depth: depth + 1, parentID: comment.id, isLastSibling: index == children.count - 1)
@@ -311,7 +455,8 @@ final class CommentsViewModel {
     private var roots: [Comment] = []
     private var replies: [String: [Comment]] = [:]
     private var replyCursors: [String: String] = [:]
-    private var expanded: Set<String> = []
+    private var expandedReplies: Set<String> = []
+    private var expandedText: Set<String> = []
     private var usersByID: [String: PatreonUser] = [:]
     private var nextCursor: String?
     private var isFetchingMore = false
@@ -343,7 +488,8 @@ final class CommentsViewModel {
             roots = page.data
             replies.removeAll()
             replyCursors.removeAll()
-            expanded.removeAll()
+            expandedReplies.removeAll()
+            expandedText.removeAll()
             nextCursor = page.nextCursor
             indexUsers(page.included)
             total = providedTotal ?? page.meta?.count ?? page.data.count
@@ -365,7 +511,8 @@ final class CommentsViewModel {
             roots = page.data
             replies.removeAll()
             replyCursors.removeAll()
-            expanded.removeAll()
+            expandedReplies.removeAll()
+            expandedText.removeAll()
             nextCursor = page.nextCursor
             indexUsers(page.included)
             total = providedTotal ?? page.meta?.count ?? page.data.count
@@ -392,21 +539,35 @@ final class CommentsViewModel {
         }
     }
 
+    func setTextExpanded(_ commentID: String, _ expanded: Bool) {
+        if expanded {
+            expandedText.insert(commentID)
+        } else {
+            expandedText.remove(commentID)
+        }
+        rebuild()
+    }
+
     func toggleReplies(_ comment: Comment) async {
         guard (comment.attributes.replyCount ?? 0) > 0 else { return }
 
-        if expanded.contains(comment.id) {
-            expanded.remove(comment.id)
+        if expandedReplies.contains(comment.id) {
+            expandedReplies.remove(comment.id)
             rebuild()
             return
         }
 
-        expanded.insert(comment.id)
+        expandedReplies.insert(comment.id)
         rebuild()
 
         if replies[comment.id] == nil {
             await loadReplies(comment.id)
         }
+    }
+
+    func collapseReplies(_ commentID: String) {
+        expandedReplies.remove(commentID)
+        rebuild()
     }
 
     func loadMoreReplies(_ commentID: String) async {
@@ -428,7 +589,7 @@ final class CommentsViewModel {
                 ($0.attributes.created ?? "") < ($1.attributes.created ?? "")
             }
             if merged.isEmpty {
-                expanded.remove(commentID)
+                expandedReplies.remove(commentID)
             }
             if page.data.isEmpty {
                 replyCursors.removeValue(forKey: commentID)
@@ -442,7 +603,7 @@ final class CommentsViewModel {
         } catch {
             log.error("Replies load failed for \(commentID): \(String(describing: error))")
             if cursor == nil {
-                expanded.remove(commentID)
+                expandedReplies.remove(commentID)
                 rebuild()
             }
         }
@@ -472,7 +633,8 @@ final class CommentsViewModel {
         items = CommentThread.flatten(
             roots: roots,
             replies: replies,
-            expanded: expanded,
+            expandedReplies: expandedReplies,
+            expandedText: expandedText,
             authorByID: authorByID
         )
     }
