@@ -2,7 +2,7 @@
 //  CommentDecodingTests.swift
 //  PatreonTVTests
 //
-//  Decoding of post comments, including reply parents and like counts.
+//  Decoding of post comments, their authors and like counts.
 //
 
 import XCTest
@@ -10,7 +10,7 @@ import XCTest
 
 final class CommentDecodingTests: XCTestCase {
 
-    func test_decodes_comments_and_reply_parent() throws {
+    func test_decodes_comments_and_authors() throws {
         let json = """
         {
           "data": [
@@ -22,8 +22,7 @@ final class CommentDecodingTests: XCTestCase {
                 "is_by_patron": true
               },
               "relationships": {
-                "commenter": { "data": { "type": "user", "id": "u1" } },
-                "parent": { "data": null }
+                "commenter": { "data": { "type": "user", "id": "u1" } }
               }
             },
             {
@@ -33,8 +32,7 @@ final class CommentDecodingTests: XCTestCase {
                 "vote_sum": 0
               },
               "relationships": {
-                "commenter": { "data": { "type": "user", "id": "u2" } },
-                "parent": { "data": { "type": "comment", "id": "c1" } }
+                "commenter": { "data": { "type": "user", "id": "u2" } }
               }
             }
           ],
@@ -52,8 +50,6 @@ final class CommentDecodingTests: XCTestCase {
         XCTAssertEqual(page.data.first?.attributes.body, "Top")
         XCTAssertEqual(page.data.first?.attributes.voteSum, 2)
         XCTAssertEqual(page.data.first?.attributes.replyCount, 3)
-        XCTAssertNil(page.data.first?.relationships?.parent?.data?.id)
-        XCTAssertEqual(page.data.last?.relationships?.parent?.data?.id, "c1")
         XCTAssertEqual(page.meta?.count, 2)
     }
 
@@ -64,8 +60,7 @@ final class CommentDecodingTests: XCTestCase {
             "type": "comment", "id": "r1",
             "attributes": { "body": "Only reply", "created": "2026-01-01T00:01:00.000+00:00" },
             "relationships": {
-              "commenter": { "data": { "type": "user", "id": "u1" } },
-              "parent": { "data": { "type": "comment", "id": "c1" } }
+              "commenter": { "data": { "type": "user", "id": "u1" } }
             }
           },
           "included": [
@@ -78,7 +73,6 @@ final class CommentDecodingTests: XCTestCase {
 
         XCTAssertEqual(page.data.count, 1)
         XCTAssertEqual(page.data.first?.id, "r1")
-        XCTAssertEqual(page.data.first?.relationships?.parent?.data?.id, "c1")
         XCTAssertNil(page.meta)
     }
 
@@ -97,5 +91,10 @@ final class CommentDecodingTests: XCTestCase {
         XCTAssertEqual(page.data.count, 1)
         XCTAssertEqual(page.data.first?.attributes.body, "Top")
         XCTAssertNil(page.meta)
+    }
+
+    func test_malformed_data_throws() {
+        let json = #"{"data": "not a comment"}"#.data(using: .utf8)!
+        XCTAssertThrowsError(try JSONAPIDecoder.decode(CommentPage.self, from: json))
     }
 }

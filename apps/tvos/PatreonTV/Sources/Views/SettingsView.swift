@@ -2,8 +2,8 @@
 //  SettingsView.swift
 //  PatreonTV
 //
-//  Minimal settings — sign out for MVP. Later: playback quality, captions,
-//  autoplay next, parental controls.
+//  App settings: mature content, playback, launch tab, comment order and
+//  sign out.
 //
 
 import NukeUI

@@ -64,7 +64,7 @@ final class CommentThreadTests: XCTestCase {
 
     func test_reply_resolves_parent_author() {
         let a = comment("a", replyCount: 1)
-        let reply = comment("r1", parent: "a")
+        let reply = comment("r1")
         let alice = user("Alice")
         let items = CommentThread.flatten(
             roots: [a],
@@ -96,28 +96,21 @@ final class CommentThreadTests: XCTestCase {
 
     private func comment(
         _ id: String,
-        created: String = "2026-01-01T00:00:00.000+00:00",
-        replyCount: Int = 0,
-        parent: String? = nil
+        replyCount: Int = 0
     ) -> Comment {
         Comment(
             id: id,
             type: "comment",
             attributes: Comment.Attributes(
                 body: id,
-                created: created,
+                created: "2026-01-01T00:00:00.000+00:00",
                 deletedAt: nil,
                 isByCreator: nil,
                 isByPatron: nil,
-                isLikedByCreator: nil,
-                visibilityState: nil,
                 voteSum: nil,
                 replyCount: replyCount
             ),
-            relationships: Comment.Relationships(
-                commenter: nil,
-                parent: parent.map { RelationRef(data: RelationID(type: "comment", id: $0)) }
-            )
+            relationships: Comment.Relationships(commenter: nil)
         )
     }
 

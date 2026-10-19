@@ -307,9 +307,8 @@ final class PatreonClient {
         limit: Int = 50
     ) async throws -> CommentPage {
         var qi: [URLQueryItem] = [
-            URLQueryItem(name: "include", value: "commenter.campaign"),
+            URLQueryItem(name: "include", value: "commenter"),
             URLQueryItem(name: "fields[comment]", value: Self.commentFields),
-            URLQueryItem(name: "fields[campaign]", value: ""),
             URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
             URLQueryItem(name: "page[count]", value: String(limit)),
             URLQueryItem(name: "sort", value: sort.apiValue),
@@ -330,10 +329,8 @@ final class PatreonClient {
         limit: Int = 50
     ) async throws -> CommentPage {
         var qi: [URLQueryItem] = [
-            URLQueryItem(name: "include", value: "commenter.campaign,parent,post,on_behalf_of_campaign"),
+            URLQueryItem(name: "include", value: "commenter"),
             URLQueryItem(name: "fields[comment]", value: Self.commentFields),
-            URLQueryItem(name: "fields[post]", value: "comment_count"),
-            URLQueryItem(name: "fields[campaign]", value: ""),
             URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
             URLQueryItem(name: "page[count]", value: String(limit)),
             URLQueryItem(name: "sort", value: "created"),
@@ -349,7 +346,7 @@ final class PatreonClient {
 
     private static let commentFields = [
         "body", "created", "deleted_at", "is_by_creator", "is_by_patron",
-        "is_liked_by_creator", "vote_sum", "reply_count", "visibility_state",
+        "vote_sum", "reply_count",
     ].joined(separator: ",")
 
     /// GET /api/search — Patreon's internal search. Returns `campaign-document`

@@ -64,6 +64,10 @@ struct CommentPage: Decodable, Sendable {
             data = list
         } else if let single = try? container.decode(Comment.self, forKey: .data) {
             data = [single]
+        } else if container.contains(.data) {
+            // Surface the real decoding error instead of silently showing an
+            // empty thread.
+            data = try container.decode([Comment].self, forKey: .data)
         } else {
             data = []
         }
@@ -508,8 +512,7 @@ struct PollResponse: JSONAPIResource {
 
 // MARK: - Comment
 
-/// A post comment. `commenter` is the author; `parent` points at the comment
-/// this one replies to (nil for top-level comments).
+/// A post comment. `commenter` is the author.
 struct Comment: JSONAPIResource {
     let id: String
     let type: String
@@ -522,8 +525,6 @@ struct Comment: JSONAPIResource {
         let deletedAt: String?
         let isByCreator: Bool?
         let isByPatron: Bool?
-        let isLikedByCreator: Bool?
-        let visibilityState: String?
         /// Net like count.
         let voteSum: Int?
         /// Number of direct replies (present on top-level comments).
@@ -534,8 +535,6 @@ struct Comment: JSONAPIResource {
             case deletedAt = "deleted_at"
             case isByCreator = "is_by_creator"
             case isByPatron = "is_by_patron"
-            case isLikedByCreator = "is_liked_by_creator"
-            case visibilityState = "visibility_state"
             case voteSum = "vote_sum"
             case replyCount = "reply_count"
         }
@@ -543,7 +542,6 @@ struct Comment: JSONAPIResource {
 
     struct Relationships: Decodable, Hashable {
         let commenter: RelationRef?
-        let parent: RelationRef?
     }
 }
 

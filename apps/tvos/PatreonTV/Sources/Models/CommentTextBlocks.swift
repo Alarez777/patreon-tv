@@ -209,12 +209,13 @@ enum CommentTextBlocks {
                     previous = characters.index(before: previous)
                 }
 
-                if sentence == nil, characters[previous] == "." || characters[previous] == "?"
-                    || characters[previous] == "!" {
-                    sentence = index
-                } else if clause == nil, characters[previous] == "," || characters[previous] == ";"
-                    || characters[previous] == ":" {
-                    clause = index
+                switch characters[previous] {
+                case ".", "?", "!":
+                    if sentence == nil { sentence = index }
+                case ",", ";", ":":
+                    if clause == nil { clause = index }
+                default:
+                    break
                 }
             }
 

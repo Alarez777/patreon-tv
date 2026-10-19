@@ -14,13 +14,10 @@ import os
 
 struct CommentsView: View {
 
-    let postID: String
-
     @State private var vm: CommentsViewModel
     @FocusState private var focusedCommentID: String?
 
     init(postID: String, commentCount: Int? = nil) {
-        self.postID = postID
         _vm = State(initialValue: CommentsViewModel(postID: postID, commentCount: commentCount))
     }
 
@@ -314,7 +311,6 @@ private struct CommentRow: View {
         } else if let body = item.comment.attributes.body, !body.isEmpty {
             CommentBodyText(
                 text: HTMLRenderer.attributedString(from: body),
-                isExpanded: false,
                 isTruncated: $isTruncated
             )
             .foregroundStyle(foregroundColor)
@@ -444,7 +440,6 @@ private struct CommentRow: View {
 private struct CommentBodyText: View {
 
     let text: AttributedString
-    let isExpanded: Bool
     @Binding var isTruncated: Bool
 
     private static let maxLines = 5
@@ -454,7 +449,7 @@ private struct CommentBodyText: View {
 
     var body: some View {
         Text(text)
-            .lineLimit(isExpanded ? nil : Self.maxLines)
+            .lineLimit(Self.maxLines)
             .background(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
                     Text(text)
@@ -617,17 +612,7 @@ final class CommentsViewModel {
         state = .loading
         do {
             let page = try await PatreonClient.shared.comments(postID: postID, sort: sort)
-            roots = page.data
-            replies.removeAll()
-            replyCursors.removeAll()
-            expandedReplies.removeAll()
-            expandedText.removeAll()
-            replyErrors.removeAll()
-            nextCursor = page.nextCursor
-            indexUsers(page.included)
-            total = providedTotal ?? page.meta?.count ?? page.data.count
-            rebuild()
-            state = items.isEmpty ? .empty : .loaded
+            apply(page)
         } catch {
             log.error("Comments load failed: \(String(describing: error))")
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
@@ -636,25 +621,31 @@ final class CommentsViewModel {
 
     func select(sort newSort: CommentSort) async {
         guard newSort != sort else { return }
+        let previous = sort
         sort = newSort
         // Keep the current list on screen while the new order loads, so focus
         // doesn't bounce back to the tab bar.
         do {
             let page = try await PatreonClient.shared.comments(postID: postID, sort: sort)
-            roots = page.data
-            replies.removeAll()
-            replyCursors.removeAll()
-            expandedReplies.removeAll()
-            expandedText.removeAll()
-            replyErrors.removeAll()
-            nextCursor = page.nextCursor
-            indexUsers(page.included)
-            total = providedTotal ?? page.meta?.count ?? page.data.count
-            rebuild()
-            state = items.isEmpty ? .empty : .loaded
+            apply(page)
         } catch {
+            sort = previous
             log.error("Comments re-sort failed: \(String(describing: error))")
         }
+    }
+
+    private func apply(_ page: CommentPage) {
+        roots = page.data
+        replies.removeAll()
+        replyCursors.removeAll()
+        expandedReplies.removeAll()
+        expandedText.removeAll()
+        replyErrors.removeAll()
+        nextCursor = page.nextCursor
+        indexUsers(page.included)
+        total = providedTotal ?? page.meta?.count ?? page.data.count
+        rebuild()
+        state = items.isEmpty ? .empty : .loaded
     }
 
     func loadMoreRoots() async {
