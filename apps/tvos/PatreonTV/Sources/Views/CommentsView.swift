@@ -156,43 +156,66 @@ private struct CommentRow: View {
     let onShowReplies: () -> Void
     let onHideReplies: () -> Void
 
-    /// Whether the body exceeds the visible line limit. Measured by the body
-    /// view and used to decide what a click does.
+    /// Whether the body exceeds five lines. Measured only while collapsed.
     @State private var isTruncated = false
 
-    var body: some View {
-        Button(action: handleSelect) {
-            HStack(alignment: .top, spacing: 16) {
-                avatar
+    private var blockIDPrefix: String { "block-\(item.id)-" }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    metadata
-                    parentLine
-                    bodyContent
+    var body: some View {
+        let blocks = item.isTextExpanded ? readingBlocks : []
+
+        return HStack(alignment: .top, spacing: 16) {
+            avatar
+
+            VStack(alignment: .leading, spacing: 8) {
+                Button(action: handleSelect) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        metadata
+                        parentLine
+                        headerBody(blocks: blocks)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .focused($focusedID, equals: item.id)
+                // Right toggles the body. Left is deliberately free so the
+                // focus engine can reach a future left-side tab bar.
+                .onMoveCommand { direction in
+                    guard direction == .right else { return }
+                    toggleText()
+                }
+                .accessibilityHint(headerHint)
+
+                if item.isTextExpanded {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(blocks.indices.dropFirst()), id: \.self) { index in
+                            readingBlock(blocks[index], index: index)
+                        }
+                    }
+                    .padding(.top, 2)
                 }
             }
-            .padding(18)
-            .background(
-                focusedID == item.id ? Color.black.opacity(0.55) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
         }
-        .buttonStyle(.plain)
-        .focusEffectDisabled()
-        .focused($focusedID, equals: item.id)
-        // Right toggles the clamped body. Left is deliberately left alone so
-        // the focus engine can reach a future left-side tab bar.
-        .onMoveCommand { direction in
-            guard direction == .right, isTruncated else { return }
-            if item.isTextExpanded {
-                onCollapseText()
-            } else {
-                onExpandText()
-            }
-        }
+        .padding(18)
+        .background(
+            isFocusWithin ? Color.black.opacity(0.55) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
         .padding(.leading, CGFloat(item.depth) * 40)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(accessibilityHint)
+    }
+
+    /// The card stays highlighted while any of its reading blocks has focus.
+    private var isFocusWithin: Bool {
+        guard let focusedID else { return false }
+        return focusedID == item.id || focusedID.hasPrefix(blockIDPrefix)
+    }
+
+    private var readingBlocks: [AttributedString] {
+        guard item.comment.attributes.deletedAt == nil,
+              let body = item.comment.attributes.body, !body.isEmpty else { return [] }
+        return CommentTextBlocks.split(HTMLRenderer.attributedString(from: body))
     }
 
     private var metadata: some View {
@@ -242,20 +265,29 @@ private struct CommentRow: View {
     }
 
     @ViewBuilder
-    private var bodyContent: some View {
+    private func headerBody(blocks: [AttributedString]) -> some View {
         if item.comment.attributes.deletedAt != nil {
             Text("This comment was deleted.")
                 .italic()
                 .foregroundStyle(PatreonColors.secondaryText)
+        } else if item.isTextExpanded, let first = blocks.first {
+            Text(first)
+                .font(.body)
+                .foregroundStyle(PatreonColors.primaryText.opacity(0.92))
+
+            Label("Show less", systemImage: "arrow.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(PatreonColors.brand)
+                .padding(.top, 2)
         } else if let body = item.comment.attributes.body, !body.isEmpty {
             CommentBodyText(
                 text: HTMLRenderer.attributedString(from: body),
-                isExpanded: item.isTextExpanded,
+                isExpanded: false,
                 isTruncated: $isTruncated
             )
 
             if isTruncated {
-                Label(item.isTextExpanded ? "Show less" : "Show more", systemImage: "arrow.right")
+                Label("Show more", systemImage: "arrow.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(PatreonColors.brand)
                     .padding(.top, 2)
@@ -263,8 +295,30 @@ private struct CommentRow: View {
         }
     }
 
-    /// Select only deals with replies. Right (handled in `body`) toggles the
-    /// clipped text.
+    /// Focusable continuation of the body. Reading proceeds Down through the
+    /// blocks; Right collapses back to the five-line preview.
+    private func readingBlock(_ block: AttributedString, index: Int) -> some View {
+        let blockID = "\(blockIDPrefix)\(index)"
+        return Text(block)
+            .font(.body)
+            .foregroundStyle(PatreonColors.primaryText.opacity(0.92))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .focusable()
+            .focusEffectDisabled()
+            .focused($focusedID, equals: blockID)
+            .background(
+                focusedID == blockID ? Color.white.opacity(0.06) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+            .onMoveCommand { direction in
+                guard direction == .right else { return }
+                collapseFromBlock()
+            }
+            .accessibilityHint("Right to collapse the comment")
+    }
+
+    /// Select only deals with replies. Right toggles the clipped text.
     private func handleSelect() {
         guard item.hasReplies else { return }
         if item.isRepliesExpanded {
@@ -274,13 +328,32 @@ private struct CommentRow: View {
         }
     }
 
-    private var accessibilityHint: String {
+    private func toggleText() {
+        if item.isTextExpanded {
+            onCollapseText()
+        } else if isTruncated {
+            onExpandText()
+        }
+    }
+
+    private func collapseFromBlock() {
+        onCollapseText()
+        // The focused block is about to disappear; return to the header.
+        Task {
+            try? await Task.sleep(for: .milliseconds(50))
+            focusedID = item.id
+        }
+    }
+
+    private var headerHint: String {
         var hints: [String] = []
         if item.hasReplies {
             hints.append(item.isRepliesExpanded ? "Select to hide replies" : "Select to show replies")
         }
-        if isTruncated {
-            hints.append(item.isTextExpanded ? "Right to collapse the comment" : "Right to show the full comment")
+        if item.isTextExpanded {
+            hints.append("Right to collapse the comment")
+        } else if isTruncated {
+            hints.append("Right to show the full comment")
         }
         return hints.joined(separator: ". ")
     }
