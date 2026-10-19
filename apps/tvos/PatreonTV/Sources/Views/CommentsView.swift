@@ -68,6 +68,13 @@ struct CommentsView: View {
                             Task { await vm.loadMoreReplies(parentID) }
                         }
                     }
+
+                    if let error = vm.replyError(for: item.comment.id) {
+                        Text("Couldn't load replies. \(error)")
+                            .font(.caption)
+                            .foregroundStyle(PatreonColors.secondaryText)
+                            .padding(.leading, CGFloat(item.depth) * 40)
+                    }
                 }
             }
             .padding(.horizontal, 60)
@@ -195,12 +202,17 @@ private struct CommentRow: View {
                         }
                     }
                     .padding(.top, 2)
+
+                    Label("Show less", systemImage: "arrow.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accentColor)
+                        .padding(.top, 4)
                 }
             }
         }
         .padding(18)
         .background(
-            isFocusWithin ? Color.black.opacity(0.55) : Color.clear,
+            cardBackground,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .padding(.leading, CGFloat(item.depth) * 40)
@@ -210,6 +222,26 @@ private struct CommentRow: View {
     private var isFocusWithin: Bool {
         guard let focusedID else { return false }
         return focusedID == item.id || focusedID.hasPrefix(blockIDPrefix)
+    }
+
+    private var foregroundColor: Color {
+        isFocusWithin ? .black : PatreonColors.primaryText
+    }
+
+    private var secondaryColor: Color {
+        isFocusWithin ? Color.black.opacity(0.72) : PatreonColors.secondaryText
+    }
+
+    private var tertiaryColor: Color {
+        isFocusWithin ? Color.black.opacity(0.55) : PatreonColors.tertiaryText
+    }
+
+    private var accentColor: Color {
+        isFocusWithin ? .black : PatreonColors.brand
+    }
+
+    private var cardBackground: Color {
+        isFocusWithin ? .white : .clear
     }
 
     private var readingBlocks: [AttributedString] {
@@ -222,7 +254,7 @@ private struct CommentRow: View {
         HStack(spacing: 12) {
             Text(item.author?.attributes.fullName ?? "Someone")
                 .font(.headline)
-                .foregroundStyle(PatreonColors.primaryText)
+                .foregroundStyle(foregroundColor)
 
             if item.comment.attributes.isByCreator == true {
                 badge("Creator")
@@ -234,24 +266,21 @@ private struct CommentRow: View {
             if let date = dateText(item.comment.attributes.created) {
                 Text(date)
                     .font(.subheadline)
-                    .foregroundStyle(PatreonColors.tertiaryText)
+                    .foregroundStyle(tertiaryColor)
             }
 
             Spacer()
 
             Label("\(item.comment.attributes.voteSum ?? 0)", systemImage: "heart")
                 .font(.subheadline)
-                .foregroundStyle(PatreonColors.secondaryText)
+                .foregroundStyle(secondaryColor)
 
-            Label("\(item.replyCount)", systemImage: "bubble.left")
-                .font(.subheadline)
-                .foregroundStyle(PatreonColors.secondaryText)
-
-            if item.hasReplies {
-                Image(systemName: item.isRepliesExpanded ? "chevron.up" : "chevron.down")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(PatreonColors.tertiaryText)
-            }
+            Label(
+                "\(item.replyCount)",
+                systemImage: item.isRepliesExpanded ? "bubble.left.fill" : "bubble.left"
+            )
+            .font(.subheadline)
+            .foregroundStyle(secondaryColor)
         }
     }
 
@@ -260,7 +289,7 @@ private struct CommentRow: View {
         if let parentAuthor = item.parentAuthor {
             Text("Reply to \(parentAuthor.attributes.fullName ?? "someone")")
                 .font(.caption)
-                .foregroundStyle(PatreonColors.tertiaryText)
+                .foregroundStyle(tertiaryColor)
         }
     }
 
@@ -269,53 +298,47 @@ private struct CommentRow: View {
         if item.comment.attributes.deletedAt != nil {
             Text("This comment was deleted.")
                 .italic()
-                .foregroundStyle(PatreonColors.secondaryText)
+                .foregroundStyle(secondaryColor)
         } else if item.isTextExpanded, let first = blocks.first {
             Text(first)
                 .font(.body)
-                .foregroundStyle(PatreonColors.primaryText.opacity(0.92))
-
-            Label("Show less", systemImage: "arrow.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(PatreonColors.brand)
-                .padding(.top, 2)
+                .foregroundStyle(foregroundColor)
         } else if let body = item.comment.attributes.body, !body.isEmpty {
             CommentBodyText(
                 text: HTMLRenderer.attributedString(from: body),
                 isExpanded: false,
                 isTruncated: $isTruncated
             )
+            .foregroundStyle(foregroundColor)
 
             if isTruncated {
                 Label("Show more", systemImage: "arrow.right")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(PatreonColors.brand)
+                    .foregroundStyle(accentColor)
                     .padding(.top, 2)
             }
         }
     }
 
-    /// Focusable continuation of the body. Reading proceeds Down through the
-    /// blocks; Right collapses back to the five-line preview.
+    /// Focusable continuation of the body. Select toggles replies just like the
+    /// header; Right collapses back to the five-line preview.
     private func readingBlock(_ block: AttributedString, index: Int) -> some View {
         let blockID = "\(blockIDPrefix)\(index)"
-        return Text(block)
-            .font(.body)
-            .foregroundStyle(PatreonColors.primaryText.opacity(0.92))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .focusable()
-            .focusEffectDisabled()
-            .focused($focusedID, equals: blockID)
-            .background(
-                focusedID == blockID ? Color.white.opacity(0.06) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-            )
-            .onMoveCommand { direction in
-                guard direction == .right else { return }
-                collapseFromBlock()
-            }
-            .accessibilityHint("Right to collapse the comment")
+        return Button(action: handleSelect) {
+            Text(block)
+                .font(.body)
+                .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .focused($focusedID, equals: blockID)
+        .onMoveCommand { direction in
+            guard direction == .right else { return }
+            collapseFromBlock()
+        }
+        .accessibilityHint(blockHint)
     }
 
     /// Select only deals with replies. Right toggles the clipped text.
@@ -355,6 +378,15 @@ private struct CommentRow: View {
         } else if isTruncated {
             hints.append("Right to show the full comment")
         }
+        return hints.joined(separator: ". ")
+    }
+
+    private var blockHint: String {
+        var hints: [String] = []
+        if item.hasReplies {
+            hints.append(item.isRepliesExpanded ? "Select to hide replies" : "Select to show replies")
+        }
+        hints.append("Right to collapse the comment")
         return hints.joined(separator: ". ")
     }
 
@@ -552,6 +584,7 @@ final class CommentsViewModel {
     private var nextCursor: String?
     private var isFetchingMore = false
     private var loadingReplies: Set<String> = []
+    private var replyErrors: [String: String] = [:]
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Comments")
 
@@ -581,6 +614,7 @@ final class CommentsViewModel {
             replyCursors.removeAll()
             expandedReplies.removeAll()
             expandedText.removeAll()
+            replyErrors.removeAll()
             nextCursor = page.nextCursor
             indexUsers(page.included)
             total = providedTotal ?? page.meta?.count ?? page.data.count
@@ -604,6 +638,7 @@ final class CommentsViewModel {
             replyCursors.removeAll()
             expandedReplies.removeAll()
             expandedText.removeAll()
+            replyErrors.removeAll()
             nextCursor = page.nextCursor
             indexUsers(page.included)
             total = providedTotal ?? page.meta?.count ?? page.data.count
@@ -643,6 +678,7 @@ final class CommentsViewModel {
         guard (comment.attributes.replyCount ?? 0) > 0 else { return }
         guard !expandedReplies.contains(comment.id) else { return }
 
+        replyErrors.removeValue(forKey: comment.id)
         expandedReplies.insert(comment.id)
         rebuild()
 
@@ -653,6 +689,10 @@ final class CommentsViewModel {
 
     func isRepliesExpanded(_ commentID: String) -> Bool {
         expandedReplies.contains(commentID)
+    }
+
+    func replyError(for commentID: String) -> String? {
+        replyErrors[commentID]
     }
 
     func firstReplyID(of commentID: String) -> String? {
@@ -672,6 +712,7 @@ final class CommentsViewModel {
     private func loadReplies(_ commentID: String, cursor: String? = nil) async {
         guard !loadingReplies.contains(commentID) else { return }
         loadingReplies.insert(commentID)
+        replyErrors.removeValue(forKey: commentID)
         defer { loadingReplies.remove(commentID) }
 
         do {
@@ -696,10 +737,11 @@ final class CommentsViewModel {
             rebuild()
         } catch {
             log.error("Replies load failed for \(commentID): \(String(describing: error))")
+            replyErrors[commentID] = (error as? PatreonError)?.errorDescription ?? error.localizedDescription
             if cursor == nil {
                 expandedReplies.remove(commentID)
-                rebuild()
             }
+            rebuild()
         }
     }
 

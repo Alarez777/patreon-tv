@@ -46,6 +46,43 @@ struct Page<T: JSONAPIResource>: Decodable, Sendable {
     }
 }
 
+/// Comment lists are inconsistent: `data` is usually an array, but `replies2`
+/// can return a single comment object, and `meta`/`links` vary by endpoint.
+/// Decode leniently so one unexpected field doesn't discard the whole page.
+struct CommentPage: Decodable, Sendable {
+    let data: [Comment]
+    let included: [Included]?
+    let meta: PageMeta?
+    let links: Links?
+
+    private enum CodingKeys: String, CodingKey { case data, included, meta, links }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let list = try? container.decode([Comment].self, forKey: .data) {
+            data = list
+        } else if let single = try? container.decode(Comment.self, forKey: .data) {
+            data = [single]
+        } else {
+            data = []
+        }
+
+        included = try? container.decodeIfPresent([Included].self, forKey: .included)
+        meta = try? container.decodeIfPresent(PageMeta.self, forKey: .meta)
+        links = try? container.decodeIfPresent(Links.self, forKey: .links)
+    }
+
+    var nextCursor: String? {
+        if let cursor = meta?.pagination?.cursors?.next { return cursor }
+        guard let next = links?.next,
+              let components = URLComponents(string: next),
+              let cursor = components.queryItems?.first(where: { $0.name == "page[cursor]" })?.value
+        else { return nil }
+        return cursor
+    }
+}
+
 struct PageMeta: Decodable, Sendable {
     let pagination: PageCursors?
     /// Comment lists report their total here.

@@ -60,4 +60,25 @@ final class CommentTextBlocksTests: XCTestCase {
             XCTAssertEqual(block.link, url)
         }
     }
+
+    func test_lines_become_separate_blocks() {
+        let text = AttributedString("first line\nsecond line\n\nthird line")
+        let blocks = CommentTextBlocks.split(text, maxCharacters: 100)
+
+        XCTAssertEqual(blocks.map { String($0.characters) }, ["first line", "second line", "third line"])
+        XCTAssertFalse(blocks.contains { String($0.characters).contains("\n") })
+    }
+
+    func test_long_line_is_split_but_other_lines_stay_whole() {
+        let longLine = (1...40).map { "word\($0)" }.joined(separator: " ")
+        let text = AttributedString("intro\n\(longLine)\noutro")
+        let blocks = CommentTextBlocks.split(text, maxCharacters: 60)
+
+        XCTAssertEqual(String(blocks.first?.characters ?? ""), "intro")
+        XCTAssertEqual(String(blocks.last?.characters ?? ""), "outro")
+        XCTAssertGreaterThan(blocks.count, 3)
+        for block in blocks {
+            XCTAssertFalse(String(block.characters).contains("\n"))
+        }
+    }
 }

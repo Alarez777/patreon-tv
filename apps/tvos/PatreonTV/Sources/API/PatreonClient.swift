@@ -305,10 +305,11 @@ final class PatreonClient {
         sort: CommentSort = .best,
         cursor: String? = nil,
         limit: Int = 50
-    ) async throws -> Page<Comment> {
+    ) async throws -> CommentPage {
         var qi: [URLQueryItem] = [
-            URLQueryItem(name: "include", value: "commenter"),
+            URLQueryItem(name: "include", value: "commenter.campaign"),
             URLQueryItem(name: "fields[comment]", value: Self.commentFields),
+            URLQueryItem(name: "fields[campaign]", value: ""),
             URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
             URLQueryItem(name: "page[count]", value: String(limit)),
             URLQueryItem(name: "sort", value: sort.apiValue),
@@ -319,7 +320,7 @@ final class PatreonClient {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
         let url = baseURL.appending(path: "posts/\(postID)/comments2").appending(queryItems: qi)
-        return try await fetch(Page<Comment>.self, from: url)
+        return try await fetch(CommentPage.self, from: url)
     }
 
     /// GET /api/comments/{id}/replies2 — direct replies, oldest first.
@@ -327,10 +328,12 @@ final class PatreonClient {
         commentID: String,
         cursor: String? = nil,
         limit: Int = 50
-    ) async throws -> Page<Comment> {
+    ) async throws -> CommentPage {
         var qi: [URLQueryItem] = [
-            URLQueryItem(name: "include", value: "commenter,parent"),
+            URLQueryItem(name: "include", value: "commenter.campaign,parent,post,on_behalf_of_campaign"),
             URLQueryItem(name: "fields[comment]", value: Self.commentFields),
+            URLQueryItem(name: "fields[post]", value: "comment_count"),
+            URLQueryItem(name: "fields[campaign]", value: ""),
             URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
             URLQueryItem(name: "page[count]", value: String(limit)),
             URLQueryItem(name: "sort", value: "created"),
@@ -341,7 +344,7 @@ final class PatreonClient {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
         let url = baseURL.appending(path: "comments/\(commentID)/replies2").appending(queryItems: qi)
-        return try await fetch(Page<Comment>.self, from: url)
+        return try await fetch(CommentPage.self, from: url)
     }
 
     private static let commentFields = [
