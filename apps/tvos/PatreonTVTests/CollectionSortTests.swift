@@ -10,18 +10,18 @@ import XCTest
 
 final class CollectionSortTests: XCTestCase {
 
-    func test_creation_order_keeps_fetched_order() {
+    func test_newest_keeps_fetched_order() {
         let items = [collection("Beta"), collection("Alpha"), collection("Gamma")]
         XCTAssertEqual(
-            CollectionSort.oldest.sorted(items).map(\.id),
+            CollectionSort.newest.sorted(items).map(\.id),
             ["Beta", "Alpha", "Gamma"]
         )
     }
 
-    func test_newest_reverses_fetched_order() {
+    func test_oldest_reverses_fetched_order() {
         let items = [collection("Beta"), collection("Alpha"), collection("Gamma")]
         XCTAssertEqual(
-            CollectionSort.newest.sorted(items).map(\.id),
+            CollectionSort.oldest.sorted(items).map(\.id),
             ["Gamma", "Alpha", "Beta"]
         )
     }

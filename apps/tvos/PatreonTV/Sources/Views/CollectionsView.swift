@@ -288,7 +288,7 @@ final class CollectionsViewModel {
     /// The campaign already loaded; guards against a re-fetch on re-appear.
     private var loadedCampaignID: String?
 
-    init(sort: CollectionSort = .oldest) {
+    init(sort: CollectionSort = .newest) {
         self.sort = sort
     }
 
