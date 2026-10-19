@@ -45,7 +45,7 @@ enum CommentTextBlocks {
         }
 
         for (index, line) in lines.enumerated() {
-            let length = text.distance(from: line.lowerBound, to: line.upperBound)
+            let length = text.characters.distance(from: line.lowerBound, to: line.upperBound)
             let nearLimit = lineCount >= max(0, maxLines - 2)
                 || characterCount >= maxCharacters * 4 / 5
 
@@ -109,24 +109,25 @@ enum CommentTextBlocks {
         _ text: AttributedString,
         range: Range<AttributedString.Index>
     ) -> Bool {
+        let characters = text.characters
         var index = range.lowerBound
-        while index < range.upperBound, text[index].isWhitespace {
-            index = text.index(after: index)
+        while index < range.upperBound, characters[index].isWhitespace {
+            index = characters.index(after: index)
         }
         guard index < range.upperBound else { return false }
 
-        let first = text[index]
+        let first = characters[index]
         if first == "-" || first == "*" || first == "#" {
             return true
         }
 
         guard first.isNumber else { return false }
         var cursor = index
-        while cursor < range.upperBound, text[cursor].isNumber {
-            cursor = text.index(after: cursor)
+        while cursor < range.upperBound, characters[cursor].isNumber {
+            cursor = characters.index(after: cursor)
         }
         guard cursor < range.upperBound else { return false }
-        return text[cursor] == "." || text[cursor] == ")"
+        return characters[cursor] == "." || characters[cursor] == ")"
     }
 
     private static func appendBlock(
