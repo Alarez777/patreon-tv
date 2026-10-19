@@ -74,8 +74,8 @@ final class CommentTextBlocksTests: XCTestCase {
         let text = AttributedString("intro\n\(longLine)\noutro")
         let blocks = CommentTextBlocks.split(text, maxCharacters: 60)
 
-        XCTAssertEqual(String(blocks.first?.characters ?? ""), "intro")
-        XCTAssertEqual(String(blocks.last?.characters ?? ""), "outro")
+        XCTAssertEqual(blocks.first.map { String($0.characters) }, "intro")
+        XCTAssertEqual(blocks.last.map { String($0.characters) }, "outro")
         XCTAssertGreaterThan(blocks.count, 3)
         for block in blocks {
             XCTAssertFalse(String(block.characters).contains("\n"))
