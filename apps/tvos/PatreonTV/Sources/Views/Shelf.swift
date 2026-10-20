@@ -29,8 +29,9 @@ struct Shelf: View {
     var headerAvatarURL: URL? = nil
     /// Called when the user presses Play/Pause on a focused card: open the post
     /// and start playback directly, skipping the detail screen's Play button.
-    /// Args: post id, the shelf's playback queue (see `playbackQueue`).
-    var onPlay: ((String, [String]?) -> Void)? = nil
+    /// Args: post id, the shelf's playback queue (see `playbackQueue`), and its
+    /// autoplay source.
+    var onPlay: ((String, [String]?, AutoplaySource) -> Void)? = nil
     /// Ordered playable post IDs for this shelf, in display order (left→right).
     /// Passed into the detail so Up Next follows the shelf instead of the
     /// creator's feed. Nil keeps the default (creator-feed) behavior.
