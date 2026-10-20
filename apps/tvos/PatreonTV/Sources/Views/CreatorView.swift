@@ -20,9 +20,9 @@ struct CreatorView: View {
 
     @State private var vm = CreatorViewModel()
     @FocusState private var heroFocused: Bool
-    /// Initial focus lands on the search button: the banner stays visible and a
-    /// single swipe down reaches the posts.
-    @FocusState private var searchFocused: Bool
+    /// Initial focus lands on the Collections button so the creator's
+    /// collections are the first action offered.
+    @FocusState private var collectionsFocused: Bool
 
     var body: some View {
         Group {
@@ -38,9 +38,9 @@ struct CreatorView: View {
         .task {
             await vm.load(campaignID: campaignID)
             // A pushed page otherwise leaves focus on the tab bar. Move it onto
-            // the search button once the content is on screen.
+            // the Collections button once the content is on screen.
             try? await Task.sleep(for: .milliseconds(200))
-            searchFocused = true
+            collectionsFocused = true
         }
         .background(PatreonColors.background.ignoresSafeArea())
     }
@@ -78,7 +78,7 @@ struct CreatorView: View {
             .padding(.bottom, 60)
         }
         .scrollClipDisabled()
-        .defaultFocus($searchFocused, true)
+        .defaultFocus($collectionsFocused, true)
     }
 
     private var postsHeader: some View {
@@ -97,6 +97,8 @@ struct CreatorView: View {
                     .padding(.vertical, 12)
             }
             .buttonStyle(.bordered)
+            .focused($collectionsFocused)
+            .accessibilityIdentifier("creator-collections")
             .accessibilityLabel("Collections")
 
             // Destination-style link is deliberate here: the view model isn't
@@ -113,7 +115,6 @@ struct CreatorView: View {
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
-            .focused($searchFocused)
             .accessibilityIdentifier("creator-search")
             .accessibilityLabel("Search this creator's posts")
         }

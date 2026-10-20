@@ -143,17 +143,17 @@ final class CreatorFocusUITests: XCTestCase {
     }
 
     /// A pushed creator page otherwise leaves focus on the tab bar. It must open
-    /// focused on the search button (banner stays visible, one swipe to posts).
-    func test_opens_focused_on_search() {
+    /// focused on the Collections button.
+    func test_opens_focused_on_collections() {
         let app = XCUIApplication()
         app.launchEnvironment["GALLERY_SCREEN"] = "creator"
         app.launchEnvironment["GALLERY_MOCK"] = "1"
         app.launch()
 
-        let search = app.buttons.matching(identifier: "creator-search").firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 20), "Creator page never loaded")
+        let collections = app.buttons.matching(identifier: "creator-collections").firstMatch
+        XCTAssertTrue(collections.waitForExistence(timeout: 20), "Creator page never loaded")
         sleep(2)
 
-        XCTAssertTrue(search.hasFocus, "Creator page should open focused on the search button")
+        XCTAssertTrue(collections.hasFocus, "Creator page should open focused on Collections")
     }
 }
