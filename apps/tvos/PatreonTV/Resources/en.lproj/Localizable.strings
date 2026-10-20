@@ -3,10 +3,16 @@
 "Add to Continue Collection" = "Add to Continue Collection";
 "All" = "All";
 "Audio" = "Audio";
+"Auto-advance from creator pages and their carousels." = "Auto-advance from creator pages and their carousels.";
+"Auto-advance from the Continue Watching shelf." = "Auto-advance from the Continue Watching shelf.";
+"Auto-advance through collection episodes." = "Auto-advance through collection episodes.";
+"Auto-advance to the next post from the New shelf." = "Auto-advance to the next post from the New shelf.";
 "Autoplay next" = "Autoplay next";
 "Best" = "Best";
 "Cancel" = "Cancel";
+"Channels" = "Channels";
 "Chapters" = "Chapters";
+"Choose where playback advances to the next post automatically." = "Choose where playback advances to the next post automatically.";
 "Closed" = "Closed";
 "Collection" = "Collection";
 "Collections" = "Collections";
@@ -42,7 +48,7 @@
 "Mark as Unwatched" = "Mark as Unwatched";
 "Mark as Watched" = "Mark as Watched";
 "NOW PLAYING" = "NOW PLAYING";
-"New from Your Creators" = "New from Your Creators";
+"New" = "New";
 "Newest" = "Newest";
 "Newest first" = "Newest first";
 "Next" = "Next";
@@ -129,7 +135,6 @@
 "Video" = "Video";
 "Videos" = "Videos";
 "View" = "View";
-"When something ends, start the creator's next post after a countdown." = "When something ends, start the creator's next post after a countdown.";
 "Which tab opens when PatreonTV launches." = "Which tab opens when PatreonTV launches.";
 "You already finished this collection. Restart from the first episode?" = "You already finished this collection. Restart from the first episode?";
 "Your Patreon session expired. Paste a fresh session ID to reconnect this TV." = "Your Patreon session expired. Paste a fresh session ID to reconnect this TV.";

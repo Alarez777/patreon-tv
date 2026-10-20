@@ -3,7 +3,7 @@
 //  PatreonTV
 //
 //  The couch-first landing screen: a vertical stack of horizontal shelves —
-//  "New from Your Creators" first, then Continue Watching, Continue Collection,
+//  "New" first, then Continue Watching, Continue Collection,
 //  and a row per creator.
 //
 
@@ -17,7 +17,7 @@ struct HomeView: View {
     /// Opens a post and starts playback immediately. Wired to the Siri Remote
     /// Play/Pause button on a focused card; a normal select still opens the
     /// detail screen. The second argument is the shelf's playback queue.
-    var onPlayPost: (String, [String]?) -> Void = { _, _ in }
+    var onPlayPost: (String, [String]?, AutoplaySource) -> Void = { _, _, _ in }
     /// Starts a collection's playback (remote Play on a collection card).
     /// Args: collection, post. Keeps the collection in the back stack.
     var onPlayCollection: ((String, String) -> Void)? = nil
@@ -84,7 +84,7 @@ struct HomeView: View {
                 // per-creator rows below carry the depth.
                 if !feed.isEmpty {
                     Shelf(
-                        title: L10n.string("New from Your Creators"),
+                        title: L10n.string("New"),
                         posts: feed,
                         campaignFor: { vm.campaign(for: $0) },
                         onNearEnd: { post in
@@ -92,6 +92,7 @@ struct HomeView: View {
                         },
                         onPlay: onPlayPost,
                         playbackQueue: feed.filter { UpNextResolver.isPlayable($0) }.map(\.id),
+                        playbackSource: .new,
                         focusFirstCardOnEntry: focusFirstShelfCard
                     )
                 }
@@ -101,7 +102,8 @@ struct HomeView: View {
                         title: L10n.string("Continue Watching"),
                         posts: continueWatching,
                         campaignFor: { vm.campaign(for: $0) },
-                        onPlay: onPlayPost
+                        onPlay: onPlayPost,
+                        playbackSource: .continueWatching
                     )
                 }
 
@@ -123,7 +125,8 @@ struct HomeView: View {
                         },
                         headerLink: .creator(id: row.campaign.id),
                         headerAvatarURL: row.campaign.attributes.bestAvatarURL,
-                        onPlay: onPlayPost
+                        onPlay: onPlayPost,
+                        playbackSource: .channels
                     )
                 }
             }

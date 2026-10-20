@@ -3,10 +3,16 @@
 "Add to Continue Collection" = "Adicionar a Continuar coleção";
 "All" = "Tudo";
 "Audio" = "Áudio";
+"Auto-advance from creator pages and their carousels." = "Avança automaticamente das páginas de criador e seus carrosséis.";
+"Auto-advance from the Continue Watching shelf." = "Avança automaticamente da prateleira Continuar assistindo.";
+"Auto-advance through collection episodes." = "Avança automaticamente pelos episódios da coleção.";
+"Auto-advance to the next post from the New shelf." = "Avança automaticamente para a próxima publicação da prateleira Novidades.";
 "Autoplay next" = "Reproduzir o próximo automaticamente";
 "Best" = "Melhores";
 "Cancel" = "Cancelar";
+"Channels" = "Canais";
 "Chapters" = "Capítulos";
+"Choose where playback advances to the next post automatically." = "Escolha onde a reprodução avança automaticamente para a próxima publicação.";
 "Closed" = "Fechada";
 "Collection" = "Coleção";
 "Collections" = "Coleções";
@@ -42,7 +48,7 @@
 "Mark as Unwatched" = "Marcar como não assistido";
 "Mark as Watched" = "Marcar como assistido";
 "NOW PLAYING" = "REPRODUZINDO AGORA";
-"New from Your Creators" = "Novidades dos seus criadores";
+"New" = "Novidades";
 "Newest" = "Mais recentes";
 "Newest first" = "Mais recentes primeiro";
 "Next" = "Próximo";
@@ -129,7 +135,6 @@
 "Video" = "Vídeo";
 "Videos" = "Vídeos";
 "View" = "Ver";
-"When something ends, start the creator's next post after a countdown." = "Quando algo termina, inicia a próxima publicação do criador após uma contagem regressiva.";
 "Which tab opens when PatreonTV launches." = "Qual aba abre quando o PatreonTV inicia.";
 "You already finished this collection. Restart from the first episode?" = "Você já terminou esta coleção. Começar do primeiro episódio?";
 "Your Patreon session expired. Paste a fresh session ID to reconnect this TV." = "Sua sessão do Patreon expirou. Cole um novo ID de sessão para reconectar esta TV.";

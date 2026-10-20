@@ -24,6 +24,8 @@ struct PostDetailView: View {
     /// (left→right). When set, Up Next advances to the next card on the right
     /// (skipping finished posts) instead of the creator's feed.
     var queue: [String]? = nil
+    /// Where this post was opened from; selects the auto-advance preference.
+    var autoplaySource: AutoplaySource = .channels
     /// Opens an episode with autoplay (remote Play button). The second argument
     /// is the collection the episode belongs to, when known. Supplied by the
     /// hosting stack.
@@ -34,12 +36,14 @@ struct PostDetailView: View {
         autoplay: Bool = false,
         collectionID: String? = nil,
         queue: [String]? = nil,
+        autoplaySource: AutoplaySource = .channels,
         onPlayPost: ((String, String?) -> Void)? = nil
     ) {
         self.postID = postID
         self.autoplay = autoplay
         self.collectionID = collectionID
         self.queue = queue
+        self.autoplaySource = autoplaySource
         self.onPlayPost = onPlayPost
         _currentPostID = State(initialValue: postID)
     }
@@ -685,7 +689,7 @@ struct PostDetailView: View {
             log.info("Up Next window: showing \(next.id)")
             upNext = next
         }
-        if ContentPreferences.shared.autoplayNext {
+        if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
             upNextCountdown = max(0, Int(remaining.rounded()))
         }
     }
@@ -711,7 +715,9 @@ struct PostDetailView: View {
         }
 
         if let next = upNext {
-            if ContentPreferences.shared.autoplayNext { await playNext(next) }
+            if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
+                await playNext(next)
+            }
             return
         }
 
@@ -725,12 +731,18 @@ struct PostDetailView: View {
             playbackSource = nil
             return
         }
-        if ContentPreferences.shared.autoplayNext {
+        if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
             await playNext(next)
         } else {
             upNext = next
             upNextCountdown = nil
         }
+    }
+
+    /// Collections always use the Collections preference, even when the post
+    /// was opened through a creator/search route.
+    private var effectiveAutoplaySource: AutoplaySource {
+        collectionID == nil ? autoplaySource : .collections
     }
 
     /// Resolve the post to play after this one: the next card in the shelf we

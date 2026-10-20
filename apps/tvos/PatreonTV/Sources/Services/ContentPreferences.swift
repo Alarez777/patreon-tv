@@ -32,7 +32,11 @@ final class ContentPreferences {
     }
 
     private let matureKey = "show_mature_content"
-    private let autoplayKey = "autoplay_next"
+    private let legacyAutoplayKey = "autoplay_next"
+    private let autoplayNewKey = "autoplay_new"
+    private let autoplayContinueWatchingKey = "autoplay_continue_watching"
+    private let autoplayChannelsKey = "autoplay_channels"
+    private let autoplayCollectionsKey = "autoplay_collections"
     private let continueCollectionKey = "show_continue_collection"
     private let collectionOldestFirstKey = "collection_oldest_first"
     private let initialTabKey = "initial_tab"
@@ -43,11 +47,33 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(showMatureContent, forKey: matureKey) }
     }
 
-    /// When true (default), the Up Next overlay auto-advances to the creator's
-    /// next post after a countdown. When false the overlay still appears but
-    /// waits for the user.
-    var autoplayNext: Bool {
-        didSet { UserDefaults.standard.set(autoplayNext, forKey: autoplayKey) }
+    /// Auto-advance for the Home "New" shelf.
+    var autoplayNew: Bool {
+        didSet { UserDefaults.standard.set(autoplayNew, forKey: autoplayNewKey) }
+    }
+
+    /// Auto-advance for the "Continue Watching" shelf.
+    var autoplayContinueWatching: Bool {
+        didSet { UserDefaults.standard.set(autoplayContinueWatching, forKey: autoplayContinueWatchingKey) }
+    }
+
+    /// Auto-advance for creator pages and creator carousels.
+    var autoplayChannels: Bool {
+        didSet { UserDefaults.standard.set(autoplayChannels, forKey: autoplayChannelsKey) }
+    }
+
+    /// Auto-advance for collection episodes and Continue Collection.
+    var autoplayCollections: Bool {
+        didSet { UserDefaults.standard.set(autoplayCollections, forKey: autoplayCollectionsKey) }
+    }
+
+    func autoplayEnabled(for source: AutoplaySource) -> Bool {
+        switch source {
+        case .new: autoplayNew
+        case .continueWatching: autoplayContinueWatching
+        case .channels: autoplayChannels
+        case .collections: autoplayCollections
+        }
     }
 
     /// When true (default), Home shows a "Continue Collection" shelf with the
@@ -82,7 +108,15 @@ final class ContentPreferences {
 
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
-        autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
+
+        // Migrate the old single autoplay toggle: existing users keep their
+        // choice for all four new sources.
+        let legacyAutoplay = UserDefaults.standard.object(forKey: legacyAutoplayKey) as? Bool ?? true
+        autoplayNew = UserDefaults.standard.object(forKey: autoplayNewKey) as? Bool ?? legacyAutoplay
+        autoplayContinueWatching = UserDefaults.standard.object(forKey: autoplayContinueWatchingKey) as? Bool ?? legacyAutoplay
+        autoplayChannels = UserDefaults.standard.object(forKey: autoplayChannelsKey) as? Bool ?? legacyAutoplay
+        autoplayCollections = UserDefaults.standard.object(forKey: autoplayCollectionsKey) as? Bool ?? legacyAutoplay
+
         showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
         collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false
         initialTab = InitialTab(rawValue: UserDefaults.standard.string(forKey: initialTabKey) ?? "") ?? .home

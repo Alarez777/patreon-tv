@@ -166,7 +166,7 @@ struct CreatorView: View {
     private var postsGrid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(vm.posts) { post in
-                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: nil)) {
+                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: nil, source: .channels)) {
                     PostCard(post: post, campaign: vm.campaign)
                 }
                 .buttonStyle(.card)
@@ -349,7 +349,7 @@ private struct CreatorPostSearchView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 40) {
                     ForEach(results) { post in
-                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: nil)) {
+                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: nil, source: .channels)) {
                             PostCard(post: post, campaign: vm.campaign)
                         }
                         .buttonStyle(.card)

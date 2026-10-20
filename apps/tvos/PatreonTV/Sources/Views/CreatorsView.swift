@@ -50,7 +50,7 @@ struct CreatorsView: View {
             .task { await vm.load() }
             .background(PatreonColors.background.ignoresSafeArea())
             .appNavigationDestinations(
-                onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: $1, queue: nil)) },
+                onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: $1, queue: nil, source: .channels)) },
                 onPlayCollection: { path.playCollection(collectionID: $0, postID: $1) }
             )
         }

@@ -56,12 +56,12 @@ struct HomeShell: View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
                 HomeView(
-                    onPlayPost: { playPost(id: $0, collectionID: nil, queue: $1) },
+                    onPlayPost: { playPost(id: $0, collectionID: nil, queue: $1, source: $2) },
                     onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) },
                     focusFirstShelfCard: launchTab == .home && homePath.isEmpty
                 )
                     .appNavigationDestinations(
-                        onPlayPost: { playPost(id: $0, collectionID: $1) },
+                        onPlayPost: { playPost(id: $0, collectionID: $1, source: .channels) },
                         onPlayCollection: { homePath.playCollection(collectionID: $0, postID: $1) }
                     )
             }
@@ -97,7 +97,7 @@ struct HomeShell: View {
             selectedTab = .home
             switch pending {
             case .post(let id, let autoplay):
-                homePath = [.post(id: id, autoplay: autoplay, collectionID: nil, queue: nil)]
+                homePath = [.post(id: id, autoplay: autoplay, collectionID: nil, queue: nil, source: .channels)]
             case .creator(let id):
                 homePath = [.creator(id: id)]
             }
@@ -129,8 +129,15 @@ struct HomeShell: View {
     /// Push the post and start playback immediately (remote Play button on a
     /// focused card). Appends so the back stack is preserved. `queue` is the
     /// ordered shelf the post was played from (Up Next follows it).
-    private func playPost(id: String, collectionID: String?, queue: [String]? = nil) {
-        homePath.append(.post(id: id, autoplay: true, collectionID: collectionID, queue: queue))
+    private func playPost(
+        id: String,
+        collectionID: String?,
+        queue: [String]? = nil,
+        source: AutoplaySource = .channels
+    ) {
+        homePath.append(
+            .post(id: id, autoplay: true, collectionID: collectionID, queue: queue, source: source)
+        )
     }
 }
 
@@ -140,7 +147,7 @@ enum DeepLinkDestination: Hashable, Codable {
     /// `queue` is the ordered list of playable post IDs from the shelf the post
     /// was opened from (left→right). Up Next follows it instead of the creator
     /// feed. Nil for deep links and non-shelf entry points.
-    case post(id: String, autoplay: Bool, collectionID: String?, queue: [String]?)
+    case post(id: String, autoplay: Bool, collectionID: String?, queue: [String]?, source: AutoplaySource)
     case creator(id: String)
     case collections(campaignID: String)
     case collectionSearch(campaignID: String, sort: CollectionSort)
@@ -153,7 +160,7 @@ extension Array where Element == DeepLinkDestination {
     /// episode → post info → collection → the screen we came from.
     mutating func playCollection(collectionID: String, postID: String) {
         append(.collection(id: collectionID, focusPostID: postID))
-        append(.post(id: postID, autoplay: true, collectionID: collectionID, queue: nil))
+        append(.post(id: postID, autoplay: true, collectionID: collectionID, queue: nil, source: .collections))
     }
 }
 
@@ -171,8 +178,15 @@ struct AppNavigationDestinations: ViewModifier {
     func body(content: Content) -> some View {
         content.navigationDestination(for: DeepLinkDestination.self) { dest in
             switch dest {
-            case .post(let id, let autoplay, let collectionID, let queue):
-                PostDetailView(postID: id, autoplay: autoplay, collectionID: collectionID, queue: queue, onPlayPost: onPlayPost)
+            case .post(let id, let autoplay, let collectionID, let queue, let source):
+                PostDetailView(
+                    postID: id,
+                    autoplay: autoplay,
+                    collectionID: collectionID,
+                    queue: queue,
+                    autoplaySource: source,
+                    onPlayPost: onPlayPost
+                )
             case .creator(let id):
                 CreatorView(campaignID: id, membership: nil, onPlayPost: onPlayPost)
             case .collections(let campaignID):
