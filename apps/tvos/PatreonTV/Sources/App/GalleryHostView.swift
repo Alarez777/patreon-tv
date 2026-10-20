@@ -9,7 +9,7 @@
 //  push detail screens via the deep-link router.
 //
 //  Env vars:
-//    GALLERY_SCREEN      signin | sessionExpired | pairing | home | creators | search | settings | postDetail | creator | player | audioPlayer | upnext
+//    GALLERY_SCREEN      signin | sessionExpired | home | creators | search | settings | postDetail | creator | player | audioPlayer | upnext
 //    PATREON_SESSION_ID  session_id cookie to authenticate with
 //    GALLERY_MOCK        "1" to stub the whole Patreon API offline (see
 //                        GalleryMockURLProtocol) — used by UI tests
@@ -70,10 +70,6 @@ struct GalleryHostView: View {
             SignInView()
         case "sessionExpired":
             SignInView(sessionExpired: true)
-        case "pairing":
-            // Live pairing panel — Debug builds point PairingConfig at the
-            // local wrangler dev server, so the code + QR are real.
-            PatreonPairingSignInView(onSessionIDCaptured: { _ in }, onDismiss: {})
         case "player":
             if let playerSource {
                 PlayerView(source: playerSource, title: playerTitle, postID: playerPostID, resumeSeconds: nil)
@@ -137,9 +133,9 @@ struct GalleryHostView: View {
                     postID: id, positionSeconds: 300, durationSeconds: 1200, lastUpdated: Date()
                 ))
             }
-            await auth.completeSignIn(sessionID: "gallery-mock")
+            try? await auth.completeSignIn(sessionID: "gallery-mock")
         } else if !["signin", "sessionExpired"].contains(screen), let sid = GalleryConfig.sessionID, !sid.isEmpty {
-            await auth.completeSignIn(sessionID: sid)
+            try? await auth.completeSignIn(sessionID: sid)
         }
 
         // Pre-select the shell tab (detail screens live under the Home tab).

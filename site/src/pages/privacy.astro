@@ -2,7 +2,7 @@
 // src/pages/privacy.astro
 import Base from "../layouts/Base.astro";
 
-const lastUpdated = "July 6, 2026";
+const lastUpdated = "October 19, 2026";
 ---
 
 <Base
@@ -15,23 +15,21 @@ const lastUpdated = "July 6, 2026";
   <h2>The short version</h2>
   <p>
     PatreonTV is a native Apple TV app that talks directly to Patreon.
-    Apart from a tiny pairing service used once at sign-in (described
-    below), it has no backend. It does not send your data to us. It does
-    not collect analytics on what you watch.
+    It has no backend. It does not send your data to us. It does not
+    collect analytics on what you watch.
   </p>
 
   <h2>What data PatreonTV touches</h2>
 
   <h3>Your Patreon session</h3>
   <p>
-    To sign in, your Apple TV shows a pairing code and you sign in to
-    Patreon on your phone or computer. The session cookie Patreon issues
-    passes through our pairing service exactly once: it is encrypted at
-    rest, kept for at most ten minutes, and deleted the moment your
-    Apple TV picks it up. After that it lives only in the tvOS Keychain
-    on your Apple TV and never leaves your device except when the app
-    calls the Patreon API on your behalf. We keep no copy and cannot
-    access your account afterwards.
+    To sign in, you copy the <code>session_id</code> cookie from your
+    Patreon web session in a desktop browser and paste it directly into
+    the Apple TV. The app never sees your password, and the cookie is not
+    sent to us or to any intermediary server. It is stored only in the
+    tvOS Keychain on your Apple TV and leaves your device only when the
+    app calls the Patreon API on your behalf. Signing out from Settings
+    removes it.
   </p>
 
   <h3>Data fetched from Patreon</h3>
@@ -69,8 +67,8 @@ const lastUpdated = "July 6, 2026";
   <h2>What we don't do</h2>
   <ul>
     <li>
-      We do not retain your data on any server. The pairing service holds
-      your encrypted session cookie for minutes at most, then deletes it.
+      We do not retain your data on any server. The Patreon session cookie
+      stays on your Apple TV.
     </li>
     <li>We do not track which posts you view, watch, or interact with.</li>
     <li>We do not use analytics SDKs, advertising SDKs, or tracking pixels.</li>

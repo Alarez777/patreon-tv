@@ -100,23 +100,41 @@ final class AuthStore {
     }
 
     /// Called by SignInView after the user submits a session_id cookie.
-    func completeSignIn(sessionID: String) async {
-        if !keychain.set(sessionID, forKey: sessionKey) {
-            log.error("Could not persist session to keychain; sign-in will not survive relaunch")
-        }
-        PatreonClient.shared.sessionID = sessionID
+    /// Validates before persisting so an invalid ID never lands in the Keychain.
+    func completeSignIn(sessionID: String) async throws {
+        let trimmed = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw SignInError.invalidSession }
+
+        PatreonClient.shared.sessionID = trimmed
 
         do {
             let user = try await PatreonClient.shared.currentUser()
-            currentUser = user
+            if !keychain.set(trimmed, forKey: sessionKey) {
+                log.error("Could not persist session to keychain; sign-in will not survive relaunch")
+            }
             keychain.set(user.id, forKey: userIDKey)
+            currentUser = user
             state = .signedIn(userID: user.id)
             log.info("Sign-in complete for user \(user.id)")
         } catch {
             log.error("Sign-in verification failed: \(String(describing: error))")
-            keychain.remove(forKey: sessionKey)
             PatreonClient.shared.clearSession()
+            currentUser = nil
+            keychain.remove(forKey: sessionKey)
+            keychain.remove(forKey: userIDKey)
             state = .signedOut
+            throw Self.signInError(from: error)
+        }
+    }
+
+    nonisolated static func signInError(from error: Error) -> SignInError {
+        switch error {
+        case PatreonError.unauthorized, PatreonError.forbidden:
+            return .invalidSession
+        case PatreonError.rateLimited(let seconds):
+            return .rateLimited(retryAfter: seconds)
+        default:
+            return .network
         }
     }
 
@@ -146,7 +164,7 @@ final class AuthStore {
             log.info("Auth re-verification passed; keeping session")
         } catch {
             if Self.shouldClearSession(after: error) {
-                log.error("Session rejected mid-use — entering re-pair flow")
+                log.error("Session rejected mid-use — entering sign-in flow")
                 expireSession()
             } else {
                 log.info("Auth re-verification hit transient error; keeping session")
@@ -160,5 +178,22 @@ final class AuthStore {
         PatreonClient.shared.clearSession()
         currentUser = nil
         state = .sessionExpired
+    }
+}
+
+enum SignInError: LocalizedError, Equatable {
+    case invalidSession
+    case rateLimited(retryAfter: Double)
+    case network
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidSession:
+            "That session ID is invalid or expired. Copy a fresh one from patreon.com."
+        case .rateLimited(let seconds):
+            "Patreon is rate-limiting sign-in. Try again in \(Int(seconds)) seconds."
+        case .network:
+            "Couldn't reach Patreon. Check your connection and try again."
+        }
     }
 }

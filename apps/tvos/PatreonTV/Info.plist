@@ -50,8 +50,6 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>PairingBaseURL</key>
-	<string>$(PAIRING_BASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
