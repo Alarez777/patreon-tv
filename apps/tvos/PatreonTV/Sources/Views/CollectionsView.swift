@@ -90,7 +90,7 @@ struct CollectionsView: View {
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
-            .accessibilityLabel("Search collections")
+            .accessibilityLabel(Text("Search collections"))
         }
         .padding(.horizontal, 60)
         .padding(.top, 60)
@@ -118,7 +118,7 @@ struct CollectionsView: View {
                 .padding(.vertical, 12)
         }
         .buttonStyle(.bordered)
-        .accessibilityLabel("Sort collections")
+        .accessibilityLabel(Text("Sort collections"))
     }
 
     private var empty: some View {
@@ -219,8 +219,8 @@ struct CollectionsSearchView: View {
     private var emptyMessage: String {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty
-            ? "No collections"
-            : "No collections match \"\(query)\""
+            ? L10n.string("No collections")
+            : L10n.format("format.noCollectionsMatch", query)
     }
 }
 
@@ -238,7 +238,7 @@ private struct CollectionRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
-                Text(collection.attributes.title ?? "Untitled")
+                Text(collection.attributes.title ?? L10n.string("Untitled"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(2)
@@ -253,7 +253,7 @@ private struct CollectionRow: View {
                 }
 
                 if let count = collection.attributes.numPosts {
-                    Text("\(count) posts")
+                    Text(L10n.count(count, one: "count.posts.one", other: "count.posts.other"))
                         .font(.caption)
                         .foregroundStyle(PatreonColors.tertiaryText)
                 }

@@ -15,9 +15,9 @@ enum CommentSort: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .best: "Best"
-        case .newest: "Newest"
-        case .oldest: "Oldest"
+        case .best: L10n.string("Best")
+        case .newest: L10n.string("Newest")
+        case .oldest: L10n.string("Oldest")
         }
     }
 

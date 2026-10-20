@@ -110,7 +110,9 @@ private struct CollectionShelfCard: View {
     /// "N posts · Channel", whichever parts are available.
     private var subtitle: String? {
         var parts: [String] = []
-        if let count = card.numPosts { parts.append("\(count) posts") }
+        if let count = card.numPosts {
+            parts.append(L10n.count(count, one: "count.posts.one", other: "count.posts.other"))
+        }
         if let name = card.campaignName, !name.isEmpty { parts.append(name) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

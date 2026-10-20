@@ -131,7 +131,7 @@ struct PlayerView: UIViewControllerRepresentable {
                         // leaving a silent black screen.
                         self.onFailure?(
                             item.error?.localizedDescription
-                                ?? "The video stopped playing. Its link may have expired — try again."
+                                ?? L10n.string("The video stopped playing. Its link may have expired — try again.")
                         )
                     default:
                         break
@@ -296,11 +296,11 @@ final class PlayerHostViewController: UIViewController {
 
     private func makeUpNextActions() -> [UIAction] {
         let cancel = UIAction(
-            title: "Cancel",
+            title: L10n.string("Cancel"),
             image: UIImage(systemName: "xmark")
         ) { [weak self] _ in self?.onCancelUpNext?() }
         let next = UIAction(
-            title: "Next",
+            title: L10n.string("Next"),
             image: UIImage(systemName: "forward.end.fill")
         ) { [weak self] _ in self?.onPlayNext?() }
         // "Next" last so it sits on the trailing edge and takes default focus.
@@ -419,7 +419,10 @@ final class PlayerHostViewController: UIViewController {
         parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
         else { return nil }
-        return date.formatted(date: .abbreviated, time: .omitted)
+        return date.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .omitted)
+                .locale(AppLanguage.current.locale)
+        )
     }
 
     /// Fetch the poster asynchronously and append it as artwork metadata; the
@@ -465,7 +468,7 @@ final class PlayerHostViewController: UIViewController {
             ))
         }
         item.navigationMarkerGroups = [
-            AVNavigationMarkersGroup(title: "Chapters", timedNavigationMarkers: groups)
+            AVNavigationMarkersGroup(title: L10n.string("Chapters"), timedNavigationMarkers: groups)
         ]
     }
 
@@ -489,7 +492,7 @@ final class PlayerHostViewController: UIViewController {
             currentPostID: currentPostID,
             onSelect: onSelectEpisode
         ))
-        episodesVC.title = "Episodes"
+        episodesVC.title = L10n.string("Episodes")
         episodesVC.preferredContentSize = CGSize(width: 0, height: 380)
         playerViewController.customInfoViewControllers = [episodesVC]
     }

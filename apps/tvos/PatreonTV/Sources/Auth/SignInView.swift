@@ -140,7 +140,7 @@ struct SignInView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Text(isSigningIn ? "Signing in…" : "Continue")
+                    Text(isSigningIn ? L10n.string("Signing in…") : L10n.string("Continue"))
                 }
                 .font(.title3.weight(.semibold))
                 .frame(minWidth: 280)
@@ -159,7 +159,7 @@ struct SignInView: View {
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 24))
     }
 
-    private func step(_ number: Int, _ text: String) -> some View {
+    private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Text("\(number)")
                 .font(.caption.weight(.bold))

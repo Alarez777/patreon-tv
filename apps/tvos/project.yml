@@ -40,6 +40,11 @@ targets:
         CFBundleDisplayName: PatreonTV
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleLocalizations:
+          - en
+          - es
+          - pt-BR
+          - fr
         # Custom URL scheme for Top Shelf deep links
         CFBundleURLTypes:
           - CFBundleURLName: com.patreontv.PatreonTV

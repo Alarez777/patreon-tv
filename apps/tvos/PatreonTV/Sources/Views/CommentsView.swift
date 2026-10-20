@@ -67,7 +67,7 @@ struct CommentsView: View {
                     }
 
                     if let error = vm.replyError(for: item.comment.id) {
-                        Text("Couldn't load replies. \(error)")
+                        Text(L10n.format("format.loadRepliesFailed", error))
                             .font(.caption)
                             .foregroundStyle(PatreonColors.secondaryText)
                             .padding(.leading, CGFloat(item.depth) * 40)
@@ -87,7 +87,7 @@ struct CommentsView: View {
                 Text("Comments")
                     .font(.largeTitle.bold())
                     .foregroundStyle(PatreonColors.primaryText)
-                Text(vm.total == 1 ? "1 comment" : "\(vm.total) comments")
+                Text(L10n.count(vm.total, one: "count.comments.one", other: "count.comments.other"))
                     .font(.title3)
                     .foregroundStyle(PatreonColors.secondaryText)
             }
@@ -120,7 +120,7 @@ struct CommentsView: View {
                 .padding(.vertical, 12)
         }
         .buttonStyle(.bordered)
-        .accessibilityLabel("Sort comments")
+        .accessibilityLabel(Text("Sort comments"))
     }
 
     /// Shows a comment's replies, then moves focus to the first one so the
@@ -252,7 +252,7 @@ private struct CommentRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
-                    Text(item.author?.attributes.fullName ?? "Someone")
+                    Text(item.author?.attributes.fullName ?? L10n.string("Someone"))
                         .font(.headline)
                         .foregroundStyle(foregroundColor)
                         .lineLimit(1)
@@ -292,7 +292,7 @@ private struct CommentRow: View {
     @ViewBuilder
     private var parentLine: some View {
         if let parentAuthor = item.parentAuthor {
-            Text("Reply to \(parentAuthor.attributes.fullName ?? "someone")")
+            Text(L10n.format("format.replyTo", parentAuthor.attributes.fullName ?? L10n.string("Someone")))
                 .font(.caption)
                 .foregroundStyle(tertiaryColor)
         }
@@ -375,12 +375,12 @@ private struct CommentRow: View {
     private var headerHint: String {
         var hints: [String] = []
         if item.hasReplies {
-            hints.append(item.isRepliesExpanded ? "Select to hide replies" : "Select to show replies")
+            hints.append(item.isRepliesExpanded ? L10n.string("Select to hide replies") : L10n.string("Select to show replies"))
         }
         if item.isTextExpanded {
-            hints.append("Right to collapse the comment")
+            hints.append(L10n.string("Right to collapse the comment"))
         } else if isTruncated {
-            hints.append("Right to show the full comment")
+            hints.append(L10n.string("Right to show the full comment"))
         }
         return hints.joined(separator: ". ")
     }
@@ -388,9 +388,9 @@ private struct CommentRow: View {
     private var blockHint: String {
         var hints: [String] = []
         if item.hasReplies {
-            hints.append(item.isRepliesExpanded ? "Select to hide replies" : "Select to show replies")
+            hints.append(item.isRepliesExpanded ? L10n.string("Select to hide replies") : L10n.string("Select to show replies"))
         }
-        hints.append("Right to collapse the comment")
+        hints.append(L10n.string("Right to collapse the comment"))
         return hints.joined(separator: ". ")
     }
 
@@ -411,7 +411,7 @@ private struct CommentRow: View {
         .clipShape(Circle())
     }
 
-    private func badge(_ text: String) -> some View {
+    private func badge(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 8)
@@ -429,6 +429,7 @@ private struct CommentRow: View {
         }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
+        formatter.locale = AppLanguage.current.locale
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

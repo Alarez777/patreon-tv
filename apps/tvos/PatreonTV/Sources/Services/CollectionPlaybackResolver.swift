@@ -58,7 +58,7 @@ enum CollectionPlaybackResolver {
     }
 
     private static func make(_ post: Post, isRestart: Bool) -> Target {
-        Target(postID: post.id, title: post.attributes.title ?? "Untitled", isRestart: isRestart)
+        Target(postID: post.id, title: post.attributes.title ?? L10n.string("Untitled"), isRestart: isRestart)
     }
 
     /// A collection's posts in `post_ids` order, from the cache or a fetch.

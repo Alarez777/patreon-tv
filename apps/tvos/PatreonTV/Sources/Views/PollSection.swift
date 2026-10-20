@@ -37,13 +37,13 @@ struct PollSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(alignment: .firstTextBaseline, spacing: 16) {
-                Text(poll.attributes.questionText ?? "Poll")
+                Text(poll.attributes.questionText ?? L10n.string("Poll"))
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(PatreonColors.primaryText)
 
                 Spacer()
 
-                Text("\(total) votes")
+                Text(L10n.count(total, one: "count.votes.one", other: "count.votes.other"))
                     .font(.subheadline)
                     .foregroundStyle(PatreonColors.secondaryText)
 
@@ -108,20 +108,27 @@ private struct PollChoiceRow: View {
         HStack(spacing: 16) {
             radio
 
-            Text(choice.attributes.textContent ?? "Option")
+            Text(choice.attributes.textContent ?? L10n.string("Option"))
                 .font(.title3)
                 .foregroundStyle(PatreonColors.primaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             bar
 
-            Text("\(count) · \(percent)%")
+            Text(L10n.format("format.votesSummary", count, percent))
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(PatreonColors.secondaryText)
                 .frame(width: 140, alignment: .trailing)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(choice.attributes.textContent ?? "Option"), \(count) votes, \(percent) percent\(isSelected ? ", your vote" : "")")
+        .accessibilityLabel(
+            L10n.format(
+                isSelected ? "format.voteAccessibilitySelected" : "format.voteAccessibility",
+                choice.attributes.textContent ?? L10n.string("Option"),
+                count,
+                percent
+            )
+        )
     }
 
     private var radio: some View {

@@ -44,7 +44,7 @@ struct PostCard: View {
                 .overlay(alignment: .bottomLeading) { badge }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(post.attributes.title ?? "Untitled")
+                Text(post.attributes.title ?? L10n.string("Untitled"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(2)
@@ -133,11 +133,17 @@ struct PostCard: View {
     }
 
     private var accessibilityLabel: String {
-        let title = post.attributes.title ?? "Untitled post"
-        let creator = campaign?.attributes.name.map { " by \($0)" } ?? ""
-        let paid = post.attributes.isPaid == true ? ", patron-only" : ""
+        let title = post.attributes.title ?? L10n.string("Untitled post")
+        let creator = campaign?.attributes.name.map {
+            L10n.format("format.accessibilityBy", $0)
+        } ?? ""
+        let paid = post.attributes.isPaid == true
+            ? L10n.string("format.accessibilityPatronOnly")
+            : ""
         let images = post.imageCount.map { count in
-            count > 1 ? ", \(count) images" : ", image post"
+            count > 1
+                ? L10n.format("format.accessibilityImages", L10n.number(count))
+                : L10n.string("format.accessibilityImagePost")
         } ?? ""
         return "\(title)\(creator)\(paid)\(images)"
     }

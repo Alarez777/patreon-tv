@@ -468,13 +468,13 @@ enum PatreonError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unauthorized: "Your session has expired. Please sign in again."
-        case .forbidden: "You don't have permission to view this content."
-        case .notFound: "This page could not be found."
-        case .rateLimited(let s): "Patreon is rate-limiting us. Try again in \(Int(s))s."
-        case .http(let status, _): "Patreon returned HTTP \(status)."
-        case .badResponse: "Unexpected response from Patreon."
-        case .decoding(let underlying): "Could not read response: \(underlying)"
+        case .unauthorized: L10n.string("error.sessionExpired")
+        case .forbidden: L10n.string("error.forbidden")
+        case .notFound: L10n.string("error.notFound")
+        case .rateLimited(let s): L10n.format("format.rateLimited", Int(s))
+        case .http(let status, _): L10n.format("format.httpError", status)
+        case .badResponse: L10n.string("error.badResponse")
+        case .decoding(let underlying): L10n.format("format.decodingError", String(describing: underlying))
         }
     }
 }

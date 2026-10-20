@@ -132,7 +132,7 @@ struct CreatorCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(campaign.attributes.name ?? "Unknown creator")
+                Text(campaign.attributes.name ?? L10n.string("Unknown creator"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(1)
@@ -148,7 +148,7 @@ struct CreatorCard: View {
         }
         .frame(width: cardWidth, alignment: .top)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(campaign.attributes.name ?? "Creator"), \(campaign.attributes.creationName ?? "")")
+        .accessibilityLabel(L10n.format("format.accessibilityCreator", campaign.attributes.name ?? L10n.string("Creator"), campaign.attributes.creationName ?? ""))
     }
 
     /// A colored tile with the creator's initial, used when no avatar loads.

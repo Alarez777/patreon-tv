@@ -280,7 +280,7 @@ final class HomeViewModel {
         let items = homeFeed.prefix(10).map { post in
             TopShelfSnapshot.Item(
                 postID: post.id,
-                title: post.attributes.title ?? "Untitled",
+                title: post.attributes.title ?? L10n.string("Untitled"),
                 creator: campaign(for: post)?.attributes.name,
                 imageURL: post.attributes.posterImageURL,
                 publishedAt: post.attributes.publishedAt
@@ -319,7 +319,7 @@ final class HomeViewModel {
 
     private func errorMessage(from error: Error) -> String {
         if let pe = error as? PatreonError {
-            return pe.errorDescription ?? "Something went wrong."
+            return pe.errorDescription ?? L10n.string("Something went wrong.")
         }
         return error.localizedDescription
     }

@@ -106,7 +106,7 @@ struct EpisodeCard: View {
                     }
                 }
 
-            Text(post.attributes.title ?? "Episode")
+            Text(post.attributes.title ?? L10n.string("Episode"))
                 .font(.callout)
                 .foregroundStyle(PatreonColors.primaryText)
                 .lineLimit(2)
@@ -114,7 +114,7 @@ struct EpisodeCard: View {
                 .frame(width: cardWidth, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(post.attributes.title ?? "Episode")
+        .accessibilityLabel(post.attributes.title ?? L10n.string("Episode"))
     }
 
     @ViewBuilder

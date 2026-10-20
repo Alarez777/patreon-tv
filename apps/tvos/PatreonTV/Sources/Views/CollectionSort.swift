@@ -17,10 +17,10 @@ enum CollectionSort: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .newest: "Newest first"
-        case .oldest: "Oldest first"
-        case .titleAscending: "Title A–Z"
-        case .titleDescending: "Title Z–A"
+        case .newest: L10n.string("Newest first")
+        case .oldest: L10n.string("Oldest first")
+        case .titleAscending: L10n.string("Title A–Z")
+        case .titleDescending: L10n.string("Title Z–A")
         }
     }
 

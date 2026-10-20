@@ -23,10 +23,10 @@ final class ContentPreferences {
 
         var title: String {
             switch self {
-            case .home: "Home"
-            case .creators: "Creators"
-            case .search: "Search"
-            case .lastUsed: "Last used"
+            case .home: L10n.string("Home")
+            case .creators: L10n.string("Creators")
+            case .search: L10n.string("Search")
+            case .lastUsed: L10n.string("Last used")
             }
         }
     }
@@ -74,6 +74,12 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(commentSort.rawValue, forKey: commentSortKey) }
     }
 
+    /// App interface language. Resolved from the system on first launch, then
+    /// user-selectable in Settings.
+    var language: AppLanguage {
+        didSet { UserDefaults.standard.set(language.rawValue, forKey: AppLanguage.storageKey) }
+    }
+
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
         autoplayNext = UserDefaults.standard.object(forKey: autoplayKey) as? Bool ?? true
@@ -81,5 +87,13 @@ final class ContentPreferences {
         collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false
         initialTab = InitialTab(rawValue: UserDefaults.standard.string(forKey: initialTabKey) ?? "") ?? .home
         commentSort = CommentSort(rawValue: UserDefaults.standard.string(forKey: commentSortKey) ?? "") ?? .best
+        if let raw = UserDefaults.standard.string(forKey: AppLanguage.storageKey),
+           let stored = AppLanguage(rawValue: raw) {
+            language = stored
+        } else {
+            let resolved = AppLanguage.resolved(from: Locale.preferredLanguages)
+            language = resolved
+            UserDefaults.standard.set(resolved.rawValue, forKey: AppLanguage.storageKey)
+        }
     }
 }

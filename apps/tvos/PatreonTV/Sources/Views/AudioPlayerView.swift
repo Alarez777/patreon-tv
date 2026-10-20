@@ -49,7 +49,7 @@ struct AudioPlayerView: View {
         self.onPlaybackEnded = onPlaybackEnded
         _model = State(initialValue: AudioPlayerModel(
             postID: post?.id ?? "",
-            title: post?.attributes.title ?? "Audio",
+            title: post?.attributes.title ?? L10n.string("Audio"),
             creator: campaign?.attributes.name,
             artworkURL: post?.attributes.posterImageURL
         ))
@@ -65,7 +65,7 @@ struct AudioPlayerView: View {
                 artwork
 
                 VStack(spacing: 10) {
-                    Text(post?.attributes.title ?? "Audio")
+                    Text(post?.attributes.title ?? L10n.string("Audio"))
                         .font(.title2.weight(.bold))
                         .foregroundStyle(.white)
                         .lineLimit(2)
@@ -152,7 +152,11 @@ struct AudioPlayerView: View {
         .frame(maxWidth: 1100)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Progress: \(formatTime(model.currentTime)) of \(formatTime(model.duration))"
+            L10n.format(
+                "format.audioProgress",
+                formatTime(model.currentTime),
+                formatTime(model.duration)
+            )
         )
     }
 
@@ -165,7 +169,7 @@ struct AudioPlayerView: View {
                     .font(.title2)
             }
             .focused($focusedControl, equals: .skipBack)
-            .accessibilityLabel("Skip back 15 seconds")
+            .accessibilityLabel(Text("Skip back 15 seconds"))
 
             Button {
                 model.togglePlayPause()
@@ -175,7 +179,7 @@ struct AudioPlayerView: View {
                     .frame(width: 80)
             }
             .focused($focusedControl, equals: .playPause)
-            .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(model.isPlaying ? L10n.string("Pause") : L10n.string("Play"))
 
             Button {
                 model.skip(30)
@@ -184,7 +188,7 @@ struct AudioPlayerView: View {
                     .font(.title2)
             }
             .focused($focusedControl, equals: .skipForward)
-            .accessibilityLabel("Skip forward 30 seconds")
+            .accessibilityLabel(Text("Skip forward 30 seconds"))
 
             Menu {
                 ForEach(Self.rates, id: \.self) { rate in
@@ -204,7 +208,7 @@ struct AudioPlayerView: View {
                     .monospacedDigit()
             }
             .focused($focusedControl, equals: .speed)
-            .accessibilityLabel("Playback speed, currently \(rateLabel(model.preferredRate))")
+            .accessibilityLabel(L10n.format("format.playbackSpeedAccessibility", rateLabel(model.preferredRate)))
         }
         .buttonStyle(.bordered)
         .focusSection()
@@ -213,7 +217,7 @@ struct AudioPlayerView: View {
     private func rateLabel(_ rate: Float) -> String {
         rate == rate.rounded()
             ? "\(Int(rate))×"
-            : String(format: "%.2g×", rate)
+            : String(format: "%.2g×", locale: AppLanguage.current.locale, rate)
     }
 
     private func formatTime(_ seconds: Double) -> String {

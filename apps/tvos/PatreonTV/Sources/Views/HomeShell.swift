@@ -21,6 +21,9 @@ struct HomeShell: View {
     @Environment(AuthStore.self) private var auth
     @Environment(DeepLinkRouter.self) private var router
     @AppStorage("selected_tab") private var selectedTab: Tab = .home
+    /// Re-render the shell when the app language changes so L10n-built labels
+    /// (tab titles, menu titles) refresh immediately.
+    @Environment(\.locale) private var locale
 
     /// The tab the app opened on, resolved once at launch. Frozen so the
     /// first-element focus only applies to the launch tab (a later tab change
@@ -40,15 +43,16 @@ struct HomeShell: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .home: "Home"
-            case .creators: "Creators"
-            case .search: "Search"
-            case .settings: "Settings"
+            case .home: L10n.string("Home")
+            case .creators: L10n.string("Creators")
+            case .search: L10n.string("Search")
+            case .settings: L10n.string("Settings")
             }
         }
     }
 
     var body: some View {
+        let _ = locale
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
                 HomeView(

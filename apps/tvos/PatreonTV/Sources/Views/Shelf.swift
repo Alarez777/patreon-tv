@@ -117,7 +117,7 @@ struct Shelf: View {
             }
             .buttonStyle(.bordered)
             .padding(.horizontal, 60)
-            .accessibilityLabel("\(title), view creator")
+            .accessibilityLabel(L10n.format("format.accessibilityCollection", title))
         } else {
             Text(title)
                 .font(.title2.weight(.semibold))

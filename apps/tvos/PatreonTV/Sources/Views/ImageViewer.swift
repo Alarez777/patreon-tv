@@ -85,7 +85,7 @@ struct ImageViewer: View {
             .focusable()
             .focusEffectDisabled()
             .focused($focusedIndex, equals: offset)
-            .accessibilityLabel("Image \(offset + 1) of \(images.count)")
+            .accessibilityLabel(L10n.format("format.imageOf", offset + 1, images.count))
     }
 
     @ViewBuilder

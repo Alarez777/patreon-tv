@@ -192,13 +192,13 @@ enum SignInError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidSession:
-            "That session ID is invalid or expired. Copy a fresh one from patreon.com."
+            L10n.string("error.invalidSession")
         case .rateLimited(let seconds):
-            "Patreon is rate-limiting sign-in. Try again in \(Int(seconds)) seconds."
+            L10n.format("format.signInRateLimited", Int(seconds))
         case .network:
-            "Couldn't reach Patreon. Check your connection and try again."
+            L10n.string("error.network")
         case .unexpected:
-            "Patreon returned an unexpected response. Try again."
+            L10n.string("error.unexpected")
         }
     }
 }

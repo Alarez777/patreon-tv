@@ -5,6 +5,7 @@ A native tvOS app for watching your favorite Patreon creators on the big screen.
 - **One app.** No companion. No LAN server. Downloaded from the App Store, sign in once, done.
 - **Netflix-style browsing.** Focus-driven shelves, hero art that follows what you're looking at, snappy transitions.
 - **Native video.** Patreon-hosted video plays directly in `AVPlayer` via signed Mux HLS — no proxy, HDR, PiP, AirPlay.
+- **Four languages.** English (US), Spanish (Latin America), Portuguese (Brazil), and French. The first launch follows the Apple TV language; Settings can change it.
 - **Free & open source** — MIT.
 
 > **Fork notice:** This repository started from

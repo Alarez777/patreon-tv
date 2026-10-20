@@ -51,7 +51,7 @@ private struct CollectionPickerRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             VStack(alignment: .leading, spacing: 8) {
-                Text(collection.attributes.title ?? "Collection")
+                Text(collection.attributes.title ?? L10n.string("Collection"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(2)
@@ -64,7 +64,7 @@ private struct CollectionPickerRow: View {
                 }
 
                 if let count = collection.attributes.numPosts {
-                    Text("\(count) posts")
+                    Text(L10n.count(count, one: "count.posts.one", other: "count.posts.other"))
                         .font(.caption)
                         .foregroundStyle(PatreonColors.tertiaryText)
                 }

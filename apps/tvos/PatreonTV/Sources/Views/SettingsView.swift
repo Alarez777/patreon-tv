@@ -23,7 +23,7 @@ struct SettingsView: View {
                     avatar(for: user)
 
                     VStack(spacing: 8) {
-                        Text(user.attributes.fullName ?? "Signed in")
+                        Text(user.attributes.fullName ?? L10n.string("Signed in"))
                             .font(.title)
                             .foregroundStyle(PatreonColors.primaryText)
                         if let email = user.attributes.email {
@@ -32,6 +32,21 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Language")
+                        .foregroundStyle(PatreonColors.primaryText)
+                    Text("The app language. Defaults to your Apple TV language.")
+                        .font(.caption)
+                        .foregroundStyle(PatreonColors.secondaryText)
+                    Picker("Language", selection: $prefs.language) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(language.displayName).tag(language)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .frame(maxWidth: 700, alignment: .leading)
 
                 Toggle(isOn: $prefs.showMatureContent) {
                     VStack(alignment: .leading, spacing: 4) {

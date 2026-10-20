@@ -40,7 +40,7 @@ struct UpNextOverlayView: View {
                     .foregroundStyle(PatreonColors.brand)
                     .textCase(.uppercase)
 
-                Text(post.attributes.title ?? "Untitled")
+                Text(post.attributes.title ?? L10n.string("Untitled"))
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
@@ -81,15 +81,20 @@ struct UpNextOverlayView: View {
 
     private var countdownLabel: String {
         if let countdown {
-            return "Up Next in \(max(countdown, 0))s"
+            return L10n.format("format.upNextIn", max(countdown, 0))
         }
-        return "Up Next"
+        return L10n.string("Up Next")
     }
 
     private var accessibilitySummary: String {
-        var parts = ["Up next: \(post.attributes.title ?? "Untitled")"]
-        if let creatorName { parts.append("from \(creatorName)") }
-        if let countdown { parts.append("playing automatically in \(max(countdown, 0)) seconds") }
+        var parts = [
+            L10n.format(
+                "format.upNextTitle",
+                post.attributes.title ?? L10n.string("Untitled")
+            )
+        ]
+        if let creatorName { parts.append(L10n.format("format.fromCreator", creatorName)) }
+        if let countdown { parts.append(L10n.format("format.autoPlayIn", max(countdown, 0))) }
         return parts.joined(separator: ", ")
     }
 }

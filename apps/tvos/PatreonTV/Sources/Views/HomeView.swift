@@ -84,7 +84,7 @@ struct HomeView: View {
                 // per-creator rows below carry the depth.
                 if !feed.isEmpty {
                     Shelf(
-                        title: "New from Your Creators",
+                        title: L10n.string("New from Your Creators"),
                         posts: feed,
                         campaignFor: { vm.campaign(for: $0) },
                         onNearEnd: { post in
@@ -98,7 +98,7 @@ struct HomeView: View {
 
                 if !continueWatching.isEmpty {
                     Shelf(
-                        title: "Continue Watching",
+                        title: L10n.string("Continue Watching"),
                         posts: continueWatching,
                         campaignFor: { vm.campaign(for: $0) },
                         onPlay: onPlayPost
@@ -107,7 +107,7 @@ struct HomeView: View {
 
                 if !recentCollectionCards.isEmpty {
                     CollectionShelf(
-                        title: "Continue Collection",
+                        title: L10n.string("Continue Collection"),
                         cards: recentCollectionCards,
                         onPlayCollection: onPlayCollection
                     )
@@ -115,7 +115,7 @@ struct HomeView: View {
 
                 ForEach(creatorRows) { row in
                     Shelf(
-                        title: row.campaign.attributes.name ?? "Creator",
+                        title: row.campaign.attributes.name ?? L10n.string("Creator"),
                         posts: row.posts,
                         campaignFor: { _ in row.campaign },
                         onNearEnd: { post in

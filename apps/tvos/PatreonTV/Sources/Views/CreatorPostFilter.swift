@@ -16,13 +16,13 @@ enum CreatorPostFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: "All"
-        case .videos: "Videos"
-        case .images: "Images"
-        case .text: "Text"
-        case .audio: "Audio"
-        case .podcasts: "Podcasts"
-        case .polls: "Polls"
+        case .all: L10n.string("All")
+        case .videos: L10n.string("Videos")
+        case .images: L10n.string("Images")
+        case .text: L10n.string("Text")
+        case .audio: L10n.string("Audio")
+        case .podcasts: L10n.string("Podcasts")
+        case .polls: L10n.string("Polls")
         }
     }
 

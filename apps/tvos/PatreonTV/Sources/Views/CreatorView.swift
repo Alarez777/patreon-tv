@@ -99,7 +99,7 @@ struct CreatorView: View {
             .buttonStyle(.bordered)
             .focused($collectionsFocused)
             .accessibilityIdentifier("creator-collections")
-            .accessibilityLabel("Collections")
+            .accessibilityLabel(Text("Collections"))
 
             // Destination-style link is deliberate here: the view model isn't
             // Hashable/Codable, so it can't be a DeepLinkDestination value. This
@@ -116,7 +116,7 @@ struct CreatorView: View {
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
             .accessibilityIdentifier("creator-search")
-            .accessibilityLabel("Search this creator's posts")
+            .accessibilityLabel(Text("Search this creator's posts"))
         }
         .padding(.horizontal, 60)
         // Full-width focus target: lets "up" from any grid card (incl. left
@@ -150,7 +150,7 @@ struct CreatorView: View {
                 .padding(.vertical, 12)
         }
         .buttonStyle(.bordered)
-        .accessibilityLabel("Filter posts by type")
+        .accessibilityLabel(Text("Filter posts by type"))
     }
 
     private func filterItemTitle(_ filter: CreatorPostFilter, counts: Campaign.PostCount?) -> String {
@@ -159,7 +159,7 @@ struct CreatorView: View {
     }
 
     private var filterMenuLabel: String {
-        vm.selectedFilter == .all ? "Filter" : vm.selectedFilter.title
+        vm.selectedFilter == .all ? L10n.string("Filter") : vm.selectedFilter.title
     }
 
     @ViewBuilder
@@ -260,7 +260,11 @@ struct CreatorView: View {
         HStack(spacing: 6) {
             Image(systemName: "heart.fill")
             let cents = membership?.attributes.currentlyEntitledAmountCents ?? 0
-            Text(cents > 0 ? "Supporting at $\(formatCents(cents))" : "Supporting")
+            Text(
+                cents > 0
+                    ? L10n.format("format.supportingAt", formatCents(cents))
+                    : L10n.string("Supporting")
+            )
         }
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 12)
@@ -287,13 +291,13 @@ struct CreatorView: View {
         if members != nil || posts != nil {
             HStack(spacing: 16) {
                 if let members {
-                    Label(pluralized(members, singular: "member"), systemImage: "person.2.fill")
+                    Label(L10n.count(members, one: "count.members.one", other: "count.members.other"), systemImage: "person.2.fill")
                 }
                 if members != nil, posts != nil {
                     Text("·").foregroundStyle(.white.opacity(0.5))
                 }
                 if let posts {
-                    Label(pluralized(posts, singular: "post"), systemImage: "square.grid.2x2.fill")
+                    Label(L10n.count(posts, one: "count.posts.one", other: "count.posts.other"), systemImage: "square.grid.2x2.fill")
                 }
             }
             .font(.subheadline.weight(.medium))
@@ -302,13 +306,13 @@ struct CreatorView: View {
         }
     }
 
-    private func pluralized(_ count: Int, singular: String) -> String {
-        "\(count.formatted()) \(count == 1 ? singular : singular + "s")"
-    }
-
     private func formatCents(_ cents: Int) -> String {
         let dollars = Double(cents) / 100.0
-        return String(format: "%.2f", dollars)
+        return String(
+            format: "%.2f",
+            locale: AppLanguage.current.locale,
+            dollars
+        )
     }
 }
 
@@ -362,7 +366,13 @@ private struct CreatorPostSearchView: View {
             }
         }
         .scrollClipDisabled()
-        .searchable(text: $query, prompt: "Search \(vm.campaign?.attributes.name ?? "posts")")
+        .searchable(
+            text: $query,
+            prompt: L10n.format(
+                "format.searchPosts",
+                vm.campaign?.attributes.name ?? L10n.string("Posts")
+            )
+        )
         .background(PatreonColors.background.ignoresSafeArea())
         // Search covers the whole catalog, so drop any content-type filter the
         // grid had applied, then pull every remaining page.
@@ -375,8 +385,12 @@ private struct CreatorPostSearchView: View {
     }
 
     private var emptyMessage: String {
-        if query.isEmpty { return vm.isLoadingAll ? "Loading posts…" : "Type to search" }
-        return vm.isLoadingAll ? "Searching…" : "No posts match \"\(query)\""
+        if query.isEmpty {
+            return vm.isLoadingAll ? L10n.string("Loading posts…") : L10n.string("Type to search")
+        }
+        return vm.isLoadingAll
+            ? L10n.string("Searching…")
+            : L10n.format("format.noPostsMatch", query)
     }
 }
 

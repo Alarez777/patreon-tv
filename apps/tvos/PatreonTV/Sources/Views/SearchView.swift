@@ -86,7 +86,7 @@ struct SearchView: View {
             Image(systemName: "exclamationmark.magnifyingglass")
                 .font(.system(size: 60))
                 .foregroundStyle(PatreonColors.secondaryText)
-            Text("No creators for \"\(query)\"")
+            Text(L10n.format("format.noCreatorsFor", query))
                 .font(.title3)
                 .foregroundStyle(PatreonColors.primaryText)
         }
@@ -136,7 +136,7 @@ struct SearchCreatorCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(result.attributes.name ?? result.attributes.creatorName ?? "Creator")
+                Text(result.attributes.name ?? result.attributes.creatorName ?? L10n.string("Creator"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(1)
@@ -152,7 +152,7 @@ struct SearchCreatorCard: View {
         }
         .frame(width: cardWidth, alignment: .top)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(result.attributes.name ?? "Creator"), \(result.attributes.creationName ?? "")")
+        .accessibilityLabel(L10n.format("format.accessibilityCreator", result.attributes.name ?? L10n.string("Creator"), result.attributes.creationName ?? ""))
     }
 }
 

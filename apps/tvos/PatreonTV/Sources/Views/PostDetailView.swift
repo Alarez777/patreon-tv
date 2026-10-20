@@ -225,7 +225,7 @@ struct PostDetailView: View {
 
                 if let collection = collections.first {
                     CollectionEpisodesShelf(
-                        title: collection.attributes.title ?? "Collection",
+                        title: collection.attributes.title ?? L10n.string("Collection"),
                         collectionID: collection.id,
                         currentPostID: post.id,
                         onPlay: { id in onPlayPost?(id, collection.id) }
@@ -301,7 +301,7 @@ struct PostDetailView: View {
                         .clipShape(Capsule())
                 }
 
-                Text(post.attributes.title ?? "Untitled")
+                Text(post.attributes.title ?? L10n.string("Untitled"))
                     .font(.system(size: 64, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(3)
@@ -337,7 +337,7 @@ struct PostDetailView: View {
         HStack(spacing: 24) {
             if let campaign {
                 NavigationLink(value: DeepLinkDestination.creator(id: campaign.id)) {
-                    Label(campaign.attributes.name ?? "Creator", systemImage: "person.circle.fill")
+                    Label(campaign.attributes.name ?? L10n.string("Creator"), systemImage: "person.circle.fill")
                         .font(.title3.weight(.medium))
                 }
                 .buttonStyle(.bordered)
@@ -379,11 +379,11 @@ struct PostDetailView: View {
 
             if let comments = post.attributes.commentCount, comments > 0 {
                 NavigationLink(value: DeepLinkDestination.comments(postID: post.id, commentCount: comments)) {
-                    Label("Comments (\(comments))", systemImage: "bubble.left")
+                    Label(L10n.format("format.postComments", L10n.number(comments)), systemImage: "bubble.left")
                         .font(.title3.weight(.medium))
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Comments, \(comments)")
+                .accessibilityLabel(L10n.format("format.postCommentsAccessibility", L10n.number(comments)))
             }
         }
         .padding(.horizontal, 60)
@@ -398,7 +398,7 @@ struct PostDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ProgressView(value: progress.positionSeconds / progress.durationSeconds)
                             .tint(PatreonColors.brand)
-                        Text("Watched \(formatTime(progress.positionSeconds)) of \(formatTime(progress.durationSeconds))")
+                        Text(L10n.format("format.watched", formatTime(progress.positionSeconds), formatTime(progress.durationSeconds)))
                             .font(.subheadline)
                             .foregroundStyle(PatreonColors.secondaryText)
                     }
@@ -475,7 +475,9 @@ struct PostDetailView: View {
                 showImageViewer = true
             } label: {
                 Label(
-                    imageURLs.count > 1 ? "View \(imageURLs.count) images" : "View",
+                    imageURLs.count > 1
+                        ? L10n.format("format.viewImages", L10n.number(imageURLs.count))
+                        : L10n.string("View"),
                     systemImage: "arrow.up.left.and.arrow.down.right"
                 )
                 .font(.title3.weight(.semibold))
@@ -522,13 +524,13 @@ struct PostDetailView: View {
 
     private func postTypeLabel(_ type: Post.PostType?) -> String? {
         switch type {
-        case .videoExternalFile, .videoEmbed: "Video"
-        case .audioFile, .audioEmbed, .podcast: "Audio"
-        case .imageFile: "Image"
-        case .textOnly: "Post"
-        case .link: "Link"
-        case .poll: "Poll"
-        case .livestreamYoutube, .livestreamCrowdcast: "Livestream"
+        case .videoExternalFile, .videoEmbed: L10n.string("Video")
+        case .audioFile, .audioEmbed, .podcast: L10n.string("Audio")
+        case .imageFile: L10n.string("Image")
+        case .textOnly: L10n.string("Post")
+        case .link: L10n.string("Link")
+        case .poll: L10n.string("Poll")
+        case .livestreamYoutube, .livestreamCrowdcast: L10n.string("Livestream")
         case .other, nil: nil
         }
     }
@@ -540,7 +542,10 @@ struct PostDetailView: View {
         guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else {
             return nil
         }
-        return date.formatted(date: .abbreviated, time: .omitted)
+        return date.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .omitted)
+                .locale(AppLanguage.current.locale)
+        )
     }
 
     private var resumeProgress: PlaybackProgress? {
@@ -554,9 +559,9 @@ struct PostDetailView: View {
 
     private var playButtonLabel: String {
         if let p = resumeProgress {
-            return "Resume from \(formatTime(p.positionSeconds))"
+            return L10n.format("format.resumeFrom", formatTime(p.positionSeconds))
         }
-        return "Play"
+        return L10n.string("Play")
     }
 
     private func formatTime(_ seconds: Double) -> String {
@@ -839,7 +844,7 @@ struct PostDetailView: View {
                 // The detail view is still showing (post != nil), so surface
                 // this via the playback alert rather than errorMessage, which
                 // only renders when the whole page failed to load.
-                presentPlaybackError("No playable media URL was returned for this post.")
+                presentPlaybackError(L10n.string("No playable media URL was returned for this post."))
                 mediaURL = nil
                 return
             }

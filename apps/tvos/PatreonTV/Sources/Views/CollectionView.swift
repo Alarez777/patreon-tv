@@ -106,7 +106,7 @@ struct CollectionView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text(vm.collection?.attributes.title ?? "Collection")
+                Text(vm.collection?.attributes.title ?? L10n.string("Collection"))
                     .font(.system(size: 56, weight: .bold))
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(2)
@@ -120,7 +120,7 @@ struct CollectionView: View {
                 }
 
                 if let total = vm.collection?.attributes.numPosts {
-                    Text("\(total) posts")
+                    Text(L10n.count(total, one: "count.posts.one", other: "count.posts.other"))
                         .font(.subheadline)
                         .foregroundStyle(PatreonColors.tertiaryText)
                 }
@@ -140,13 +140,13 @@ struct CollectionView: View {
             Button {
                 reversed.toggle()
             } label: {
-                Label(reversed ? "Oldest first" : "Newest first", systemImage: "arrow.up.arrow.down")
+                Label(reversed ? L10n.string("Oldest first") : L10n.string("Newest first"), systemImage: "arrow.up.arrow.down")
                     .font(.title3.weight(.medium))
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
             }
             .buttonStyle(.bordered)
-            .accessibilityLabel(reversed ? "Oldest first" : "Newest first")
+            .accessibilityLabel(reversed ? L10n.string("Oldest first") : L10n.string("Newest first"))
         }
         .padding(.horizontal, 60)
         .focusSection()
@@ -184,7 +184,7 @@ struct CollectionView: View {
 
         RecentCollectionsStore.shared.record(RecentCollection(
             id: collection.id,
-            title: collection.attributes.title ?? "Collection",
+            title: collection.attributes.title ?? L10n.string("Collection"),
             squareImageURL: collection.attributes.thumbnail?.bestImageURL,
             wideImageURL: collection.attributes.thumbnail?.wideImageURL,
             numPosts: collection.attributes.numPosts,
