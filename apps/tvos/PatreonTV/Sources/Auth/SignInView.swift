@@ -42,7 +42,7 @@ struct SignInView: View {
                         .frame(maxWidth: 700, alignment: .leading)
                 }
                 .padding(.horizontal, 80)
-                .padding(.vertical, 60)
+                .padding(.vertical, 48)
                 .frame(maxWidth: 1500)
             }
         }
@@ -55,16 +55,16 @@ struct SignInView: View {
     }
 
     private var instructions: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 20) {
             Image("PTVWordmark")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 110)
+                .frame(height: 96)
                 .accessibilityLabel("PatreonTV")
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Sign in with Patreon")
-                    .font(.system(size: 52, weight: .bold))
+                    .font(.system(size: 46, weight: .bold))
                     .foregroundStyle(.white)
                 Text("Paste your Patreon session ID to connect this TV.")
                     .font(.title3)
@@ -87,7 +87,7 @@ struct SignInView: View {
                 .accessibilityElement(children: .combine)
             }
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 step(1, "On a computer, open your browser.")
                 step(2, "Open the developer tools with F12 (⌥⌘I on Mac).")
                 step(3, "Sign in at patreon.com.")
@@ -96,13 +96,12 @@ struct SignInView: View {
                 step(6, "Paste it below using your iPhone/iPad keyboard, or type it with the Siri Remote.")
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("The session_id cookie is HttpOnly, so it only appears in a desktop browser's developer tools.")
-                Text("Signing out of that browser also signs out this TV.")
-                Text("It works like a password: keep it private. Settings → Sign Out removes it from this TV.")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV.")
+                Text("Treat it like a password. Settings → Sign Out removes it from this TV.")
             }
-            .font(.footnote)
-            .foregroundStyle(.white.opacity(0.45))
+            .font(.caption2)
+            .foregroundStyle(.white.opacity(0.5))
             .fixedSize(horizontal: false, vertical: true)
         }
     }
