@@ -155,7 +155,7 @@ struct CreatorView: View {
 
     private func filterItemTitle(_ filter: CreatorPostFilter, counts: Campaign.PostCount?) -> String {
         guard filter != .all, let count = filter.count(in: counts) else { return filter.title }
-        return "\(filter.title) (\(count))"
+        return "\(filter.title) (\(L10n.number(count)))"
     }
 
     private var filterMenuLabel: String {
