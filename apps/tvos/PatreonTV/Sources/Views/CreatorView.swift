@@ -68,7 +68,7 @@ struct CreatorView: View {
                 .accessibilityIdentifier("creator-hero")
 
                 if let summary = vm.campaign?.attributes.summary, !summary.isEmpty {
-                    aboutSection(summary: summary)
+                    summarySection(summary: summary)
                 }
 
                 postsHeader
@@ -207,14 +207,22 @@ struct CreatorView: View {
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
 
-                if let creation = vm.campaign?.attributes.creationName,
-                   !creation.isEmpty {
-                    // creation_name is already a full phrase (e.g. "creating
-                    // YouTube videos…" / "Creating Drunk Content"); show as-is.
-                    Text(creation)
-                        .font(.title3)
-                        .foregroundStyle(.white.opacity(0.85))
+                HStack(alignment: .firstTextBaseline, spacing: 24) {
+                    if let creation = vm.campaign?.attributes.creationName,
+                       !creation.isEmpty {
+                        // creation_name is already a full phrase (e.g. "creating
+                        // YouTube videos…" / "Creating Drunk Content"); show as-is.
+                        Text(creation)
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    heroStats
                 }
+                .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 60)
             .padding(.bottom, 60)
@@ -262,18 +270,40 @@ struct CreatorView: View {
         .clipShape(Capsule())
     }
 
-    private func aboutSection(summary: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("About")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(PatreonColors.primaryText)
-            Text(HTMLRenderer.stripToPlainText(summary))
-                .font(.body)
-                .foregroundStyle(PatreonColors.secondaryText)
-                .lineLimit(3)
-                .frame(maxWidth: 1400, alignment: .leading)
+    private func summarySection(summary: String) -> some View {
+        Text(HTMLRenderer.stripToPlainText(summary))
+            .font(.body)
+            .foregroundStyle(PatreonColors.secondaryText)
+            .lineLimit(3)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .padding(.horizontal, 60)
+    }
+
+    @ViewBuilder
+    private var heroStats: some View {
+        let members = vm.campaign?.attributes.patronCount
+        let posts = vm.campaign?.attributes.postCount?.total
+
+        if members != nil || posts != nil {
+            HStack(spacing: 16) {
+                if let members {
+                    Label(pluralized(members, singular: "member"), systemImage: "person.2.fill")
+                }
+                if members != nil, posts != nil {
+                    Text("·").foregroundStyle(.white.opacity(0.5))
+                }
+                if let posts {
+                    Label(pluralized(posts, singular: "post"), systemImage: "square.grid.2x2.fill")
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.white.opacity(0.85))
+            .shadow(color: .black.opacity(0.5), radius: 4, y: 1)
         }
-        .padding(.horizontal, 60)
+    }
+
+    private func pluralized(_ count: Int, singular: String) -> String {
+        "\(count.formatted()) \(count == 1 ? singular : singular + "s")"
     }
 
     private func formatCents(_ cents: Int) -> String {
