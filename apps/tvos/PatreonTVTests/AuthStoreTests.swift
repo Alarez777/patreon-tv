@@ -34,6 +34,10 @@ final class AuthStoreTests: XCTestCase {
             AuthStore.signInError(from: URLError(.notConnectedToInternet)),
             .network
         )
+        XCTAssertEqual(
+            AuthStore.signInError(from: PatreonError.decoding(underlying: URLError(.cannotParseResponse))),
+            .unexpected
+        )
     }
 
     func test_keeps_session_on_transient_errors() {

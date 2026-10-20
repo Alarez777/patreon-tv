@@ -133,6 +133,8 @@ final class AuthStore {
             return .invalidSession
         case PatreonError.rateLimited(let seconds):
             return .rateLimited(retryAfter: seconds)
+        case PatreonError.badResponse, PatreonError.decoding:
+            return .unexpected
         default:
             return .network
         }
@@ -185,6 +187,7 @@ enum SignInError: LocalizedError, Equatable {
     case invalidSession
     case rateLimited(retryAfter: Double)
     case network
+    case unexpected
 
     var errorDescription: String? {
         switch self {
@@ -194,6 +197,8 @@ enum SignInError: LocalizedError, Equatable {
             "Patreon is rate-limiting sign-in. Try again in \(Int(seconds)) seconds."
         case .network:
             "Couldn't reach Patreon. Check your connection and try again."
+        case .unexpected:
+            "Patreon returned an unexpected response. Try again."
         }
     }
 }
