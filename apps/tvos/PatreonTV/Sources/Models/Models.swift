@@ -457,11 +457,14 @@ struct Post: JSONAPIResource {
         }
     }
 
-    /// Number of images on an image post, shown only for galleries (2+).
-    var galleryImageCount: Int? {
+    /// Number of images on an image post. Falls back to 1 when the API omits
+    /// the `images` relationship but the post still has a primary image.
+    var imageCount: Int? {
         guard attributes.postType == .imageFile else { return nil }
-        let count = relationships?.images?.data?.count ?? 0
-        return count > 1 ? count : nil
+        if let count = relationships?.images?.data?.count, count > 0 {
+            return count
+        }
+        return attributes.image != nil ? 1 : nil
     }
 }
 

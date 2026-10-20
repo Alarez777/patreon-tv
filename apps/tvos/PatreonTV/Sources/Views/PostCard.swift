@@ -33,8 +33,8 @@ struct PostCard: View {
                     if showsProgress { UnwatchedCorner(postID: post.id) }
                 }
                 .overlay(alignment: .topTrailing) {
-                    if let count = post.galleryImageCount {
-                        galleryBadge(count)
+                    if let count = post.imageCount {
+                        imageBadge(count)
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -90,11 +90,13 @@ struct PostCard: View {
         }
     }
 
-    /// Instagram-style count for image galleries: number then overlapping
-    /// squares, in a dark capsule so it reads over any artwork.
-    private func galleryBadge(_ count: Int) -> some View {
+    /// Instagram-style image post marker: the count (only for galleries) and
+    /// overlapping squares in a dark capsule.
+    private func imageBadge(_ count: Int) -> some View {
         HStack(spacing: 6) {
-            Text("\(count)")
+            if count > 1 {
+                Text("\(count)")
+            }
             Image(systemName: "square.on.square")
         }
         .font(.caption.weight(.semibold))
@@ -134,7 +136,9 @@ struct PostCard: View {
         let title = post.attributes.title ?? "Untitled post"
         let creator = campaign?.attributes.name.map { " by \($0)" } ?? ""
         let paid = post.attributes.isPaid == true ? ", patron-only" : ""
-        let images = post.galleryImageCount.map { ", \($0) images" } ?? ""
+        let images = post.imageCount.map { count in
+            count > 1 ? ", \(count) images" : ", image post"
+        } ?? ""
         return "\(title)\(creator)\(paid)\(images)"
     }
 }
