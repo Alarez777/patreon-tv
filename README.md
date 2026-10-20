@@ -7,6 +7,11 @@ A native tvOS app for watching your favorite Patreon creators on the big screen.
 - **Native video.** Patreon-hosted video plays directly in `AVPlayer` via signed Mux HLS — no proxy, HDR, PiP, AirPlay.
 - **Free & open source** — MIT.
 
+> **Fork notice:** This repository started from
+> [DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv)
+> and has since diverged. It is maintained independently and is not affiliated
+> with the upstream project.
+
 ## Status
 
 **Early scaffolding.** Do not attempt to ship yet.
@@ -77,12 +82,59 @@ xcodebuild \
 
 ## Sign-in
 
-PatreonTV has no web intermediary. On first launch, open a browser and its
-developer tools (F12, or ⌥⌘I on Mac), sign in at patreon.com, then copy the
-`session_id` cookie from Application → Cookies (Chrome) or Storage → Cookies
-(Firefox/Safari). Paste it into the Apple TV using the iPhone/iPad keyboard (or
-type it with the Siri Remote). The cookie is validated against Patreon and
-stored only in the tvOS Keychain.
+PatreonTV uses the same web session as your browser. That is what lets the app
+see paid posts; Patreon's OAuth tokens do not unlock them. There is no pairing
+site and no intermediary server: the session ID goes straight from your browser
+to the Apple TV.
+
+### 1. Get the `session_id` cookie
+
+Do this on a computer. The cookie is HttpOnly, so mobile browsers can't reveal
+it.
+
+1. Open your browser and the developer tools:
+   - Windows / Linux: `F12`
+   - Mac: `⌥⌘I`
+2. Sign in at [patreon.com](https://www.patreon.com).
+3. Open the cookies panel:
+   - **Firefox:** Storage → Cookies → `https://www.patreon.com`
+   - **Chrome / Edge:** Application → Storage → Cookies → `https://www.patreon.com`
+   - **Safari:** Develop → Show Web Inspector → Storage → Cookies
+4. Select the `session_id` row and copy only its **value** (not the cookie
+   name). In Firefox/Chrome you can right-click the value or double-click it
+   and copy.
+
+### 2. Send it to your iPhone or iPad
+
+- **Mac + iPhone/iPad on the same Apple Account:** use **Universal Clipboard**.
+  Copy the value on the Mac, focus the TV's session field, then paste from the
+  iPhone/iPad keyboard. Make sure Handoff and Universal Clipboard are enabled on
+  both devices.
+- **Linux or Windows:** use [LocalSend](https://localsend.org) to send the
+  value from the computer to the phone over your local network. It does not go
+  through an internet service. KDE Connect is another option on Linux.
+- **Avoid** email, chat, or cloud notes for this value. Treat it like a
+  password.
+
+### 3. Paste it on the TV
+
+1. On the TV's sign-in screen, focus the **Session ID** field. The iPhone/iPad
+   keyboard should appear.
+2. Paste the value and choose **Continue**. The app checks it against Patreon
+   and stores it only in the tvOS Keychain.
+3. If pasting fails, you can type the value with the Siri Remote. It's long, but
+   you should only need to do it once.
+
+### Security notes
+
+- The `session_id` grants full access to your Patreon account while it is valid.
+  Keep it private.
+- Signing out of that browser session may also sign out the TV.
+- On a shared TV, use **Settings → Sign Out** when you're done. That removes the
+  local copy; to revoke the session itself, sign out of it in the browser or
+  change your Patreon password.
+- If you think the ID leaked, sign out of the Patreon session and sign in again
+  with a fresh cookie.
 
 ## Contributing
 
