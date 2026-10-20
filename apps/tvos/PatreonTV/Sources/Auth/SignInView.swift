@@ -88,11 +88,12 @@ struct SignInView: View {
             }
 
             VStack(alignment: .leading, spacing: 16) {
-                step(1, "On a computer, sign in at patreon.com.")
-                step(2, "Open developer tools (F12 on Windows, ⌥⌘I on Mac).")
-                step(3, "Go to Application (Chrome) or Storage (Firefox/Safari) → Cookies → https://www.patreon.com.")
-                step(4, "Copy the value of the session_id cookie.")
-                step(5, "Paste it below using your iPhone/iPad keyboard, or type it with the Siri Remote.")
+                step(1, "On a computer, open your browser.")
+                step(2, "Open the developer tools with F12 (⌥⌘I on Mac).")
+                step(3, "Sign in at patreon.com.")
+                step(4, "In the developer tools, open Application (Chrome) or Storage (Firefox/Safari) → Cookies → https://www.patreon.com.")
+                step(5, "Copy the value of the session_id cookie.")
+                step(6, "Paste it below using your iPhone/iPad keyboard, or type it with the Siri Remote.")
             }
 
             VStack(alignment: .leading, spacing: 8) {

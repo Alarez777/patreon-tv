@@ -77,12 +77,12 @@ xcodebuild \
 
 ## Sign-in
 
-PatreonTV has no web intermediary. On first launch, sign in at patreon.com in a
-desktop browser, open the developer tools, and copy the `session_id` cookie
-(Application → Cookies in Chrome, or Storage → Cookies in Firefox/Safari).
-Paste it into the Apple TV using the iPhone/iPad keyboard (or type it with the
-Siri Remote). The cookie is validated against Patreon and stored only in the
-tvOS Keychain.
+PatreonTV has no web intermediary. On first launch, open a browser and its
+developer tools (F12, or ⌥⌘I on Mac), sign in at patreon.com, then copy the
+`session_id` cookie from Application → Cookies (Chrome) or Storage → Cookies
+(Firefox/Safari). Paste it into the Apple TV using the iPhone/iPad keyboard (or
+type it with the Siri Remote). The cookie is validated against Patreon and
+stored only in the tvOS Keychain.
 
 ## Contributing
 
