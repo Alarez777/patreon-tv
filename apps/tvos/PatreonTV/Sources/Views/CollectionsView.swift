@@ -62,6 +62,7 @@ struct CollectionsView: View {
                         .buttonStyle(.card)
                         .focused($focusedCollectionID, equals: collection.id)
                         .collectionPlay(collectionID: collection.id, onPlay: onPlayCollection)
+                        .collectionActionsMenu(collection: collection)
                     }
                 }
                 .padding(.horizontal, 60)
@@ -208,6 +209,7 @@ struct CollectionsSearchView: View {
                         }
                         .buttonStyle(.card)
                         .collectionPlay(collectionID: collection.id, onPlay: onPlayCollection)
+                        .collectionActionsMenu(collection: collection)
                     }
                 }
                 .padding(60)

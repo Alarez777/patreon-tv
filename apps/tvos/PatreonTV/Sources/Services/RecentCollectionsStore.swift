@@ -36,11 +36,16 @@ final class RecentCollectionsStore {
     // v2: collections are only recorded once something in them has been watched,
     // so bumping the key drops v1's stale entries (collections merely opened).
     private let key = "recent_collections_v2"
+    private let hiddenKey = "hidden_collection_ids_v1"
     private let maxEntries = 10
     private let defaults: UserDefaults
 
     /// Most recently opened first.
     private(set) var collections: [RecentCollection] = []
+
+    /// Collections removed permanently. `record` ignores them until the user
+    /// adds them back from a collection card.
+    private var hiddenIDs: Set<String> = []
 
     /// Injectable for tests.
     init(defaults: UserDefaults = .standard) {
@@ -49,6 +54,40 @@ final class RecentCollectionsStore {
     }
 
     func record(_ collection: RecentCollection) {
+        guard !hiddenIDs.contains(collection.id) else { return }
+        insert(collection)
+    }
+
+    /// Adds a collection manually and clears a previous permanent hide.
+    func add(_ collection: RecentCollection) {
+        hiddenIDs.remove(collection.id)
+        saveHidden()
+        insert(collection)
+    }
+
+    /// Temporary removal: watching something in the collection adds it again.
+    func remove(id: String) {
+        collections.removeAll { $0.id == id }
+        save()
+    }
+
+    /// Permanent removal: `record` won't bring it back until `add` is called.
+    func hide(id: String) {
+        collections.removeAll { $0.id == id }
+        hiddenIDs.insert(id)
+        save()
+        saveHidden()
+    }
+
+    func isTracked(id: String) -> Bool {
+        collections.contains { $0.id == id }
+    }
+
+    func recent(limit: Int = 8) -> [RecentCollection] {
+        Array(collections.prefix(limit))
+    }
+
+    private func insert(_ collection: RecentCollection) {
         collections.removeAll { $0.id == collection.id }
         collections.insert(collection, at: 0)
         if collections.count > maxEntries {
@@ -57,21 +96,23 @@ final class RecentCollectionsStore {
         save()
     }
 
-    func recent(limit: Int = 8) -> [RecentCollection] {
-        Array(collections.prefix(limit))
-    }
-
     // MARK: - Persistence
 
     private func load() {
+        hiddenIDs = Set(defaults.stringArray(forKey: hiddenKey) ?? [])
+
         guard let data = defaults.data(forKey: key),
               let decoded = try? JSONDecoder().decode([RecentCollection].self, from: data)
         else { return }
-        collections = decoded
+        collections = decoded.filter { !hiddenIDs.contains($0.id) }
     }
 
     private func save() {
         guard let data = try? JSONEncoder().encode(collections) else { return }
         defaults.set(data, forKey: key)
+    }
+
+    private func saveHidden() {
+        defaults.set(Array(hiddenIDs), forKey: hiddenKey)
     }
 }

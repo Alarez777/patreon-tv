@@ -47,6 +47,7 @@ struct CollectionShelf: View {
                         .buttonStyle(.card)
                         .focused($focusedCardID, equals: card.id)
                         .collectionPlay(collectionID: card.id, onPlay: onPlayCollection)
+                        .continueCollectionActionsMenu(card: card)
                     }
                 }
                 .padding(.horizontal, 60)
