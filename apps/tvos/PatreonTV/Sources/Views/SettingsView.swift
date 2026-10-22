@@ -21,21 +21,22 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                ScrollView(.vertical, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 64) {
-                        profileColumn
-                            .frame(
-                                width: 440,
-                                height: max(0, proxy.size.height - 80),
-                                alignment: .center
-                            )
+                let third = max(0, proxy.size.width / 3)
 
+                HStack(spacing: 0) {
+                    profileColumn
+                        .frame(
+                            width: third,
+                            height: proxy.size.height,
+                            alignment: .center
+                        )
+
+                    ScrollView(.vertical, showsIndicators: false) {
                         optionsColumn
-                            .frame(maxWidth: settingsControlWidth, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 40)
                     }
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 40)
-                    .frame(maxWidth: 1500, alignment: .leading)
+                    .frame(width: third * 2, height: proxy.size.height)
                 }
                 .background(PatreonColors.background.ignoresSafeArea())
             }
@@ -59,6 +60,8 @@ struct SettingsView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
+
+                versionFooter
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -67,7 +70,7 @@ struct SettingsView: View {
     private var optionsColumn: some View {
         @Bindable var prefs = prefs
 
-        return VStack(alignment: .leading, spacing: 28) {
+        return VStack(alignment: .center, spacing: 28) {
             languageSection
 
             SettingsToggleRow(
@@ -93,9 +96,8 @@ struct SettingsView: View {
             initialTabSection
             commentOrderSection
             signOutButton
-            versionFooter
         }
-        .frame(maxWidth: settingsControlWidth, alignment: .leading)
+        .frame(width: settingsControlWidth, alignment: .center)
     }
 
     private var signOutButton: some View {
