@@ -12,6 +12,8 @@ struct AutoplaySettingsView: View {
 
     @State private var prefs = ContentPreferences.shared
 
+    private let controlWidth: CGFloat = 1100
+
     var body: some View {
         @Bindable var prefs = prefs
 
@@ -73,11 +75,11 @@ struct AutoplaySettingsView: View {
                         .opacity(prefs.autoplayNext ? 1 : 0.45)
                     }
                 }
-                .frame(maxWidth: 700, alignment: .leading)
+                .frame(width: controlWidth, alignment: .leading)
             }
             .padding(.horizontal, 60)
             .padding(.vertical, 40)
-            .frame(maxWidth: 1500, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(PatreonColors.background.ignoresSafeArea())
     }

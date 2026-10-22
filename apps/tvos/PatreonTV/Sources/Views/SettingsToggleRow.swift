@@ -31,8 +31,10 @@ struct SettingsToggleRow: View {
                             : PatreonColors.secondaryText
                     )
             }
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: 700)
+        .frame(maxWidth: .infinity)
         .focused($isFocused)
     }
 }

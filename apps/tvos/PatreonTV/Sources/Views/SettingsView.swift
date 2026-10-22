@@ -16,7 +16,7 @@ struct SettingsView: View {
     @FocusState private var languageFocused: Bool
     @FocusState private var autoplayRowFocused: Bool
 
-    private let settingsControlWidth: CGFloat = 700
+    private let settingsControlWidth: CGFloat = 1100
 
     var body: some View {
         NavigationStack {
@@ -213,6 +213,7 @@ struct SettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
@@ -232,6 +233,7 @@ struct SettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
