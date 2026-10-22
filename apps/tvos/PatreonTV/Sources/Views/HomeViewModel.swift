@@ -83,7 +83,7 @@ final class HomeViewModel {
         // resolving off-feed Continue Watching posts doesn't wait on the
         // per-creator pages.
         async let rows: Void = buildCreatorRows()
-        async let continueWatch: Void = rebuildContinueWatching()
+        async let continueWatch: Void = refreshContinueWatching()
         _ = await (rows, continueWatch)
     }
 
@@ -231,7 +231,7 @@ final class HomeViewModel {
     /// Older in-progress posts often aren't in the recent feed, so resolve any
     /// we don't already hold by fetching them individually — otherwise a
     /// half-watched but not-recent video silently vanishes from the shelf.
-    private func rebuildContinueWatching() async {
+    func refreshContinueWatching() async {
         let entries = PlaybackProgressStore.shared.inProgress()
         guard !entries.isEmpty else {
             continueWatching = []

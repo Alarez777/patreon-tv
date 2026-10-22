@@ -13,6 +13,10 @@ struct HomeView: View {
 
     @State private var vm = HomeViewModel()
     @State private var prefs = ContentPreferences.shared
+    /// Pending shelf refresh after a post is marked watched. Cancelled and
+    /// rescheduled while the store keeps changing, so the one-second pause
+    /// starts from the last change.
+    @State private var pendingContinueWatchingRefresh: Task<Void, Never>?
 
     /// Opens a post and starts playback immediately. Wired to the Siri Remote
     /// Play/Pause button on a focused card; a normal select still opens the
@@ -69,6 +73,41 @@ struct HomeView: View {
         }
         .task { await vm.load() }
         .background(PatreonColors.background.ignoresSafeArea())
+        // Only membership/order changes matter here — not every progress tick.
+        // Reading this in the body also registers the Observation dependency.
+        .onChange(of: inProgressIDs) { _, _ in
+            scheduleContinueWatchingRefresh()
+        }
+        .onAppear {
+            // A video may have finished while Home was covered by the player.
+            // Reconcile as soon as we're visible again instead of waiting for
+            // the delayed change handler (which may already have fired).
+            guard vm.state == .loaded,
+                  vm.continueWatching.map(\.id) != inProgressIDs
+            else { return }
+            pendingContinueWatchingRefresh?.cancel()
+            Task { await vm.refreshContinueWatching() }
+        }
+        .onDisappear {
+            pendingContinueWatchingRefresh?.cancel()
+        }
+    }
+
+    /// In-progress post IDs, most recent first — the Continue Watching
+    /// signature. Position updates alone don't change it.
+    private var inProgressIDs: [String] {
+        PlaybackProgressStore.shared.inProgress().map(\.postID)
+    }
+
+    /// Leave the card on screen for a beat so the removal reads as an action,
+    /// then rebuild the shelf. Rescheduling cancels the previous pause.
+    private func scheduleContinueWatchingRefresh() {
+        pendingContinueWatchingRefresh?.cancel()
+        pendingContinueWatchingRefresh = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            await vm.refreshContinueWatching()
+        }
     }
 
     @ViewBuilder
@@ -105,6 +144,7 @@ struct HomeView: View {
                         onPlay: onPlayPost,
                         playbackSource: .continueWatching
                     )
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 if !recentCollectionCards.isEmpty {
@@ -131,6 +171,9 @@ struct HomeView: View {
                 }
             }
             .padding(.bottom, 40)
+            // Animate cards dropping out (or into) Continue Watching once the
+            // delayed refresh lands.
+            .animation(.easeInOut(duration: 0.35), value: continueWatching.map(\.id))
         }
         .scrollClipDisabled()   // tvOS 17+ — lets focused-card scale escape ScrollView bounds
     }

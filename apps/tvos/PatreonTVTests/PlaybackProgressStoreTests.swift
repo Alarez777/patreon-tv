@@ -88,6 +88,17 @@ final class PlaybackProgressStoreTests: XCTestCase {
         XCTAssertEqual(list.map(\.postID), ["known"])
     }
 
+    func test_inProgress_excludes_finished_and_sorts_recent_first() {
+        let older = Date(timeIntervalSince1970: 100)
+        let newer = Date(timeIntervalSince1970: 200)
+        store.record(.init(postID: "older", positionSeconds: 10, durationSeconds: 100, lastUpdated: older))
+        store.record(.init(postID: "newer", positionSeconds: 20, durationSeconds: 100, lastUpdated: newer))
+        store.record(.init(postID: "finished", positionSeconds: 99, durationSeconds: 100, lastUpdated: newer))
+        store.record(.init(postID: "barely-started", positionSeconds: 3, durationSeconds: 100, lastUpdated: newer))
+
+        XCTAssertEqual(store.inProgress().map(\.postID), ["newer", "older"])
+    }
+
     func test_clear_removes_single_entry() {
         store.record(.init(postID: "x", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
         XCTAssertNotNil(store.progress(for: "x"))
