@@ -42,6 +42,9 @@ struct CreatorView: View {
             try? await Task.sleep(for: .milliseconds(200))
             collectionsFocused = true
         }
+        .onAppear {
+            Task { await vm.refreshIfStale(campaignID: campaignID) }
+        }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
@@ -406,6 +409,8 @@ final class CreatorViewModel {
     private(set) var isLoadingAll = false
     private var nextCursor: String?
     private var isFetchingMore = false
+    private var isRefreshing = false
+    private var lastRefreshAt: Date?
     /// Active content-type filter for the grid.
     private(set) var selectedFilter: CreatorPostFilter = .all
 
@@ -432,6 +437,7 @@ final class CreatorViewModel {
             self.campaign = campaignDoc.data
             self.posts = postsPage.data
             self.nextCursor = postsPage.nextCursor
+            self.lastRefreshAt = Date()
             state = .loaded
         } catch {
             log.error("Creator load failed: \(String(describing: error))")
@@ -454,10 +460,61 @@ final class CreatorViewModel {
             )
             posts = page.data
             nextCursor = page.nextCursor
+            lastRefreshAt = Date()
             state = .loaded
         } catch {
             log.error("Creator filter load failed: \(String(describing: error))")
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Re-fetch the newest page when the creator page comes back into view.
+    func refreshIfStale(
+        campaignID: String,
+        minInterval: TimeInterval = ContentRefresh.pageMinInterval
+    ) async {
+        guard state == .loaded else { return }
+        if let last = lastRefreshAt, Date().timeIntervalSince(last) < minInterval {
+            return
+        }
+        await refresh(campaignID: campaignID)
+    }
+
+    /// Silent first-page refresh: merges new posts in, keeps the deeper
+    /// pagination cursor, and leaves the visible grid alone when nothing changed.
+    func refresh(campaignID: String) async {
+        guard state == .loaded, !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        let filter = selectedFilter
+        do {
+            async let campaignTask = PatreonClient.shared.campaign(
+                id: campaignID,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            async let postsTask = PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: filter.postTypes,
+                limit: 30,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            let (campaignDoc, postsPage) = try await (campaignTask, postsTask)
+
+            // The viewer may have switched filters while we were fetching.
+            guard state == .loaded, selectedFilter == filter else { return }
+
+            campaign = campaignDoc.data
+            let outcome = FeedMerge.merge(existing: posts, incoming: postsPage.data)
+            if outcome.changed {
+                posts = outcome.posts
+                if nextCursor == nil { nextCursor = postsPage.nextCursor }
+            }
+            lastRefreshAt = Date()
+        } catch is CancellationError {
+            // Left the page; keep what we had.
+        } catch {
+            log.error("Creator refresh failed: \(String(describing: error))")
         }
     }
 

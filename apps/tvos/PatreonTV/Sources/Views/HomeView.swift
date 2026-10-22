@@ -7,12 +7,17 @@
 //  and a row per creator.
 //
 
+import Combine
 import SwiftUI
 
 struct HomeView: View {
 
     @State private var vm = HomeViewModel()
     @State private var prefs = ContentPreferences.shared
+    @Environment(\.scenePhase) private var scenePhase
+    /// Whether Home is the visible tab. Combined with `scenePhase` to run the
+    /// poll loop only while the user can actually see the feed.
+    @State private var isVisible = false
     /// Pending shelf refresh after a post is marked watched. Cancelled and
     /// rescheduled while the store keeps changing, so the brief pause starts
     /// from the last change.
@@ -72,13 +77,41 @@ struct HomeView: View {
             }
         }
         .task { await vm.load() }
+        .task(id: isRefreshActive) {
+            guard isRefreshActive else { return }
+
+            // Let the initial load finish before refreshing (the .task above
+            // may still be in flight). If it failed, keep waiting so the
+            // timer starts once the retry button succeeds.
+            while !Task.isCancelled {
+                if vm.state == .loaded || vm.state == .empty { break }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            guard !Task.isCancelled else { return }
+
+            await vm.refreshIfStale(minInterval: ContentRefresh.foregroundMinInterval)
+
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(ContentRefresh.pollInterval))
+                guard !Task.isCancelled else { return }
+                await vm.refreshIfStale(minInterval: ContentRefresh.pollInterval)
+            }
+        }
         .background(PatreonColors.background.ignoresSafeArea())
         // Only membership/order changes matter here — not every progress tick.
         // Reading this in the body also registers the Observation dependency.
         .onChange(of: inProgressIDs) { _, _ in
             scheduleContinueWatchingRefresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .playbackDidFinish)) { _ in
+            // Something finished (possibly while the player is still on screen
+            // with autoplay off). Pull the newest stream in the background.
+            Task { await vm.refresh() }
+        }
         .onAppear {
+            isVisible = true
+            Task { await vm.refreshIfStale(minInterval: ContentRefresh.foregroundMinInterval) }
+
             // A video may have finished while Home was covered by the player.
             // Reconcile as soon as we're visible again instead of waiting for
             // the delayed change handler (which may already have fired).
@@ -89,8 +122,14 @@ struct HomeView: View {
             Task { await vm.refreshContinueWatching() }
         }
         .onDisappear {
+            isVisible = false
             pendingContinueWatchingRefresh?.cancel()
         }
+    }
+
+    /// True while Home is the selected tab and the app is in the foreground.
+    private var isRefreshActive: Bool {
+        isVisible && scenePhase == .active
     }
 
     /// In-progress post IDs, most recent first — the Continue Watching

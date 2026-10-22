@@ -58,6 +58,16 @@ final class HomeViewModel {
     private var homeFeedCursor: String?
     private var isFetchingHomeFeed = false
 
+    /// Guards silent refreshes so the timer, foreground event and playback-end
+    /// signal can't fire overlapping requests.
+    private var isRefreshing = false
+    /// Last time a refresh was *attempted*. Used to debounce event-driven
+    /// refreshes (foreground, re-appear) without hiding a failed attempt.
+    private var lastRefreshAttempt: Date?
+    /// Creator rows are built after the first paint; a refresh must not merge
+    /// into a partially-built row list.
+    private var isBuildingCreatorRows = false
+
     func load() async {
         guard state == .idle else { return }
         await reload()
@@ -72,7 +82,14 @@ final class HomeViewModel {
             indexCampaigns(from: page.included ?? [])
             writeTopShelfSnapshot()
             state = homeFeed.isEmpty ? .empty : .loaded
+            lastRefreshAttempt = Date()
         } catch {
+            // The view went away mid-request (tab switch / app backgrounded).
+            // Reset so the next .task can retry instead of getting stuck.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                state = .idle
+                return
+            }
             log.error("Home feed load failed: \(String(describing: error))")
             state = .error(errorMessage(from: error))
             return
@@ -82,6 +99,11 @@ final class HomeViewModel {
         // (the merged shelf is already interactive). Run them concurrently so
         // resolving off-feed Continue Watching posts doesn't wait on the
         // per-creator pages.
+        //
+        // Block refreshes until the rows exist; otherwise a silent refresh
+        // could merge into (or be overwritten by) the rows being built.
+        isBuildingCreatorRows = true
+        defer { isBuildingCreatorRows = false }
         async let rows: Void = buildCreatorRows()
         async let continueWatch: Void = refreshContinueWatching()
         _ = await (rows, continueWatch)
@@ -109,6 +131,113 @@ final class HomeViewModel {
         } catch {
             log.error("Home feed pagination failed: \(String(describing: error))")
         }
+    }
+
+    // MARK: - Silent refresh
+
+    /// Re-fetch the first stream page only when the last attempt is older than
+    /// `minInterval`. Event triggers (foreground, re-appear) share this so a
+    /// burst of appearances doesn't turn into a burst of requests.
+    func refreshIfStale(minInterval: TimeInterval = ContentRefresh.foregroundMinInterval) async {
+        guard state == .loaded || state == .empty else { return }
+        if let last = lastRefreshAttempt, Date().timeIntervalSince(last) < minInterval {
+            return
+        }
+        await refresh()
+    }
+
+    /// Pull the newest page and merge it into the visible feed without showing
+    /// a spinner or dropping the deeper pages already paginated in.
+    func refresh() async {
+        guard !isRefreshing, !isBuildingCreatorRows else { return }
+        guard state == .loaded || state == .empty else { return }
+
+        isRefreshing = true
+        lastRefreshAttempt = Date()
+        defer { isRefreshing = false }
+
+        do {
+            let page = try await PatreonClient.shared.homeFeed(
+                limit: homeFeedPageSize,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            await applyRefresh(page)
+        } catch {
+            // The view went away; keep the last good content.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+            log.error("Home refresh failed: \(String(describing: error))")
+        }
+    }
+
+    private func applyRefresh(_ page: Page<Post>) async {
+        let outcome = FeedMerge.merge(existing: homeFeed, incoming: page.data)
+
+        if outcome.changed {
+            homeFeed = outcome.posts
+            // Keep the deeper pagination cursor. Only adopt the page's cursor
+            // when we had none (an empty feed that now has content).
+            if homeFeedCursor == nil {
+                homeFeedCursor = page.nextCursor
+            }
+            indexCampaigns(from: page.included ?? [])
+            writeTopShelfSnapshot()
+            if state == .empty { state = .loaded }
+        }
+
+        let rows = mergeFeedPosts(page.data, into: creatorRows)
+        if rows.changed {
+            creatorRows = sortedRows(rows.rows)
+        }
+
+        guard outcome.changed || rows.changed else { return }
+
+        // Props on Continue Watching cards may have been refreshed too.
+        await refreshContinueWatching()
+    }
+
+    /// Distribute the refreshed page into the per-creator rows, adding a row if
+    /// a creator's first post shows up after the initial memberships pass.
+    private func mergeFeedPosts(
+        _ posts: [Post],
+        into rows: [CreatorRow]
+    ) -> (rows: [CreatorRow], changed: Bool) {
+        guard !posts.isEmpty else { return (rows, false) }
+
+        var grouped: [String: [Post]] = [:]
+        var campaigns: [String: Campaign] = [:]
+        for post in posts {
+            guard let campaignID = post.relationships?.campaign?.data?.id else { continue }
+            grouped[campaignID, default: []].append(post)
+            if campaigns[campaignID] == nil, let campaign = campaignsByID[campaignID] {
+                campaigns[campaignID] = campaign
+            }
+        }
+
+        var result = rows
+        var indexByCampaign: [String: Int] = [:]
+        for (index, row) in result.enumerated() {
+            indexByCampaign[row.id] = index
+        }
+
+        var changed = false
+        for (campaignID, incoming) in grouped {
+            if let index = indexByCampaign[campaignID] {
+                let outcome = FeedMerge.merge(existing: result[index].posts, incoming: incoming)
+                if outcome.changed {
+                    result[index].posts = outcome.posts
+                    changed = true
+                }
+            } else if let campaign = campaigns[campaignID] {
+                indexByCampaign[campaignID] = result.count
+                result.append(CreatorRow(
+                    campaign: campaign,
+                    posts: FeedMerge.merge(existing: [], incoming: incoming).posts,
+                    cursor: nil
+                ))
+                changed = true
+            }
+        }
+        return (result, changed)
     }
 
     // MARK: - Per-creator rows

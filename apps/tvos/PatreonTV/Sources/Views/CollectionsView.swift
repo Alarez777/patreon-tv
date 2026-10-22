@@ -10,6 +10,7 @@
 
 import Observation
 import SwiftUI
+import os
 
 struct CollectionsView: View {
 
@@ -45,6 +46,9 @@ struct CollectionsView: View {
             // Move focus onto the first collection once the content is on screen.
             try? await Task.sleep(for: .milliseconds(200))
             focusedCollectionID = vm.collections.first?.id
+        }
+        .onAppear {
+            Task { await vm.refreshIfStale(campaignID: campaignID) }
         }
         .background(PatreonColors.background.ignoresSafeArea())
     }
@@ -162,7 +166,11 @@ struct CollectionsSearchView: View {
         // already fetched this campaign. Seed from that list to avoid a reload.
         let vm = CollectionsViewModel(sort: sort)
         if let cached = CollectionsCache.shared.collections(for: campaignID) {
-            vm.seed(cached, campaignID: campaignID)
+            vm.seed(
+                cached,
+                campaignID: campaignID,
+                fetchedAt: CollectionsCache.shared.fetchedAt(for: campaignID) ?? Date()
+            )
         }
         _vm = State(initialValue: vm)
     }
@@ -191,6 +199,9 @@ struct CollectionsSearchView: View {
         }
         .searchable(text: $query, prompt: "Search collections")
         .task { await vm.load(campaignID: campaignID, preferCache: true) }
+        .onAppear {
+            Task { await vm.refreshIfStale(campaignID: campaignID) }
+        }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
@@ -289,16 +300,24 @@ final class CollectionsViewModel {
     private var fetched: [PatreonCollection] = []
     /// The campaign already loaded; guards against a re-fetch on re-appear.
     private var loadedCampaignID: String?
+    private var isRefreshing = false
+    private var lastRefreshAt: Date?
+    private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Collections")
 
     init(sort: CollectionSort = .newest) {
         self.sort = sort
     }
 
     /// Seeds the view model from an already-fetched list (used by search).
-    func seed(_ collections: [PatreonCollection], campaignID: String) {
+    func seed(
+        _ collections: [PatreonCollection],
+        campaignID: String,
+        fetchedAt: Date = Date()
+    ) {
         guard loadedCampaignID == nil else { return }
         fetched = collections
         loadedCampaignID = campaignID
+        lastRefreshAt = fetchedAt
         applySort()
         state = fetched.isEmpty ? .empty : .loaded
     }
@@ -307,19 +326,68 @@ final class CollectionsViewModel {
         guard loadedCampaignID != campaignID else { return }
 
         if preferCache, let cached = CollectionsCache.shared.collections(for: campaignID) {
-            seed(cached, campaignID: campaignID)
+            seed(
+                cached,
+                campaignID: campaignID,
+                fetchedAt: CollectionsCache.shared.fetchedAt(for: campaignID) ?? Date()
+            )
             return
         }
 
         state = .loading
         do {
             fetched = try await PatreonClient.shared.collections(campaignID: campaignID)
-            CollectionsCache.shared.store(fetched, for: campaignID)
+            lastRefreshAt = Date()
+            CollectionsCache.shared.store(
+                fetched,
+                for: campaignID,
+                fetchedAt: lastRefreshAt ?? Date()
+            )
             loadedCampaignID = campaignID
             applySort()
             state = fetched.isEmpty ? .empty : .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Revalidate the list when the screen comes back into view.
+    func refreshIfStale(
+        campaignID: String,
+        minInterval: TimeInterval = ContentRefresh.pageMinInterval
+    ) async {
+        guard loadedCampaignID == campaignID else { return }
+        guard state == .loaded || state == .empty else { return }
+        if let last = lastRefreshAt, Date().timeIntervalSince(last) < minInterval {
+            return
+        }
+        await refresh(campaignID: campaignID)
+    }
+
+    func refresh(campaignID: String) async {
+        guard loadedCampaignID == campaignID, !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        do {
+            let fresh = try await PatreonClient.shared.collections(
+                campaignID: campaignID,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            guard loadedCampaignID == campaignID else { return }
+            fetched = fresh
+            lastRefreshAt = Date()
+            CollectionsCache.shared.store(
+                fresh,
+                for: campaignID,
+                fetchedAt: lastRefreshAt ?? Date()
+            )
+            applySort()
+            state = fetched.isEmpty ? .empty : .loaded
+        } catch is CancellationError {
+            // Left the screen; keep the cached list.
+        } catch {
+            log.error("Collections refresh failed: \(String(describing: error))")
         }
     }
 

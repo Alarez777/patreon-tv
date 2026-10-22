@@ -12,6 +12,7 @@
 
 import Observation
 import SwiftUI
+import os
 
 struct CollectionView: View {
 
@@ -55,6 +56,9 @@ struct CollectionView: View {
             }
         }
         .task { await vm.load(collectionID: collectionID) }
+        .onAppear {
+            Task { await vm.refreshIfStale(collectionID: collectionID) }
+        }
         .onDisappear {
             // Record on the way out: updating the store re-renders Home, and
             // doing that mid-push stole the initial focus.
@@ -212,11 +216,16 @@ final class CollectionViewModel {
     /// The collection's creator (campaign) name, when known.
     var campaignName: String?
 
+    private var isRefreshing = false
+    private var lastRefreshAt: Date?
+    private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Collection")
+
     init(collectionID: String? = nil) {
         if let id = collectionID, let cached = CollectionPostsCache.shared.snapshot(for: id) {
             collection = cached.collection
             posts = cached.posts
             campaignName = cached.campaignName
+            lastRefreshAt = cached.fetchedAt
             state = .loaded
         }
     }
@@ -230,10 +239,60 @@ final class CollectionViewModel {
             collection = doc.data
             posts = doc.data.orderedPosts(from: doc.included ?? [])
             campaignName = (doc.included ?? []).firstCampaignName
-            CollectionPostsCache.shared.store(collection: doc.data, posts: posts, campaignName: campaignName)
+            lastRefreshAt = Date()
+            CollectionPostsCache.shared.store(
+                collection: doc.data,
+                posts: posts,
+                campaignName: campaignName,
+                fetchedAt: lastRefreshAt ?? Date()
+            )
             state = .loaded
         } catch {
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Re-fetch the whole collection when it comes back into view. Collections
+    /// are returned whole, so this also picks up episodes added since the
+    /// cached snapshot was taken.
+    func refreshIfStale(
+        collectionID: String,
+        minInterval: TimeInterval = ContentRefresh.pageMinInterval
+    ) async {
+        guard state == .loaded else { return }
+        if let last = lastRefreshAt, Date().timeIntervalSince(last) < minInterval {
+            return
+        }
+        await refresh(collectionID: collectionID)
+    }
+
+    func refresh(collectionID: String) async {
+        guard state == .loaded, !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        do {
+            let doc = try await PatreonClient.shared.collection(
+                id: collectionID,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            let freshPosts = doc.data.orderedPosts(from: doc.included ?? [])
+            collection = doc.data
+            posts = freshPosts
+            campaignName = (doc.included ?? []).firstCampaignName ?? campaignName
+            lastRefreshAt = Date()
+            CollectionPostsCache.shared.store(
+                collection: doc.data,
+                posts: freshPosts,
+                campaignName: campaignName,
+                fetchedAt: lastRefreshAt ?? Date()
+            )
+            state = .loaded
+        } catch is CancellationError {
+            // Left the screen; keep the cached collection.
+        } catch {
+            // Silent refresh: a failure shouldn't replace the visible content.
+            log.error("Collection refresh failed: \(String(describing: error))")
         }
     }
 }

@@ -84,6 +84,17 @@ final class PatreonClientTests: XCTestCase {
         XCTAssertEqual(capturedCookie.value, "session_id=secret-session")
     }
 
+    func test_cache_policy_is_forwarded_to_request() async throws {
+        let captured = CapturedValue<URLRequest.CachePolicy?>()
+        StubURLProtocol.handler = { request in
+            captured.value = request.cachePolicy
+            return (200, [:], #"{"data":[]}"#.data(using: .utf8)!)
+        }
+
+        _ = try await client.homeFeed(cachePolicy: .reloadIgnoringLocalCacheData)
+        XCTAssertEqual(captured.value, .reloadIgnoringLocalCacheData)
+    }
+
     func test_401_maps_to_unauthorized() async {
         StubURLProtocol.handler = { _ in (401, [:], Data()) }
         await assertThrows(PatreonError.unauthorized)

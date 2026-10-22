@@ -361,7 +361,7 @@ struct Tier: JSONAPIResource {
 
 // MARK: - Post
 
-struct Post: JSONAPIResource {
+struct Post: JSONAPIResource, Equatable {
     let id: String
     let type: String
     let attributes: Attributes

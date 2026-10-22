@@ -19,6 +19,8 @@ final class CollectionPostsCache {
         let posts: [Post]
         /// The collection's creator (campaign) name, when known.
         let campaignName: String?
+        /// When this snapshot was fetched, so screens can revalidate silently.
+        let fetchedAt: Date
     }
 
     private var store: [String: Snapshot] = [:]
@@ -33,11 +35,21 @@ final class CollectionPostsCache {
         store[collectionID]?.posts
     }
 
-    func store(collection: PatreonCollection, posts: [Post], campaignName: String? = nil) {
+    func store(
+        collection: PatreonCollection,
+        posts: [Post],
+        campaignName: String? = nil,
+        fetchedAt: Date = Date()
+    ) {
         let id = collection.id
         // Don't clobber a known creator name when a caller doesn't have it.
         let resolvedName = campaignName ?? store[id]?.campaignName
-        store[id] = Snapshot(collection: collection, posts: posts, campaignName: resolvedName)
+        store[id] = Snapshot(
+            collection: collection,
+            posts: posts,
+            campaignName: resolvedName,
+            fetchedAt: fetchedAt
+        )
         order.removeAll { $0 == id }
         order.append(id)
         while order.count > limit {

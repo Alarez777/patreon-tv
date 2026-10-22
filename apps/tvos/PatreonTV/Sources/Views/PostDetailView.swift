@@ -707,6 +707,7 @@ struct PostDetailView: View {
     /// post, or close the player when there's none.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
+        NotificationCenter.default.post(name: .playbackDidFinish, object: nil)
         log.info("Playback ended: collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil") cancelled=\(upNextCancelled)")
 
         if upNextCancelled {
