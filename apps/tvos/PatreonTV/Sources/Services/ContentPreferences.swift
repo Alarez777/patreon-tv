@@ -76,10 +76,10 @@ final class ContentPreferences {
     func autoplayEnabled(for source: AutoplaySource) -> Bool {
         guard autoplayNext else { return false }
         switch source {
-        case .new: autoplayNew
-        case .continueWatching: autoplayContinueWatching
-        case .channels: autoplayChannels
-        case .collections: autoplayCollections
+        case .new: return autoplayNew
+        case .continueWatching: return autoplayContinueWatching
+        case .channels: return autoplayChannels
+        case .collections: return autoplayCollections
         }
     }
 
