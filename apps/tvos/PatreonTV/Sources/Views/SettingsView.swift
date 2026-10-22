@@ -142,18 +142,20 @@ struct SettingsView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "globe")
-                        .foregroundStyle(languageFocused ? Color.black : PatreonColors.primaryText)
-                    MarqueeText(
-                        text: prefs.language.displayName,
-                        font: .body.weight(.medium),
-                        color: languageFocused ? .black : PatreonColors.primaryText,
-                        availableWidth: settingsControlWidth - 100,
-                        isActive: languageFocused
-                    )
+                GeometryReader { proxy in
+                    HStack(spacing: 10) {
+                        Image(systemName: "globe")
+                            .foregroundStyle(languageFocused ? Color.black : PatreonColors.primaryText)
+                        MarqueeText(
+                            text: prefs.language.displayName,
+                            font: .body.weight(.medium),
+                            color: languageFocused ? .black : PatreonColors.primaryText,
+                            availableWidth: max(0, proxy.size.width - 70),
+                            isActive: languageFocused
+                        )
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.horizontal, 16)
                 .frame(height: 46)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
