@@ -34,7 +34,7 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertEqual(AppLanguage.english.locale.language.region?.identifier, "US")
 
         XCTAssertEqual(AppLanguage.spanish.locale.language.languageCode?.identifier, "es")
-        XCTAssertEqual(AppLanguage.spanish.locale.language.region?.identifier, "419")
+        XCTAssertEqual(AppLanguage.spanish.locale.language.region?.identifier, "MX")
 
         XCTAssertEqual(AppLanguage.portuguese.locale.language.languageCode?.identifier, "pt")
         XCTAssertEqual(AppLanguage.portuguese.locale.language.region?.identifier, "BR")

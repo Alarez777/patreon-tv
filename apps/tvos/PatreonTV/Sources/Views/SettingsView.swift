@@ -2,8 +2,8 @@
 //  SettingsView.swift
 //  PatreonTV
 //
-//  App settings: language, mature content, autoplay sources, collections,
-//  launch tab, comment order and sign out.
+//  App settings: language, mature content, autoplay, collections, launch tab,
+//  comment order and sign out.
 //
 
 import NukeUI
@@ -13,100 +13,67 @@ struct SettingsView: View {
 
     @Environment(AuthStore.self) private var auth
     @State private var prefs = ContentPreferences.shared
-    @FocusState private var focusedSetting: SettingID?
+    @FocusState private var languageFocused: Bool
+    @FocusState private var autoplayRowFocused: Bool
 
-    private enum SettingID: Hashable {
-        case mature
-        case autoplayNew
-        case autoplayContinueWatching
-        case autoplayChannels
-        case autoplayCollections
-        case continueCollection
-        case oldestFirst
-    }
+    private let languageControlWidth: CGFloat = 340
 
     var body: some View {
         @Bindable var prefs = prefs
 
-        return ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 28) {
-                userHeader
+        return NavigationStack {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 28) {
+                    userHeader
 
-                languageSection
+                    languageSection
 
-                settingToggle(
-                    .mature,
-                    isOn: $prefs.showMatureContent,
-                    title: "Show mature content",
-                    detail: "Reveal creators and posts flagged as NSFW."
-                )
+                    SettingsToggleRow(
+                        title: "Show mature content",
+                        detail: "Reveal creators and posts flagged as NSFW.",
+                        isOn: $prefs.showMatureContent
+                    )
 
-                autoplayHeader
+                    autoplayRow
 
-                settingToggle(
-                    .autoplayNew,
-                    isOn: $prefs.autoplayNew,
-                    title: "New",
-                    detail: "Auto-advance to the next post from the New shelf."
-                )
-                settingToggle(
-                    .autoplayContinueWatching,
-                    isOn: $prefs.autoplayContinueWatching,
-                    title: "Continue Watching",
-                    detail: "Auto-advance from the Continue Watching shelf."
-                )
-                settingToggle(
-                    .autoplayChannels,
-                    isOn: $prefs.autoplayChannels,
-                    title: "Channels",
-                    detail: "Auto-advance from creator pages and their carousels."
-                )
-                settingToggle(
-                    .autoplayCollections,
-                    isOn: $prefs.autoplayCollections,
-                    title: "Collections",
-                    detail: "Auto-advance through collection episodes."
-                )
+                    SettingsToggleRow(
+                        title: "Show Continue Collection",
+                        detail: "Show the collection you opened most recently on Home.",
+                        isOn: $prefs.showContinueCollection
+                    )
 
-                settingToggle(
-                    .continueCollection,
-                    isOn: $prefs.showContinueCollection,
-                    title: "Show Continue Collection",
-                    detail: "Show the collection you opened most recently on Home."
-                )
+                    SettingsToggleRow(
+                        title: "Oldest episodes first",
+                        detail: "Open a collection's episodes oldest-first; off lists newest first.",
+                        isOn: $prefs.collectionOldestFirst
+                    )
 
-                settingToggle(
-                    .oldestFirst,
-                    isOn: $prefs.collectionOldestFirst,
-                    title: "Oldest episodes first",
-                    detail: "Open a collection's episodes oldest-first; off lists newest first."
-                )
+                    initialTabSection
+                    commentOrderSection
 
-                initialTabSection
-                commentOrderSection
-
-                Button {
-                    auth.signOut()
-                } label: {
-                    Text("Sign Out")
-                        .font(.title3.weight(.semibold))
-                        .padding(.horizontal, 48)
-                        .padding(.vertical, 20)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(PatreonColors.brand)
-                .padding(.top, 8)
-
-                Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
-                    .font(.footnote)
-                    .foregroundStyle(PatreonColors.tertiaryText)
+                    Button {
+                        auth.signOut()
+                    } label: {
+                        Text("Sign Out")
+                            .font(.title3.weight(.semibold))
+                            .padding(.horizontal, 48)
+                            .padding(.vertical, 20)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(PatreonColors.brand)
                     .padding(.top, 8)
+
+                    Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                        .font(.footnote)
+                        .foregroundStyle(PatreonColors.tertiaryText)
+                        .padding(.top, 8)
+                }
+                .padding(.horizontal, 60)
+                .padding(.vertical, 40)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 60)
-            .padding(.vertical, 40)
-            .frame(maxWidth: .infinity)
+            .background(PatreonColors.background.ignoresSafeArea())
         }
-        .background(PatreonColors.background.ignoresSafeArea())
     }
 
     @ViewBuilder
@@ -147,26 +114,57 @@ struct SettingsView: View {
                     }
                 }
             } label: {
-                Label(prefs.language.displayName, systemImage: "globe")
-                    .font(.title3.weight(.semibold))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                HStack(spacing: 10) {
+                    Image(systemName: "globe")
+                        .foregroundStyle(languageFocused ? Color.black : PatreonColors.primaryText)
+                    MarqueeText(
+                        text: prefs.language.displayName,
+                        font: .body.weight(.medium),
+                        color: languageFocused ? .black : PatreonColors.primaryText,
+                        availableWidth: languageControlWidth - 58,
+                        isActive: languageFocused
+                    )
+                }
+                .padding(.horizontal, 16)
+                .frame(width: languageControlWidth, height: 46, alignment: .leading)
             }
             .buttonStyle(.bordered)
+            .focused($languageFocused)
             .accessibilityLabel(Text("Language"))
         }
         .frame(maxWidth: 700, alignment: .leading)
     }
 
-    private var autoplayHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Autoplay next")
-                .foregroundStyle(PatreonColors.primaryText)
-            Text("Choose where playback advances to the next post automatically.")
-                .font(.caption)
-                .foregroundStyle(PatreonColors.secondaryText)
+    private var autoplayRow: some View {
+        NavigationLink {
+            AutoplaySettingsView()
+        } label: {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Autoplay next")
+                        .foregroundStyle(
+                            autoplayRowFocused ? Color.black : PatreonColors.primaryText
+                        )
+                    Text("Choose where playback advances to the next post automatically.")
+                        .font(.caption)
+                        .foregroundStyle(
+                            autoplayRowFocused
+                                ? Color.black.opacity(0.7)
+                                : PatreonColors.secondaryText
+                        )
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(
+                        autoplayRowFocused ? Color.black : PatreonColors.tertiaryText
+                    )
+            }
+            .frame(maxWidth: 700)
         }
-        .frame(maxWidth: 700, alignment: .leading)
+        .buttonStyle(.bordered)
+        .focused($autoplayRowFocused)
     }
 
     private var initialTabSection: some View {
@@ -205,31 +203,6 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
         }
         .frame(maxWidth: 700, alignment: .leading)
-    }
-
-    private func settingToggle(
-        _ id: SettingID,
-        isOn: Binding<Bool>,
-        title: LocalizedStringKey,
-        detail: LocalizedStringKey
-    ) -> some View {
-        Toggle(isOn: isOn) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .foregroundStyle(
-                        focusedSetting == id ? Color.black : PatreonColors.primaryText
-                    )
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(
-                        focusedSetting == id
-                            ? Color.black.opacity(0.7)
-                            : PatreonColors.secondaryText
-                    )
-            }
-        }
-        .frame(maxWidth: 700)
-        .focused($focusedSetting, equals: id)
     }
 
     private func avatar(for user: PatreonUser) -> some View {

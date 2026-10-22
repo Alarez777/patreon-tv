@@ -32,7 +32,7 @@ final class ContentPreferences {
     }
 
     private let matureKey = "show_mature_content"
-    private let legacyAutoplayKey = "autoplay_next"
+    private let autoplayNextKey = "autoplay_next"
     private let autoplayNewKey = "autoplay_new"
     private let autoplayContinueWatchingKey = "autoplay_continue_watching"
     private let autoplayChannelsKey = "autoplay_channels"
@@ -45,6 +45,12 @@ final class ContentPreferences {
     /// When false (default), NSFW creators are hidden from Creators and Search.
     var showMatureContent: Bool {
         didSet { UserDefaults.standard.set(showMatureContent, forKey: matureKey) }
+    }
+
+    /// Master switch for automatic advance. The per-source switches below
+    /// only apply while this is on.
+    var autoplayNext: Bool {
+        didSet { UserDefaults.standard.set(autoplayNext, forKey: autoplayNextKey) }
     }
 
     /// Auto-advance for the Home "New" shelf.
@@ -68,6 +74,7 @@ final class ContentPreferences {
     }
 
     func autoplayEnabled(for source: AutoplaySource) -> Bool {
+        guard autoplayNext else { return false }
         switch source {
         case .new: autoplayNew
         case .continueWatching: autoplayContinueWatching
@@ -109,13 +116,11 @@ final class ContentPreferences {
     private init() {
         showMatureContent = UserDefaults.standard.bool(forKey: matureKey)
 
-        // Migrate the old single autoplay toggle: existing users keep their
-        // choice for all four new sources.
-        let legacyAutoplay = UserDefaults.standard.object(forKey: legacyAutoplayKey) as? Bool ?? true
-        autoplayNew = UserDefaults.standard.object(forKey: autoplayNewKey) as? Bool ?? legacyAutoplay
-        autoplayContinueWatching = UserDefaults.standard.object(forKey: autoplayContinueWatchingKey) as? Bool ?? legacyAutoplay
-        autoplayChannels = UserDefaults.standard.object(forKey: autoplayChannelsKey) as? Bool ?? legacyAutoplay
-        autoplayCollections = UserDefaults.standard.object(forKey: autoplayCollectionsKey) as? Bool ?? legacyAutoplay
+        autoplayNext = UserDefaults.standard.object(forKey: autoplayNextKey) as? Bool ?? true
+        autoplayNew = UserDefaults.standard.object(forKey: autoplayNewKey) as? Bool ?? true
+        autoplayContinueWatching = UserDefaults.standard.object(forKey: autoplayContinueWatchingKey) as? Bool ?? true
+        autoplayChannels = UserDefaults.standard.object(forKey: autoplayChannelsKey) as? Bool ?? true
+        autoplayCollections = UserDefaults.standard.object(forKey: autoplayCollectionsKey) as? Bool ?? true
 
         showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
         collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false

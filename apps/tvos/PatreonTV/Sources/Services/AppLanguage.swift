@@ -22,7 +22,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable {
     var displayName: String {
         switch self {
         case .english: "English (US)"
-        case .spanish: "Español (LatAm)"
+        case .spanish: "Español (MX)"
         case .portuguese: "Português (Brasil)"
         case .french: "Français"
         }
@@ -31,7 +31,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable {
     var locale: Locale {
         switch self {
         case .english: Locale(identifier: "en-US")
-        case .spanish: Locale(identifier: "es-419")
+        case .spanish: Locale(identifier: "es-MX")
         case .portuguese: Locale(identifier: "pt-BR")
         case .french: Locale(identifier: "fr-FR")
         }

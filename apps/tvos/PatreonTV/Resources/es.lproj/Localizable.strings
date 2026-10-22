@@ -25,8 +25,10 @@
 "Creator" = "Creador";
 "Creators" = "Creadores";
 "Creators you actively support on Patreon will appear here." = "Los creadores a los que apoyas en Patreon aparecerán aquí.";
+"Enable autoplay" = "Activar reproducción automática";
 "Episode" = "Episodio";
 "Episodes" = "Episodios";
+"Feeds" = "Canales";
 "Filter" = "Filtrar";
 "Filter posts by type" = "Filtrar publicaciones por tipo";
 "Find creators" = "Encontrar creadores";
@@ -127,6 +129,7 @@
 "Title Z–A" = "Título Z–A";
 "Treat it like a password. Settings → Sign Out removes it from this TV." = "Trátalo como una contraseña. Ajustes → Cerrar sesión lo elimina de este TV.";
 "Try Again" = "Intentar de nuevo";
+"Turn automatic advance on or off for the feeds below." = "Activa o desactiva el avance automático para los canales de abajo.";
 "Type to search" = "Escribe para buscar";
 "Unknown creator" = "Creador desconocido";
 "Untitled" = "Sin título";

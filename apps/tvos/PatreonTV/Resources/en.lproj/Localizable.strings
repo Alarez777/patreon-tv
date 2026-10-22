@@ -25,8 +25,10 @@
 "Creator" = "Creator";
 "Creators" = "Creators";
 "Creators you actively support on Patreon will appear here." = "Creators you actively support on Patreon will appear here.";
+"Enable autoplay" = "Enable autoplay";
 "Episode" = "Episode";
 "Episodes" = "Episodes";
+"Feeds" = "Feeds";
 "Filter" = "Filter";
 "Filter posts by type" = "Filter posts by type";
 "Find creators" = "Find creators";
@@ -127,6 +129,7 @@
 "Title Z–A" = "Title Z–A";
 "Treat it like a password. Settings → Sign Out removes it from this TV." = "Treat it like a password. Settings → Sign Out removes it from this TV.";
 "Try Again" = "Try Again";
+"Turn automatic advance on or off for the feeds below." = "Turn automatic advance on or off for the feeds below.";
 "Type to search" = "Type to search";
 "Unknown creator" = "Unknown creator";
 "Untitled" = "Untitled";
