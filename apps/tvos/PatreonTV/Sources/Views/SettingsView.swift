@@ -157,6 +157,7 @@ struct SettingsView: View {
                 .frame(height: 46)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .menuStyle(.button)
             .buttonStyle(.bordered)
             .frame(width: settingsControlWidth)
             .focused($languageFocused)
