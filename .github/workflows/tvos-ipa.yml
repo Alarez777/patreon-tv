@@ -100,15 +100,7 @@ jobs:
           name: PatreonTV-unsigned
           path: apps/tvos/build/PatreonTV-unsigned.ipa
           if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: PatreonTV-xcarchive
-          path: apps/tvos/build/PatreonTV.xcarchive
-          if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
       - name: Upload build log
         if: always()
@@ -117,4 +109,4 @@ jobs:
           name: PatreonTV-build-log
           path: apps/tvos/build/archive.log
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7

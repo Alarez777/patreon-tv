@@ -2,9 +2,16 @@ name: tvOS build
 
 on:
   push:
-    branches: [main, "scaffold/**", "feature/**", "fix/**"]
+    branches: [main]
+    paths:
+      - "apps/tvos/**"
+      - ".github/workflows/tvos-build.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "apps/tvos/**"
+      - ".github/workflows/tvos-build.yml"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
