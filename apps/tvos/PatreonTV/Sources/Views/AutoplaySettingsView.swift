@@ -16,8 +16,8 @@ struct AutoplaySettingsView: View {
         @Bindable var prefs = prefs
 
         return ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 28) {
-                VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 64) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text("Autoplay next")
                         .font(.largeTitle.bold())
                         .foregroundStyle(PatreonColors.primaryText)
@@ -26,54 +26,58 @@ struct AutoplaySettingsView: View {
                         .foregroundStyle(PatreonColors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: 560, alignment: .leading)
 
-                SettingsToggleRow(
-                    title: "Enable autoplay",
-                    detail: "Turn automatic advance on or off for the feeds below.",
-                    isOn: $prefs.autoplayNext
-                )
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Feeds")
-                        .font(.headline)
-                        .foregroundStyle(PatreonColors.primaryText)
-
+                VStack(alignment: .leading, spacing: 24) {
                     SettingsToggleRow(
-                        title: "New",
-                        detail: "Auto-advance to the next post from the New shelf.",
-                        isOn: $prefs.autoplayNew
+                        title: "Enable autoplay",
+                        detail: "Turn automatic advance on or off for the feeds below.",
+                        isOn: $prefs.autoplayNext
                     )
-                    .disabled(!prefs.autoplayNext)
-                    .opacity(prefs.autoplayNext ? 1 : 0.45)
 
-                    SettingsToggleRow(
-                        title: "Continue Watching",
-                        detail: "Auto-advance from the Continue Watching shelf.",
-                        isOn: $prefs.autoplayContinueWatching
-                    )
-                    .disabled(!prefs.autoplayNext)
-                    .opacity(prefs.autoplayNext ? 1 : 0.45)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Feeds")
+                            .font(.headline)
+                            .foregroundStyle(PatreonColors.primaryText)
 
-                    SettingsToggleRow(
-                        title: "Channels",
-                        detail: "Auto-advance from creator pages and their carousels.",
-                        isOn: $prefs.autoplayChannels
-                    )
-                    .disabled(!prefs.autoplayNext)
-                    .opacity(prefs.autoplayNext ? 1 : 0.45)
+                        SettingsToggleRow(
+                            title: "New",
+                            detail: "Auto-advance to the next post from the New shelf.",
+                            isOn: $prefs.autoplayNew
+                        )
+                        .disabled(!prefs.autoplayNext)
+                        .opacity(prefs.autoplayNext ? 1 : 0.45)
 
-                    SettingsToggleRow(
-                        title: "Collections",
-                        detail: "Auto-advance through collection episodes.",
-                        isOn: $prefs.autoplayCollections
-                    )
-                    .disabled(!prefs.autoplayNext)
-                    .opacity(prefs.autoplayNext ? 1 : 0.45)
+                        SettingsToggleRow(
+                            title: "Continue Watching",
+                            detail: "Auto-advance from the Continue Watching shelf.",
+                            isOn: $prefs.autoplayContinueWatching
+                        )
+                        .disabled(!prefs.autoplayNext)
+                        .opacity(prefs.autoplayNext ? 1 : 0.45)
+
+                        SettingsToggleRow(
+                            title: "Channels",
+                            detail: "Auto-advance from creator pages and their carousels.",
+                            isOn: $prefs.autoplayChannels
+                        )
+                        .disabled(!prefs.autoplayNext)
+                        .opacity(prefs.autoplayNext ? 1 : 0.45)
+
+                        SettingsToggleRow(
+                            title: "Collections",
+                            detail: "Auto-advance through collection episodes.",
+                            isOn: $prefs.autoplayCollections
+                        )
+                        .disabled(!prefs.autoplayNext)
+                        .opacity(prefs.autoplayNext ? 1 : 0.45)
+                    }
                 }
+                .frame(maxWidth: 700, alignment: .leading)
             }
             .padding(.horizontal, 60)
             .padding(.vertical, 40)
-            .frame(maxWidth: 800, alignment: .leading)
+            .frame(maxWidth: 1500, alignment: .leading)
         }
         .background(PatreonColors.background.ignoresSafeArea())
     }

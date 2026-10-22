@@ -16,81 +16,98 @@ struct SettingsView: View {
     @FocusState private var languageFocused: Bool
     @FocusState private var autoplayRowFocused: Bool
 
-    private let languageControlWidth: CGFloat = 340
+    private let languageControlWidth: CGFloat = 700
 
     var body: some View {
-        @Bindable var prefs = prefs
-
-        return NavigationStack {
+        NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 28) {
-                    userHeader
+                HStack(alignment: .top, spacing: 64) {
+                    profileColumn
+                        .frame(maxWidth: 440, alignment: .leading)
 
-                    languageSection
-
-                    SettingsToggleRow(
-                        title: "Show mature content",
-                        detail: "Reveal creators and posts flagged as NSFW.",
-                        isOn: $prefs.showMatureContent
-                    )
-
-                    autoplayRow
-
-                    SettingsToggleRow(
-                        title: "Show Continue Collection",
-                        detail: "Show the collection you opened most recently on Home.",
-                        isOn: $prefs.showContinueCollection
-                    )
-
-                    SettingsToggleRow(
-                        title: "Oldest episodes first",
-                        detail: "Open a collection's episodes oldest-first; off lists newest first.",
-                        isOn: $prefs.collectionOldestFirst
-                    )
-
-                    initialTabSection
-                    commentOrderSection
-
-                    Button {
-                        auth.signOut()
-                    } label: {
-                        Text("Sign Out")
-                            .font(.title3.weight(.semibold))
-                            .padding(.horizontal, 48)
-                            .padding(.vertical, 20)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PatreonColors.brand)
-                    .padding(.top, 8)
-
-                    Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
-                        .font(.footnote)
-                        .foregroundStyle(PatreonColors.tertiaryText)
-                        .padding(.top, 8)
+                    optionsColumn
+                        .frame(maxWidth: 700, alignment: .leading)
                 }
                 .padding(.horizontal, 60)
                 .padding(.vertical, 40)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: 1500, alignment: .leading)
             }
             .background(PatreonColors.background.ignoresSafeArea())
         }
     }
 
     @ViewBuilder
-    private var userHeader: some View {
+    private var profileColumn: some View {
         if let user = auth.currentUser {
-            avatar(for: user)
+            VStack(alignment: .leading, spacing: 20) {
+                avatar(for: user)
 
-            VStack(spacing: 8) {
-                Text(user.attributes.fullName ?? L10n.string("Signed in"))
-                    .font(.title)
-                    .foregroundStyle(PatreonColors.primaryText)
-                if let email = user.attributes.email {
-                    Text(email)
-                        .foregroundStyle(PatreonColors.secondaryText)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(user.attributes.fullName ?? L10n.string("Signed in"))
+                        .font(.title)
+                        .foregroundStyle(PatreonColors.primaryText)
+                    if let email = user.attributes.email {
+                        Text(email)
+                            .foregroundStyle(PatreonColors.secondaryText)
+                    }
                 }
             }
         }
+    }
+
+    private var optionsColumn: some View {
+        @Bindable var prefs = prefs
+
+        return VStack(alignment: .leading, spacing: 28) {
+            languageSection
+
+            SettingsToggleRow(
+                title: "Show mature content",
+                detail: "Reveal creators and posts flagged as NSFW.",
+                isOn: $prefs.showMatureContent
+            )
+
+            SettingsToggleRow(
+                title: "Show Continue Collection",
+                detail: "Show the collection you opened most recently on Home.",
+                isOn: $prefs.showContinueCollection
+            )
+
+            SettingsToggleRow(
+                title: "Oldest episodes first",
+                detail: "Open a collection's episodes oldest-first; off lists newest first.",
+                isOn: $prefs.collectionOldestFirst
+            )
+
+            autoplayRow
+
+            initialTabSection
+            commentOrderSection
+            signOutButton
+            versionFooter
+        }
+        .frame(maxWidth: 700, alignment: .leading)
+    }
+
+    private var signOutButton: some View {
+        Button {
+            auth.signOut()
+        } label: {
+            Text("Sign Out")
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 48)
+                .padding(.vertical, 20)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(PatreonColors.brand)
+        .padding(.top, 8)
+    }
+
+    private var versionFooter: some View {
+        Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+            .font(.footnote)
+            .foregroundStyle(PatreonColors.tertiaryText)
+            .padding(.top, 8)
     }
 
     private var languageSection: some View {
