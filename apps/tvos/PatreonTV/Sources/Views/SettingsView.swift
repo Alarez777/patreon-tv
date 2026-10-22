@@ -16,42 +16,51 @@ struct SettingsView: View {
     @FocusState private var languageFocused: Bool
     @FocusState private var autoplayRowFocused: Bool
 
-    private let languageControlWidth: CGFloat = 700
+    private let settingsControlWidth: CGFloat = 700
 
     var body: some View {
         NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 64) {
-                    profileColumn
-                        .frame(maxWidth: 440, alignment: .leading)
+            GeometryReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 64) {
+                        profileColumn
+                            .frame(
+                                width: 440,
+                                height: max(0, proxy.size.height - 80),
+                                alignment: .center
+                            )
 
-                    optionsColumn
-                        .frame(maxWidth: 700, alignment: .leading)
+                        optionsColumn
+                            .frame(maxWidth: settingsControlWidth, alignment: .leading)
+                    }
+                    .padding(.horizontal, 60)
+                    .padding(.vertical, 40)
+                    .frame(maxWidth: 1500, alignment: .leading)
                 }
-                .padding(.horizontal, 60)
-                .padding(.vertical, 40)
-                .frame(maxWidth: 1500, alignment: .leading)
+                .background(PatreonColors.background.ignoresSafeArea())
             }
-            .background(PatreonColors.background.ignoresSafeArea())
         }
     }
 
     @ViewBuilder
     private var profileColumn: some View {
         if let user = auth.currentUser {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .center, spacing: 20) {
                 avatar(for: user)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .center, spacing: 6) {
                     Text(user.attributes.fullName ?? L10n.string("Signed in"))
                         .font(.title)
                         .foregroundStyle(PatreonColors.primaryText)
+                        .multilineTextAlignment(.center)
                     if let email = user.attributes.email {
                         Text(email)
                             .foregroundStyle(PatreonColors.secondaryText)
+                            .multilineTextAlignment(.center)
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
@@ -86,7 +95,7 @@ struct SettingsView: View {
             signOutButton
             versionFooter
         }
-        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
 
     private var signOutButton: some View {
@@ -138,18 +147,20 @@ struct SettingsView: View {
                         text: prefs.language.displayName,
                         font: .body.weight(.medium),
                         color: languageFocused ? .black : PatreonColors.primaryText,
-                        availableWidth: languageControlWidth - 58,
+                        availableWidth: settingsControlWidth - 100,
                         isActive: languageFocused
                     )
                 }
                 .padding(.horizontal, 16)
-                .frame(width: languageControlWidth, height: 46, alignment: .leading)
+                .frame(height: 46)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.bordered)
+            .frame(width: settingsControlWidth)
             .focused($languageFocused)
             .accessibilityLabel(Text("Language"))
         }
-        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
 
     private var autoplayRow: some View {
@@ -178,9 +189,10 @@ struct SettingsView: View {
                         autoplayRowFocused ? Color.black : PatreonColors.tertiaryText
                     )
             }
-            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
+        .frame(width: settingsControlWidth)
         .focused($autoplayRowFocused)
     }
 
@@ -200,7 +212,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
         }
-        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
 
     private var commentOrderSection: some View {
@@ -219,7 +231,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
         }
-        .frame(maxWidth: 700, alignment: .leading)
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
 
     private func avatar(for user: PatreonUser) -> some View {
