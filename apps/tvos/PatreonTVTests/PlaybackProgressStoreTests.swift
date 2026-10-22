@@ -89,8 +89,8 @@ final class PlaybackProgressStoreTests: XCTestCase {
     }
 
     func test_inProgress_excludes_finished_and_sorts_recent_first() {
-        let older = Date(timeIntervalSince1970: 100)
-        let newer = Date(timeIntervalSince1970: 200)
+        let older = Date().addingTimeInterval(-120)
+        let newer = Date().addingTimeInterval(-60)
         store.record(.init(postID: "older", positionSeconds: 10, durationSeconds: 100, lastUpdated: older))
         store.record(.init(postID: "newer", positionSeconds: 20, durationSeconds: 100, lastUpdated: newer))
         store.record(.init(postID: "finished", positionSeconds: 99, durationSeconds: 100, lastUpdated: newer))
