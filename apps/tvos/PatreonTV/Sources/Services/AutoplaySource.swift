@@ -6,11 +6,9 @@
 //  auto-advance preference.
 //
 
-enum AutoplaySource: String, CaseIterable, Identifiable, Codable {
+enum AutoplaySource: String, Codable {
     case new
     case continueWatching
     case channels
     case collections
-
-    var id: String { rawValue }
 }

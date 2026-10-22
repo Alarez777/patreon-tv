@@ -133,7 +133,7 @@ struct HomeShell: View {
         id: String,
         collectionID: String?,
         queue: [String]? = nil,
-        source: AutoplaySource = .channels
+        source: AutoplaySource
     ) {
         homePath.append(
             .post(id: id, autoplay: true, collectionID: collectionID, queue: queue, source: source)

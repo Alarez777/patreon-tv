@@ -25,7 +25,7 @@ struct PostDetailView: View {
     /// (skipping finished posts) instead of the creator's feed.
     var queue: [String]? = nil
     /// Where this post was opened from; selects the auto-advance preference.
-    var autoplaySource: AutoplaySource = .channels
+    var autoplaySource: AutoplaySource
     /// Opens an episode with autoplay (remote Play button). The second argument
     /// is the collection the episode belongs to, when known. Supplied by the
     /// hosting stack.
@@ -36,7 +36,7 @@ struct PostDetailView: View {
         autoplay: Bool = false,
         collectionID: String? = nil,
         queue: [String]? = nil,
-        autoplaySource: AutoplaySource = .channels,
+        autoplaySource: AutoplaySource,
         onPlayPost: ((String, String?) -> Void)? = nil
     ) {
         self.postID = postID
