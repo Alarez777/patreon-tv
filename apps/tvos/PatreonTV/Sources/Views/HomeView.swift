@@ -19,8 +19,8 @@ struct HomeView: View {
     /// poll loop only while the user can actually see the feed.
     @State private var isVisible = false
     /// Pending shelf refresh after a post is marked watched. Cancelled and
-    /// rescheduled while the store keeps changing, so the brief pause starts
-    /// from the last change.
+    /// rescheduled while the store keeps changing, so the removal tracks the
+    /// latest change.
     @State private var pendingContinueWatchingRefresh: Task<Void, Never>?
 
     /// Opens a post and starts playback immediately. Wired to the Siri Remote
@@ -138,13 +138,11 @@ struct HomeView: View {
         PlaybackProgressStore.shared.inProgress().map(\.postID)
     }
 
-    /// Leave the card on screen briefly so the removal reads as an action,
-    /// then rebuild the shelf. With the 0.3s transition this totals ~0.5s.
-    /// Rescheduling cancels the previous pause.
+    /// Rebuild the shelf immediately and let the 0.1s transition carry the
+    /// removal (~100ms total). Rescheduling cancels the previous refresh.
     private func scheduleContinueWatchingRefresh() {
         pendingContinueWatchingRefresh?.cancel()
         pendingContinueWatchingRefresh = Task {
-            try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled else { return }
             await vm.refreshContinueWatching()
         }
@@ -213,7 +211,7 @@ struct HomeView: View {
             .padding(.bottom, 40)
             // Animate cards dropping out (or into) Continue Watching once the
             // delayed refresh lands.
-            .animation(.easeInOut(duration: 0.3), value: continueWatching.map(\.id))
+            .animation(.easeInOut(duration: 0.1), value: continueWatching.map(\.id))
         }
         .scrollClipDisabled()   // tvOS 17+ — lets focused-card scale escape ScrollView bounds
     }
