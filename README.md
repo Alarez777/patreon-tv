@@ -105,7 +105,7 @@ see paid posts; Patreon's OAuth tokens do not unlock them. There is no pairing
 site and no intermediary server: the session ID goes straight from your browser
 to the Apple TV.
 
-> **Handle the `session_id` like a password.** Copy it on your own computer —
+> ⚠️ **Handle the `session_id` like a password.** Copy it on your own computer —
 > not a shared or public one — and paste it straight into the Apple TV. Never
 > send it through email, chat, or cloud notes: anyone who gets it can access
 > your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but
