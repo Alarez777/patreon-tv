@@ -53,7 +53,7 @@ final class HomeViewModel {
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Home")
 
     /// Page size for the merged feed (initial load and each "load more"). The
-    /// "New" shelf shows the loaded pages and grows.
+    /// "Recent" shelf shows the loaded pages and grows.
     private let homeFeedPageSize = 20
     private var homeFeedCursor: String?
     private var isFetchingHomeFeed = false

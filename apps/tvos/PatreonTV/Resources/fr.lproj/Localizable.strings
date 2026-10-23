@@ -6,7 +6,7 @@
 "Auto-advance from creator pages and their carousels." = "Passe automatiquement depuis les pages de créateur et leurs carrousels.";
 "Auto-advance from the Continue Watching shelf." = "Passe automatiquement depuis l'étagère Reprendre la lecture.";
 "Auto-advance through collection episodes." = "Passe automatiquement entre les épisodes de la collection.";
-"Auto-advance to the next post from the New shelf." = "Passe automatiquement à la publication suivante de l'étagère Nouveautés.";
+"Auto-advance to the next post from the New shelf." = "Passe automatiquement à la publication suivante de l'étagère Récents.";
 "Autoplay next" = "Lire la suite automatiquement";
 "Best" = "Meilleurs";
 "Cached images and posts are always removed. You can also delete your viewing history." = "Les images et publications en cache sont toujours supprimées. Vous pouvez aussi effacer votre historique de lecture.";
@@ -56,7 +56,7 @@
 "Mark as Unwatched" = "Marquer comme non vu";
 "Mark as Watched" = "Marquer comme vu";
 "NOW PLAYING" = "EN LECTURE";
-"New" = "Nouveautés";
+"New" = "Récents";
 "Newest" = "Plus récents";
 "Newest first" = "Plus récentes d'abord";
 "Next" = "Suivant";

@@ -6,7 +6,7 @@
 "Auto-advance from creator pages and their carousels." = "Auto-advance from creator pages and their carousels.";
 "Auto-advance from the Continue Watching shelf." = "Auto-advance from the Continue Watching shelf.";
 "Auto-advance through collection episodes." = "Auto-advance through collection episodes.";
-"Auto-advance to the next post from the New shelf." = "Auto-advance to the next post from the New shelf.";
+"Auto-advance to the next post from the New shelf." = "Auto-advance to the next post from the Recent shelf.";
 "Autoplay next" = "Autoplay next";
 "Best" = "Best";
 "Cached images and posts are always removed. You can also delete your viewing history." = "Cached images and posts are always removed. You can also delete your viewing history.";
@@ -56,7 +56,7 @@
 "Mark as Unwatched" = "Mark as Unwatched";
 "Mark as Watched" = "Mark as Watched";
 "NOW PLAYING" = "NOW PLAYING";
-"New" = "New";
+"New" = "Recent";
 "Newest" = "Newest";
 "Newest first" = "Newest first";
 "Next" = "Next";

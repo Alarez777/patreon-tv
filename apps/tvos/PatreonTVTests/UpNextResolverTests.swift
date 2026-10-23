@@ -103,7 +103,7 @@ final class UpNextResolverTests: XCTestCase {
         XCTAssertEqual(next?.id, "2")
     }
 
-    // MARK: - Shelf queue ("New")
+    // MARK: - Shelf queue ("Recent")
 
     func test_shelf_candidates_are_ordered_to_the_right() {
         let queue = ["1", "2", "3"]

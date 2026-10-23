@@ -3,7 +3,7 @@
 //  PatreonTV
 //
 //  The couch-first landing screen: a vertical stack of horizontal shelves —
-//  "New" first, then Continue Watching, Continue Collection,
+//  "Recent" first, then Continue Watching, Continue Collection,
 //  and a row per creator.
 //
 
@@ -184,6 +184,9 @@ struct HomeView: View {
                         posts: continueWatching,
                         campaignFor: { vm.campaign(for: $0) },
                         onPlay: onPlayPost,
+                        // Follow this shelf too: Up Next is the card to the
+                        // right, not the creator's feed.
+                        playbackQueue: continueWatching.map(\.id),
                         playbackSource: .continueWatching
                     )
                     .transition(.opacity.combined(with: .move(edge: .top)))
