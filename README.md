@@ -26,8 +26,6 @@ the fork.
 ```
 patreon-tv/
 ├── apps/tvos/          The Apple TV app (SwiftUI, tvOS 17+, XcodeGen)
-├── site/               Marketing + legal + deep-link fallback
-│                       (Astro → Cloudflare Pages)
 ├── harness/            Node scripts for live-testing the Patreon API
 └── docs/               User-facing docs (WIP)
 ```

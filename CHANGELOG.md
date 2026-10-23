@@ -68,8 +68,7 @@ portal.
 
 - The GitHub Release ships an **unsigned** IPA. Sign it with your own Apple
   Developer certificate or sideload it with [ATVLoadly](https://github.com/bitxeno/atvloadly).
-- Universal Links are disabled until the App Store Team ID replaces the
-  `TEAMID` placeholder in the site's `apple-app-site-association` file.
-  The `patreontv://` custom scheme works regardless.
+- Universal Links are not enabled. Deep links use the `patreontv://` custom
+  scheme only (for example from the Top Shelf).
 - YouTube and Vimeo embeds open in their own apps; they are not played in-app.
 - tvOS 17 or later is required.
