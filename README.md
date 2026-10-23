@@ -63,6 +63,11 @@ The IPA is unsigned, so tvOS will not install it as-is:
    it signs the IPA with your Apple ID or certificate and can auto-refresh it
    before the provisioning profile expires (7 days on a free Apple ID).
 
+PatreonTV is **not on the App Store and there are no plans to publish it
+there**. Sideloading is the only distribution channel: the project does not
+ship with a paid developer account, and an app that signs in by asking for a
+Patreon session cookie is a poor fit for App Store review.
+
 ## Build an installable IPA
 
 Pushing a `v*` tag runs the **tvOS IPA** workflow, which builds the Release app
