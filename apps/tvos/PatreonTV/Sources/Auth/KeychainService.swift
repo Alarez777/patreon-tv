@@ -10,12 +10,19 @@ import Foundation
 import Security
 import os.log
 
+/// Storage abstraction for the Patreon session, so `AuthStore` can be tested
+/// without touching the real Keychain.
+protocol SessionStorage {
+    func set(_ value: String, forKey key: String) -> Bool
+    func string(forKey key: String) -> String?
+    func remove(forKey key: String)
+}
+
 struct KeychainService {
 
     let service: String
 
     private static let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Keychain")
-
     /// Returns false if the write failed — callers can surface this instead of
     /// silently appearing signed in until the next launch.
     @discardableResult
@@ -67,3 +74,5 @@ struct KeychainService {
         }
     }
 }
+
+extension KeychainService: SessionStorage {}

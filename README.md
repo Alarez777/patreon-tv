@@ -156,6 +156,8 @@ it.
 - On a shared TV, use **Settings → Sign Out** when you're done. That removes the
   local copy; to revoke the session itself, sign out of it in the browser or
   change your Patreon password.
+- Removing the app does not reliably clear the tvOS Keychain. Use
+  **Settings → Sign Out** to delete the stored session.
 - If you think the ID leaked, sign out of the Patreon session and sign in again
   with a fresh cookie.
 

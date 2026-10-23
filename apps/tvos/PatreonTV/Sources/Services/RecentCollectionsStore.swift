@@ -87,6 +87,14 @@ final class RecentCollectionsStore {
         Array(collections.prefix(limit))
     }
 
+    /// Wipes Continue Collection history, including permanently hidden entries.
+    func clearAll() {
+        collections.removeAll()
+        hiddenIDs.removeAll()
+        defaults.removeObject(forKey: key)
+        defaults.removeObject(forKey: hiddenKey)
+    }
+
     private func insert(_ collection: RecentCollection) {
         collections.removeAll { $0.id == collection.id }
         collections.insert(collection, at: 0)

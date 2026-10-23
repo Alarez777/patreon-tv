@@ -13,8 +13,13 @@ struct SettingsView: View {
 
     @Environment(AuthStore.self) private var auth
     @State private var prefs = ContentPreferences.shared
+    @State private var cacheSize: Int?
+    @State private var isClearingCache = false
+    @State private var freedBytes: Int?
+    @State private var showClearCacheDialog = false
     @FocusState private var languageFocused: Bool
     @FocusState private var autoplayRowFocused: Bool
+    @FocusState private var cacheRowFocused: Bool
 
     private let settingsControlWidth: CGFloat = 1100
 
@@ -40,6 +45,9 @@ struct SettingsView: View {
                 }
                 .background(PatreonColors.background.ignoresSafeArea())
             }
+        }
+        .task {
+            cacheSize = await AppCache.size()
         }
     }
 
@@ -95,14 +103,106 @@ struct SettingsView: View {
 
             initialTabSection
             commentOrderSection
+            cacheRow
             signOutButton
         }
         .frame(width: settingsControlWidth, alignment: .center)
     }
 
+    /// Cache size and a way to free it. Sits just above Sign Out; the
+    /// destructive "and history" variant is behind the dialog.
+    private var cacheRow: some View {
+        Button {
+            showClearCacheDialog = true
+        } label: {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Clear cache")
+                        .foregroundStyle(
+                            cacheRowFocused ? Color.black : PatreonColors.primaryText
+                        )
+                    Text(cacheDetail)
+                        .font(.caption)
+                        .foregroundStyle(
+                            cacheRowFocused
+                                ? Color.black.opacity(0.7)
+                                : PatreonColors.secondaryText
+                        )
+                }
+
+                Spacer()
+
+                if isClearingCache {
+                    ProgressView()
+                } else {
+                    Text(cacheSizeText)
+                        .font(.body.monospacedDigit())
+                        .foregroundStyle(
+                            cacheRowFocused ? Color.black : PatreonColors.tertiaryText
+                        )
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .frame(width: settingsControlWidth)
+        .focused($cacheRowFocused)
+        .disabled(isClearingCache)
+        .accessibilityLabel(Text(L10n.format("format.clearCacheAccessibility", cacheSizeText)))
+        .confirmationDialog(
+            "Clear cache?",
+            isPresented: $showClearCacheDialog,
+            titleVisibility: .visible
+        ) {
+            Button("Clear cache") {
+                Task { await clearCache(history: false) }
+            }
+            Button("Clear cache and history", role: .destructive) {
+                Task { await clearCache(history: true) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Cached images and posts are always removed. You can also delete your viewing history.")
+        }
+    }
+
+    private var cacheDetail: String {
+        if let freedBytes {
+            return L10n.format("format.cacheFreed", byteText(freedBytes))
+        }
+        return L10n.string("Removes cached images and posts stored on this Apple TV.")
+    }
+
+    private var cacheSizeText: String {
+        guard let cacheSize else { return L10n.string("Calculating…") }
+        return byteText(cacheSize)
+    }
+
+    private func clearCache(history: Bool) async {
+        guard !isClearingCache else { return }
+        isClearingCache = true
+
+        let freed = await AppCache.clear()
+        if history {
+            PlaybackProgressStore.shared.clearAll()
+            RecentCollectionsStore.shared.clearAll()
+        }
+
+        cacheSize = await AppCache.size()
+        isClearingCache = false
+        freedBytes = freed
+
+        try? await Task.sleep(for: .seconds(5))
+        freedBytes = nil
+    }
+
+    private func byteText(_ bytes: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+    }
+
     private var signOutButton: some View {
         Button {
-            auth.signOut()
+            Task { await auth.signOut() }
         } label: {
             Text("Sign Out")
                 .font(.title3.weight(.semibold))
