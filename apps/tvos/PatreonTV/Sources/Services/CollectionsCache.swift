@@ -42,4 +42,9 @@ final class CollectionsCache {
     func fetchedAt(for campaignID: String) -> Date? {
         snapshotsByCampaign[campaignID]?.fetchedAt
     }
+
+    /// Drops every snapshot. Used when the user clears the cache or signs out.
+    func clear() {
+        snapshotsByCampaign.removeAll()
+    }
 }

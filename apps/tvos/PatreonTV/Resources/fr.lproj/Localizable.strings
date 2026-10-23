@@ -9,9 +9,14 @@
 "Auto-advance to the next post from the New shelf." = "Passe automatiquement à la publication suivante de l'étagère Nouveautés.";
 "Autoplay next" = "Lire la suite automatiquement";
 "Best" = "Meilleurs";
+"Cached images and posts are always removed. You can also delete your viewing history." = "Les images et publications en cache sont toujours supprimées. Vous pouvez aussi effacer votre historique de lecture.";
+"Calculating…" = "Calcul en cours…";
 "Cancel" = "Annuler";
 "Channels" = "Chaînes";
 "Chapters" = "Chapitres";
+"Clear cache" = "Vider le cache";
+"Clear cache and history" = "Vider le cache et l'historique";
+"Clear cache?" = "Vider le cache ?";
 "Choose where playback advances to the next post automatically." = "Choisissez où la lecture passe automatiquement à la publication suivante.";
 "Closed" = "Clôturé";
 "Collection" = "Collection";
@@ -86,6 +91,7 @@
 "Posts" = "Publications";
 "Remove Permanently" = "Retirer définitivement";
 "Remove from Continue Collection" = "Retirer de Continuer la collection";
+"Removes cached images and posts stored on this Apple TV." = "Supprime les images et publications mises en cache sur cet Apple TV.";
 "Restart" = "Redémarrer";
 "Restart collection?" = "Redémarrer la collection ?";
 "Reveal creators and posts flagged as NSFW." = "Affiche les créateurs et publications signalés comme NSFW.";
@@ -165,6 +171,8 @@
 "format.accessibilityImages" = ", %@ images";
 "format.accessibilityPatronOnly" = ", réservé aux membres";
 "format.audioProgress" = "Progression : %@ sur %@";
+"format.cacheFreed" = "Libéré : %@";
+"format.clearCacheAccessibility" = "Vider le cache, %@";
 "format.autoPlayIn" = "lecture automatique dans %lld secondes";
 "format.decodingError" = "Impossible de lire la réponse : %@";
 "format.fromCreator" = "de %@";
