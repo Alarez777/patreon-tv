@@ -4,6 +4,24 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-23
+
+### Added
+
+- **Clear cache** in Settings, right above Sign Out. It reports how much the HTTP cache, the image cache and the Top Shelf snapshot are holding, and asks whether to clear the cache alone or the cache plus viewing history (Continue Watching and Continue Collection).
+- A cookie-handling warning on the sign-in screen: copy the `session_id` on your own computer, never send it through email, chat or cloud notes, and remember that a leak gives access to the whole Patreon account. Translated into all four languages.
+- `AuthStore` now takes a `SessionStorage` abstraction, with a unit test proving that signing out removes the stored credential.
+
+### Changed
+
+- The session-expired notice moved from the left column to the top of the sign-in card, where there is more room, and the cookie warning uses a smaller type size so both fit together.
+- Signing out, and a session that Patreon rejects mid-use, now clear every cache layer: HTTP cache, Nuke's image cache, the in-memory collections caches and the Top Shelf snapshot. Viewing history is kept unless you delete it from Settings.
+- Removed the marketing site (`site/`) and its Cloudflare Pages workflow. The app is distributed through GitHub Releases only.
+
+### Fixed
+
+- Explicitly documented that uninstalling the app does not reliably clear the tvOS Keychain; use Settings → Sign Out instead.
+
 ## [2.0.0] - 2026-10-22
 
 First public release of the maintained fork. The app diverged from [DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv) and is now a standalone tvOS client: no companion app, no LAN server, no pairing portal.
