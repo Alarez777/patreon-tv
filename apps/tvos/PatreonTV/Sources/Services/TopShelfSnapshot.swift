@@ -70,4 +70,13 @@ struct TopShelfSnapshot: Codable {
         let data = try JSONEncoder().encode(self)
         try data.write(to: url, options: [.atomic])
     }
+
+    /// Removes the snapshot, so the Top Shelf stops showing the previous
+    /// account's posts after a cache clear or a sign-out.
+    static func delete(from directory: URL? = AppGroup.sharedCachesURL) {
+        guard let directory else { return }
+        try? FileManager.default.removeItem(
+            at: directory.appendingPathComponent(Self.filename)
+        )
+    }
 }

@@ -56,4 +56,10 @@ final class CollectionPostsCache {
             store[order.removeFirst()] = nil
         }
     }
+
+    /// Drops every snapshot. Used when the user clears the cache or signs out.
+    func clear() {
+        store.removeAll()
+        order.removeAll()
+    }
 }

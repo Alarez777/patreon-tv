@@ -31,13 +31,16 @@ final class AuthStore {
     private(set) var state: State = .unknown
     private(set) var currentUser: PatreonUser?
 
-    private let keychain = KeychainService(service: "com.patreontv.PatreonTV")
-    private let sessionKey = "patreon_session_id"
-    private let userIDKey = "patreon_user_id"
+    static let keychainService = "com.patreontv.PatreonTV"
+    static let sessionKey = "patreon_session_id"
+    static let userIDKey = "patreon_user_id"
+
+    private let storage: any SessionStorage
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Auth")
     private var isVerifyingAuthFailure = false
 
-    init() {
+    init(storage: any SessionStorage = KeychainService(service: AuthStore.keychainService)) {
+        self.storage = storage
         // Any 401 from the API layer triggers a re-verification; if the
         // session really is dead we surface the re-pair screen instead of
         // leaving each content screen showing a generic error.
@@ -56,7 +59,7 @@ final class AuthStore {
     /// the session and enter .signedIn optimistically so an offline launch
     /// doesn't force the user to re-pair.
     func restoreSession() async {
-        guard let sessionID = keychain.string(forKey: sessionKey), !sessionID.isEmpty else {
+        guard let sessionID = storage.string(forKey: Self.sessionKey), !sessionID.isEmpty else {
             log.info("No stored session")
             state = .signedOut
             return
@@ -73,8 +76,8 @@ final class AuthStore {
             log.error("Session restore failed: \(String(describing: error))")
             if Self.shouldClearSession(after: error) {
                 // Patreon definitively rejected the session — clear and re-auth.
-                expireSession()
-            } else if let storedUserID = keychain.string(forKey: userIDKey), !storedUserID.isEmpty {
+                await expireSession()
+            } else if let storedUserID = storage.string(forKey: Self.userIDKey), !storedUserID.isEmpty {
                 // Transient error — keep the credential and proceed. Content
                 // screens show their own retryable errors while offline.
                 state = .signedIn(userID: storedUserID)
@@ -109,19 +112,16 @@ final class AuthStore {
 
         do {
             let user = try await PatreonClient.shared.currentUser()
-            if !keychain.set(trimmed, forKey: sessionKey) {
+            if !storage.set(trimmed, forKey: Self.sessionKey) {
                 log.error("Could not persist session to keychain; sign-in will not survive relaunch")
             }
-            keychain.set(user.id, forKey: userIDKey)
+            _ = storage.set(user.id, forKey: Self.userIDKey)
             currentUser = user
             state = .signedIn(userID: user.id)
             log.info("Sign-in complete for user \(user.id)")
         } catch {
             log.error("Sign-in verification failed: \(String(describing: error))")
-            PatreonClient.shared.clearSession()
-            currentUser = nil
-            keychain.remove(forKey: sessionKey)
-            keychain.remove(forKey: userIDKey)
+            clearStoredSession()
             state = .signedOut
             throw Self.signInError(from: error)
         }
@@ -140,11 +140,11 @@ final class AuthStore {
         }
     }
 
-    func signOut() {
-        keychain.remove(forKey: sessionKey)
-        keychain.remove(forKey: userIDKey)
-        PatreonClient.shared.clearSession()
-        currentUser = nil
+    /// Clears the stored credential and every cache, so the next person to use
+    /// this TV sees a clean app. Viewing history is user data and is kept.
+    func signOut() async {
+        await AppCache.clear()
+        clearStoredSession()
         state = .signedOut
         log.info("Signed out")
     }
@@ -167,18 +167,25 @@ final class AuthStore {
         } catch {
             if Self.shouldClearSession(after: error) {
                 log.error("Session rejected mid-use — entering sign-in flow")
-                expireSession()
+                await expireSession()
             } else {
                 log.info("Auth re-verification hit transient error; keeping session")
             }
         }
     }
 
-    private func expireSession() {
-        keychain.remove(forKey: sessionKey)
-        keychain.remove(forKey: userIDKey)
+    /// Removes the credential from the Keychain and from the API client. The
+    /// caller decides which state to show afterwards.
+    private func clearStoredSession() {
+        storage.remove(forKey: Self.sessionKey)
+        storage.remove(forKey: Self.userIDKey)
         PatreonClient.shared.clearSession()
         currentUser = nil
+    }
+
+    private func expireSession() async {
+        await AppCache.clear()
+        clearStoredSession()
         state = .sessionExpired
     }
 }

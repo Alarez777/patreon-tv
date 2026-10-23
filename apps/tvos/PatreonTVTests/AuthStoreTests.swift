@@ -50,4 +50,38 @@ final class AuthStoreTests: XCTestCase {
             after: PatreonError.decoding(underlying: URLError(.cannotParseResponse))
         ))
     }
+
+    // MARK: - Sign-out
+
+    @MainActor
+    func test_sign_out_removes_the_stored_session() async {
+        let storage = InMemorySessionStorage()
+        storage.values[AuthStore.sessionKey] = "session-cookie"
+        storage.values[AuthStore.userIDKey] = "42"
+
+        let store = AuthStore(storage: storage)
+        await store.signOut()
+
+        XCTAssertNil(storage.string(forKey: AuthStore.sessionKey))
+        XCTAssertNil(storage.string(forKey: AuthStore.userIDKey))
+        XCTAssertEqual(store.state, .signedOut)
+    }
+}
+
+private final class InMemorySessionStorage: SessionStorage {
+
+    var values: [String: String] = [:]
+
+    func set(_ value: String, forKey key: String) -> Bool {
+        values[key] = value
+        return true
+    }
+
+    func string(forKey key: String) -> String? {
+        values[key]
+    }
+
+    func remove(forKey key: String) {
+        values.removeValue(forKey: key)
+    }
 }

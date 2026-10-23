@@ -98,6 +98,27 @@ final class RecentCollectionsStoreTests: XCTestCase {
         XCTAssertTrue(RecentCollectionsStore(defaults: defaults).isTracked(id: "a"))
     }
 
+    func test_clear_all_wipes_entries_and_hides() {
+        let (defaults, suite) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let store = RecentCollectionsStore(defaults: defaults)
+        store.record(collection("a"))
+        store.hide(id: "b")
+
+        store.clearAll()
+
+        XCTAssertTrue(store.recent(limit: 10).isEmpty)
+        XCTAssertFalse(store.isTracked(id: "a"))
+        XCTAssertFalse(store.isTracked(id: "b"))
+
+        let reloaded = RecentCollectionsStore(defaults: defaults)
+        XCTAssertTrue(reloaded.recent(limit: 10).isEmpty)
+        // A previously hidden id is recordable again after the wipe.
+        reloaded.record(collection("b"))
+        XCTAssertTrue(reloaded.isTracked(id: "b"))
+    }
+
     // MARK: - Helpers
 
     private func makeDefaults() -> (UserDefaults, String) {

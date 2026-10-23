@@ -66,4 +66,13 @@ final class TopShelfSnapshotTests: XCTestCase {
 
         XCTAssertEqual(TopShelfSnapshot.load(from: tempDir)?.items.map(\.postID), ["9"])
     }
+
+    func test_delete_removes_the_snapshot() throws {
+        try TopShelfSnapshot(items: [], updatedAt: Date()).save(to: tempDir)
+        XCTAssertNotNil(TopShelfSnapshot.load(from: tempDir))
+
+        TopShelfSnapshot.delete(from: tempDir)
+
+        XCTAssertNil(TopShelfSnapshot.load(from: tempDir))
+    }
 }

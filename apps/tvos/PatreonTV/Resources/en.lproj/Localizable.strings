@@ -9,9 +9,14 @@
 "Auto-advance to the next post from the New shelf." = "Auto-advance to the next post from the New shelf.";
 "Autoplay next" = "Autoplay next";
 "Best" = "Best";
+"Cached images and posts are always removed. You can also delete your viewing history." = "Cached images and posts are always removed. You can also delete your viewing history.";
+"Calculating…" = "Calculating…";
 "Cancel" = "Cancel";
 "Channels" = "Channels";
 "Chapters" = "Chapters";
+"Clear cache" = "Clear cache";
+"Clear cache and history" = "Clear cache and history";
+"Clear cache?" = "Clear cache?";
 "Choose where playback advances to the next post automatically." = "Choose where playback advances to the next post automatically.";
 "Closed" = "Closed";
 "Collection" = "Collection";
@@ -32,6 +37,7 @@
 "Filter" = "Filter";
 "Filter posts by type" = "Filter posts by type";
 "Find creators" = "Find creators";
+"Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you." = "Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you.";
 "Home" = "Home";
 "How a post's comments open. The comments screen can still reorder them for that visit." = "How a post's comments open. The comments screen can still reorder them for that visit.";
 "HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV." = "HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV.";
@@ -85,6 +91,7 @@
 "Posts" = "Posts";
 "Remove Permanently" = "Remove Permanently";
 "Remove from Continue Collection" = "Remove from Continue Collection";
+"Removes cached images and posts stored on this Apple TV." = "Removes cached images and posts stored on this Apple TV.";
 "Restart" = "Restart";
 "Restart collection?" = "Restart collection?";
 "Reveal creators and posts flagged as NSFW." = "Reveal creators and posts flagged as NSFW.";
@@ -164,6 +171,8 @@
 "format.accessibilityImages" = ", %@ images";
 "format.accessibilityPatronOnly" = ", patron-only";
 "format.audioProgress" = "Progress: %@ of %@";
+"format.cacheFreed" = "Freed %@";
+"format.clearCacheAccessibility" = "Clear cache, %@";
 "format.autoPlayIn" = "playing automatically in %lld seconds";
 "format.decodingError" = "Could not read response: %@";
 "format.fromCreator" = "from %@";

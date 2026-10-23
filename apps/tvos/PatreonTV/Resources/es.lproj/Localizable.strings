@@ -9,9 +9,14 @@
 "Auto-advance to the next post from the New shelf." = "Avanza automáticamente a la siguiente publicación del estante Nuevo.";
 "Autoplay next" = "Reproducir el siguiente automáticamente";
 "Best" = "Mejores";
+"Cached images and posts are always removed. You can also delete your viewing history." = "Las imágenes y los posts en caché siempre se eliminan. También puedes borrar tu historial de reproducción.";
+"Calculating…" = "Calculando…";
 "Cancel" = "Cancelar";
 "Channels" = "Canales";
 "Chapters" = "Capítulos";
+"Clear cache" = "Borrar caché";
+"Clear cache and history" = "Borrar caché e historial";
+"Clear cache?" = "¿Borrar la caché?";
 "Choose where playback advances to the next post automatically." = "Elige dónde avanza automáticamente la reproducción a la siguiente publicación.";
 "Closed" = "Cerrada";
 "Collection" = "Colección";
@@ -32,6 +37,7 @@
 "Filter" = "Filtrar";
 "Filter posts by type" = "Filtrar publicaciones por tipo";
 "Find creators" = "Encontrar creadores";
+"Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you." = "Maneja esta cookie con cuidado. Cópiala en tu propio ordenador —no uno compartido o público— y pégala directamente en el Apple TV. Nunca la envíes por correo, chat o notas en la nube: quien la obtenga puede acceder a tu cuenta de Patreon. PatreonTV la guarda de forma segura en el Keychain de tvOS, pero los pasos intermedios dependen de ti.";
 "Home" = "Inicio";
 "How a post's comments open. The comments screen can still reorder them for that visit." = "Cómo se abren los comentarios de una publicación. La pantalla de comentarios aún puede cambiar el orden en esa visita.";
 "HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV." = "Cookie HttpOnly: solo aparece en las herramientas de un navegador de escritorio. Cerrar sesión en ese navegador también cierra la de este TV.";
@@ -85,6 +91,7 @@
 "Posts" = "Publicaciones";
 "Remove Permanently" = "Quitar permanentemente";
 "Remove from Continue Collection" = "Quitar de Continuar colección";
+"Removes cached images and posts stored on this Apple TV." = "Elimina las imágenes y los posts guardados en caché en este Apple TV.";
 "Restart" = "Reiniciar";
 "Restart collection?" = "¿Reiniciar colección?";
 "Reveal creators and posts flagged as NSFW." = "Muestra creadores y publicaciones marcados como NSFW.";
@@ -164,6 +171,8 @@
 "format.accessibilityImages" = ", %@ imágenes";
 "format.accessibilityPatronOnly" = ", solo para miembros";
 "format.audioProgress" = "Progreso: %@ de %@";
+"format.cacheFreed" = "Liberados %@";
+"format.clearCacheAccessibility" = "Borrar caché, %@";
 "format.autoPlayIn" = "se reproduce automáticamente en %lld segundos";
 "format.decodingError" = "No se pudo leer la respuesta: %@";
 "format.fromCreator" = "de %@";
