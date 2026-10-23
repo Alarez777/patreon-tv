@@ -105,6 +105,12 @@ see paid posts; Patreon's OAuth tokens do not unlock them. There is no pairing
 site and no intermediary server: the session ID goes straight from your browser
 to the Apple TV.
 
+> **Handle the `session_id` like a password.** Copy it on your own computer —
+> not a shared or public one — and paste it straight into the Apple TV. Never
+> send it through email, chat, or cloud notes: anyone who gets it can access
+> your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but
+> the steps in between are up to you.
+
 ### 1. Get the `session_id` cookie
 
 Do this on a computer. The cookie is HttpOnly, so mobile browsers can't reveal
@@ -131,8 +137,7 @@ it.
 - **Linux or Windows:** use [LocalSend](https://localsend.org) to send the
   value from the computer to the phone over your local network. It does not go
   through an internet service. KDE Connect is another option on Linux.
-- **Avoid** email, chat, or cloud notes for this value. Treat it like a
-  password.
+- **Avoid** email, chat, or cloud notes for this value — see the warning above.
 
 ### 3. Paste it on the TV
 
