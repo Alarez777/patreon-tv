@@ -168,7 +168,11 @@ struct HomeView: View {
                             Task { await vm.loadMoreHomeFeed(current: post) }
                         },
                         onPlay: onPlayPost,
-                        playbackQueue: feed.filter { UpNextResolver.isPlayable($0) }.map(\.id),
+                        // Every card in display order; the detail view skips
+                        // finished/non-playable neighbors using the full post
+                        // document, since shelf listing metadata can be
+                        // incomplete (missing post_type / current_user_can_view).
+                        playbackQueue: feed.map(\.id),
                         playbackSource: .new,
                         focusFirstCardOnEntry: focusFirstShelfCard
                     )

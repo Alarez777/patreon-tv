@@ -4,6 +4,13 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-10-23
+
+### Fixed
+
+- With auto-advance off for the current shelf, the Up Next card, its thumbnail and the native Next/Cancel buttons no longer appear, and the player closes when the video ends instead of prompting for a next post. Applies to New, Continue Watching, creator/channel and collection playback.
+- Up Next from Home's "New" shelf now follows the carousel: the next playable card to the right, resolved against the full post document so incomplete shelf metadata can't silently fall back to the creator's feed. Reaching the end of the shelf means no suggestion.
+
 ## [2.0.1] - 2026-10-23
 
 ### Added
