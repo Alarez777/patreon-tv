@@ -2,7 +2,7 @@
 
 A native tvOS app for watching your favorite Patreon creators on the big screen.
 
-- **One app.** No companion. No LAN server. Downloaded from the App Store, sign in once, done.
+- **One app.** No companion, no LAN server, no pairing portal. Sign in once, done.
 - **Netflix-style browsing.** Focus-driven shelves, hero art that follows what you're looking at, snappy transitions.
 - **Native video.** Patreon-hosted video plays directly in `AVPlayer` via signed Mux HLS — no proxy, HDR, PiP, AirPlay.
 - **Four languages.** English (US), Spanish (Latin America), Portuguese (Brazil), and French. The first launch follows the Apple TV language; Settings can change it.
@@ -15,7 +15,11 @@ A native tvOS app for watching your favorite Patreon creators on the big screen.
 
 ## Status
 
-**Early scaffolding.** Do not attempt to ship yet.
+**v2.0.0** — first public release of this fork (October 2026). The app is
+feature-complete for browsing creators, collections, posts, comments and
+video/audio playback, and ships as an unsigned IPA attached to the GitHub
+release. See [`CHANGELOG.md`](./CHANGELOG.md) for everything that changed since
+the fork.
 
 ## Repo layout
 
@@ -47,24 +51,34 @@ open PatreonTV.xcodeproj
 
 Choose your Apple TV or the tvOS Simulator as the run destination and build.
 
+## Download & install
+
+Grab `PatreonTV-2.0.0-unsigned.ipa` from the
+[latest release](https://github.com/Alarez777/patreon-tv/releases/latest).
+
+The IPA is unsigned, so tvOS will not install it as-is:
+
+1. Sign it with your own Apple Developer certificate, **or** build and run
+   `apps/tvos` from Xcode with your team selected.
+2. Install it with a sideloading tool such as
+   [ATVLoadly](https://github.com/bitxeno/atvloadly) (Docker, Linux/OpenWrt) —
+   it signs the IPA with your Apple ID or certificate and can auto-refresh it
+   before the provisioning profile expires (7 days on a free Apple ID).
+
 ## Build an installable IPA
 
-The **tvOS IPA** GitHub Actions workflow builds the Release app and uploads
-three artifacts: an unsigned `.ipa` (`PatreonTV-unsigned`), the raw
-`.xcarchive`, and the `xcodebuild` log. It is `workflow_dispatch`-only, so run
-it from **your own fork**:
+Pushing a `v*` tag runs the **tvOS IPA** workflow, which builds the Release app
+and attaches `PatreonTV-<version>-unsigned.ipa` to the matching GitHub release.
+The version is read from `apps/tvos/project.yml`, and the workflow fails if the
+tag does not match it. The `xcodebuild` log is kept as a run artifact.
+
+To build without publishing — or from **your own fork**:
 
 1. Fork this repo on GitHub.
 2. In the fork, open the **Actions** tab and enable workflows (forks start with
    Actions disabled).
 3. Run **tvOS IPA → Run workflow**.
 4. Download `PatreonTV-unsigned` from the finished run's Artifacts.
-
-The IPA is unsigned. Sign it with your own Apple Developer certificate (or just
-build/run from Xcode with your team selected), then install it with a
-sideloading tool such as [ATVLoadly](https://github.com/bitxeno/atvloadly)
-(Docker, Linux/OpenWrt) — it signs the IPA with your Apple ID or certificate and
-can auto-refresh it.
 
 The same build, locally:
 

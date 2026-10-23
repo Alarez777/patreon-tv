@@ -8,7 +8,7 @@ Built with [Astro](https://astro.build) and deploys to
 
 | Path | Purpose |
 |---|---|
-| `/` | Marketing landing page — "coming soon" hero + feature grid |
+| `/` | Marketing landing page — download CTA + feature grid |
 | `/privacy` | Privacy policy (required by Apple for App Store submission) |
 | `/terms` | Terms of Service |
 | `/support` | FAQ + contact — required for App Store listing (Support URL field) |

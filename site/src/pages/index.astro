@@ -22,7 +22,7 @@ import Base from "../layouts/Base.astro";
     <div
       style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;"
     >
-      <a class="btn" href="#coming-soon">Coming to the App Store</a>
+      <a class="btn" href="https://github.com/Alarez777/patreon-tv/releases/latest">Download for Apple TV</a>
       <a class="btn secondary" href="/support">Learn more</a>
     </div>
   </section>
@@ -88,14 +88,28 @@ import Base from "../layouts/Base.astro";
     </div>
   </section>
 
-  <section id="coming-soon" style="margin-top: 100px; text-align: center;">
-    <h2>Coming soon</h2>
-    <p style="margin: 0 auto 32px;">
-      PatreonTV is in active development. TestFlight beta signups will open
-      when we're a little closer to shipping.
+  <section id="install" style="margin-top: 100px; text-align: center;">
+    <h2>Install on your Apple TV</h2>
+    <p style="margin: 0 auto 16px;">
+      PatreonTV 2.0.0 is available now as a free, open-source build. Download the
+      unsigned IPA from GitHub Releases and install it with your own Apple
+      Developer account.
     </p>
-    <p style="color: var(--text-dim); font-size: 0.9rem;">
-      This site is a placeholder. Watch this space.
+    <p style="margin: 0 auto 32px; color: var(--text-dim);">
+      Not on the App Store yet. You'll need Xcode or a sideloading tool such as
+      ATVLoadly — the install guide covers both.
     </p>
+    <div
+      style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;"
+    >
+      <a
+        class="btn"
+        href="https://github.com/Alarez777/patreon-tv/releases/latest"
+        rel="noopener">Download IPA</a>
+      <a
+        class="btn secondary"
+        href="https://github.com/Alarez777/patreon-tv#download--install"
+        rel="noopener">Install guide</a>
+    </div>
   </section>
 </Base>
