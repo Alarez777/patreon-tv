@@ -32,6 +32,7 @@
 "Filter" = "Filtrar";
 "Filter posts by type" = "Filtrar publicaciones por tipo";
 "Find creators" = "Encontrar creadores";
+"Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you." = "Maneja esta cookie con cuidado. Cópiala en tu propio ordenador —no uno compartido o público— y pégala directamente en el TV. Nunca la envíes por correo, chat o notas en la nube: quien la obtenga puede acceder a tu cuenta de Patreon. PatreonTV la guarda de forma segura en el Keychain de tvOS, pero los pasos intermedios dependen de ti.";
 "Home" = "Inicio";
 "How a post's comments open. The comments screen can still reorder them for that visit." = "Cómo se abren los comentarios de una publicación. La pantalla de comentarios aún puede cambiar el orden en esa visita.";
 "HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV." = "Cookie HttpOnly: solo aparece en las herramientas de un navegador de escritorio. Cerrar sesión en ese navegador también cierra la de este TV.";
