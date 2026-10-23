@@ -71,22 +71,6 @@ struct SignInView: View {
                     .foregroundStyle(.white.opacity(0.7))
             }
 
-            if sessionExpired {
-                HStack(alignment: .top, spacing: 14) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.yellow)
-                    Text("Your Patreon session expired. Paste a fresh session ID to reconnect this TV.")
-                        .foregroundStyle(.white.opacity(0.9))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(.title3.weight(.medium))
-                .padding(.horizontal, 22)
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
-                .accessibilityElement(children: .combine)
-            }
-
             VStack(alignment: .leading, spacing: 12) {
                 step(1, "On a computer, open your browser.")
                 step(2, "Open the developer tools with F12 (⌥⌘I on Mac).")
@@ -108,6 +92,22 @@ struct SignInView: View {
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if sessionExpired {
+                HStack(alignment: .top, spacing: 14) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Your Patreon session expired. Paste a fresh session ID to reconnect this TV.")
+                        .foregroundStyle(.white.opacity(0.9))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.title3.weight(.medium))
+                .padding(.horizontal, 22)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                .accessibilityElement(children: .combine)
+            }
+
             Text("Session ID")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.7))
@@ -150,13 +150,35 @@ struct SignInView: View {
             .tint(PatreonColors.brand)
             .disabled(parsedSessionID == nil || isSigningIn)
 
-            Text("PatreonTV is not affiliated with Patreon.")
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.4))
-                .padding(.top, 8)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("PatreonTV is not affiliated with Patreon.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.4))
+
+                cookieWarning
+            }
+            .padding(.top, 8)
         }
         .padding(36)
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 24))
+    }
+
+    /// Shown once, under the affiliation note. The Keychain keeps the cookie
+    /// safe on the Apple TV; everything before it lands there is on the user.
+    private var cookieWarning: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.shield.fill")
+                .foregroundStyle(cookieWarningColor)
+            Text("Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you.")
+                .foregroundStyle(cookieWarningColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.caption)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var cookieWarningColor: Color {
+        Color(red: 1, green: 0.45, blue: 0.45)
     }
 
     private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
