@@ -152,7 +152,7 @@ struct SignInView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("PatreonTV is not affiliated with Patreon.")
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundStyle(.white.opacity(0.4))
 
                 cookieWarning
@@ -164,16 +164,16 @@ struct SignInView: View {
     }
 
     /// Shown once, under the affiliation note. The Keychain keeps the cookie
-    /// safe on the TV; everything before it lands there is on the user.
+    /// safe on the Apple TV; everything before it lands there is on the user.
     private var cookieWarning: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.shield.fill")
                 .foregroundStyle(cookieWarningColor)
-            Text("Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you.")
+            Text("Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you.")
                 .foregroundStyle(cookieWarningColor)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.footnote)
+        .font(.caption)
         .accessibilityElement(children: .combine)
     }
 
