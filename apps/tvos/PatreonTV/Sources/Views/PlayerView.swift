@@ -26,14 +26,38 @@ struct PlayerView: UIViewControllerRepresentable {
     /// Mux token after pausing overnight). The presenter should dismiss the
     /// player and offer a retry, which re-fetches a fresh URL.
     var onPlaybackFailure: ((String) -> Void)? = nil
-    /// Called on the main actor when the item plays to its end. The presenter
-    /// can show an Up Next overlay or dismiss the player.
-    var onPlaybackEnded: (() -> Void)? = nil
+    /// Called on the main actor when the item plays to its end, with the
+    /// coordinator's `postID` so the presenter can ignore a stale end from a
+    /// previous episode. The presenter can show an Up Next overlay or dismiss.
+    var onPlaybackEnded: ((String) -> Void)? = nil
+    /// Called on the main actor roughly once a second once the item enters its
+    /// final `upNextLeadSeconds`, with the coordinator's `postID` and the
+    /// seconds still remaining. Lets the presenter show the Up Next card ahead
+    /// of the end (ignoring stale ticks from a previous episode).
+    var onUpNextTick: ((String, Double) -> Void)? = nil
+    /// Whether the native Up Next action buttons (Next / Cancel) are
+    /// visible. AVKit owns their focus, so they're reliably selectable.
+    var upNextActive: Bool = false
+    /// Tapped "Next".
+    var onPlayNext: (() -> Void)? = nil
+    /// Tapped "Cancel".
+    var onCancelUpNext: (() -> Void)? = nil
+    /// Episodes of the collection this post belongs to (for the player's
+    /// Episodes info tab). Empty hides the tab.
+    var episodes: [Post] = []
+    /// Called on the main actor when an episode is chosen from the tab.
+    var onSelectEpisode: ((String) -> Void)? = nil
 
-    var mediaURL: URL { source.url }
+    /// Seconds before the end at which the Up Next card starts appearing.
+    static let upNextLeadSeconds: Double = 15
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(postID: postID, onFailure: onPlaybackFailure, onEnded: onPlaybackEnded)
+        Coordinator(
+            postID: postID,
+            onFailure: onPlaybackFailure,
+            onEnded: onPlaybackEnded,
+            onUpNextTick: onUpNextTick
+        )
     }
 
     func makeUIViewController(context: Context) -> PlayerHostViewController {
@@ -45,12 +69,16 @@ struct PlayerView: UIViewControllerRepresentable {
             post: post,
             campaign: campaign,
             duration: duration,
+            episodes: episodes,
+            onSelectEpisode: onSelectEpisode,
             coordinator: context.coordinator
         )
         return host
     }
 
-    func updateUIViewController(_ host: PlayerHostViewController, context: Context) {}
+    func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
+        host.updateUpNext(isActive: upNextActive, onPlay: onPlayNext, onCancel: onCancelUpNext)
+    }
 
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
         coordinator.detach()
@@ -64,17 +92,25 @@ struct PlayerView: UIViewControllerRepresentable {
     final class Coordinator: NSObject {
         let postID: String
         private let onFailure: ((String) -> Void)?
-        private let onEnded: (() -> Void)?
+        private let onEnded: ((String) -> Void)?
+        private let onUpNextTick: ((String, Double) -> Void)?
         private var timeObserver: Any?
+        private var upNextObserver: Any?
         private var statusObserver: NSKeyValueObservation?
         private var endObserver: NSObjectProtocol?
         private weak var player: AVPlayer?
         private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
 
-        init(postID: String, onFailure: ((String) -> Void)? = nil, onEnded: (() -> Void)? = nil) {
+        init(
+            postID: String,
+            onFailure: ((String) -> Void)? = nil,
+            onEnded: ((String) -> Void)? = nil,
+            onUpNextTick: ((String, Double) -> Void)? = nil
+        ) {
             self.postID = postID
             self.onFailure = onFailure
             self.onEnded = onEnded
+            self.onUpNextTick = onUpNextTick
         }
 
         func attach(player: AVPlayer, item: AVPlayerItem) {
@@ -95,7 +131,7 @@ struct PlayerView: UIViewControllerRepresentable {
                         // leaving a silent black screen.
                         self.onFailure?(
                             item.error?.localizedDescription
-                                ?? "The video stopped playing. Its link may have expired — try again."
+                                ?? L10n.string("The video stopped playing. Its link may have expired — try again.")
                         )
                     default:
                         break
@@ -112,7 +148,7 @@ struct PlayerView: UIViewControllerRepresentable {
                     guard let self else { return }
                     self.log.info("Playback finished for post \(self.postID)")
                     self.markFinished()
-                    self.onEnded?()
+                    self.onEnded?(self.postID)
                 }
             }
 
@@ -126,6 +162,30 @@ struct PlayerView: UIViewControllerRepresentable {
                     self.recordProgress(player: player, time: time)
                 }
             }
+
+            // Fast tick for the Up Next window (last `upNextLeadSeconds`).
+            let upNextInterval = CMTime(seconds: 1, preferredTimescale: 600)
+            upNextObserver = player.addPeriodicTimeObserver(
+                forInterval: upNextInterval,
+                queue: .main
+            ) { [weak self, weak player] _ in
+                guard let self, let player else { return }
+                MainActor.assumeIsolated {
+                    self.reportUpNextTick(player: player)
+                }
+            }
+        }
+
+        /// Fire `onUpNextTick(postID, remaining)` while the item is within its
+        /// final `PlayerView.upNextLeadSeconds`. Requires `remaining > 0` so a
+        /// tick frozen at the end of a previous item can't re-open the card.
+        private func reportUpNextTick(player: AVPlayer) {
+            let duration = player.currentItem?.duration.seconds ?? 0
+            let position = player.currentTime().seconds
+            guard duration.isFinite, duration > 0, position.isFinite else { return }
+            let remaining = duration - position
+            guard remaining > 0, remaining <= PlayerView.upNextLeadSeconds else { return }
+            onUpNextTick?(postID, remaining)
         }
 
         func detach() {
@@ -138,6 +198,10 @@ struct PlayerView: UIViewControllerRepresentable {
             if let obs = timeObserver {
                 player?.removeTimeObserver(obs)
                 timeObserver = nil
+            }
+            if let obs = upNextObserver {
+                player?.removeTimeObserver(obs)
+                upNextObserver = nil
             }
             if let player {
                 let position = player.currentTime().seconds
@@ -210,8 +274,37 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.didMove(toParent: self)
     }
 
+    /// Native Up Next action buttons state.
+    private var upNextActive = false
+    private var onPlayNext: (() -> Void)?
+    private var onCancelUpNext: (() -> Void)?
+
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
         [playerViewController]
+    }
+
+    /// Show/hide the native Up Next action buttons (Next / Cancel).
+    /// Only reassigns `contextualActions` when the active state flips, so
+    /// AVKit's focus isn't reset while the card's countdown ticks.
+    func updateUpNext(isActive: Bool, onPlay: (() -> Void)?, onCancel: (() -> Void)?) {
+        onPlayNext = onPlay
+        onCancelUpNext = onCancel
+        guard isActive != upNextActive else { return }
+        upNextActive = isActive
+        playerViewController.contextualActions = isActive ? makeUpNextActions() : []
+    }
+
+    private func makeUpNextActions() -> [UIAction] {
+        let cancel = UIAction(
+            title: L10n.string("Cancel"),
+            image: UIImage(systemName: "xmark")
+        ) { [weak self] _ in self?.onCancelUpNext?() }
+        let next = UIAction(
+            title: L10n.string("Next"),
+            image: UIImage(systemName: "forward.end.fill")
+        ) { [weak self] _ in self?.onPlayNext?() }
+        // "Next" last so it sits on the trailing edge and takes default focus.
+        return [cancel, next]
     }
 
     /// Cancels in-flight authenticated requests and breaks the URLSession →
@@ -228,6 +321,8 @@ final class PlayerHostViewController: UIViewController {
         post: Post? = nil,
         campaign: Campaign? = nil,
         duration: Double? = nil,
+        episodes: [Post] = [],
+        onSelectEpisode: ((String) -> Void)? = nil,
         coordinator: PlayerView.Coordinator
     ) {
         guard !didConfigure else { return }
@@ -279,7 +374,11 @@ final class PlayerHostViewController: UIViewController {
         playerViewController.allowsPictureInPicturePlayback = true
         playerViewController.videoGravity = .resizeAspect
 
-        configureInfoPanel(post: post, campaign: campaign)
+        configureEpisodesTab(
+            episodes: episodes,
+            currentPostID: post?.id ?? "",
+            onSelectEpisode: onSelectEpisode
+        )
 
         coordinator.attach(player: player, item: item)
 
@@ -298,30 +397,32 @@ final class PlayerHostViewController: UIViewController {
     private func makeExternalMetadata(title: String, post: Post?, campaign: Campaign?) -> [AVMetadataItem] {
         var items = [makeMetadataItem(identifier: .commonIdentifierTitle, value: title)]
 
+        // The transport bar's small line shows "date · subtitle", so the
+        // subtitle stays just the channel. The Info body carries the title.
         if let creator = campaign?.attributes.name, !creator.isEmpty {
-            items.append(makeMetadataItem(identifier: .commonIdentifierArtist, value: creator))
             items.append(makeMetadataItem(identifier: .iTunesMetadataTrackSubTitle, value: creator))
         }
 
-        if let description = playerDescription(for: post) {
+        if let date = formattedPublishedDate(post?.attributes.publishedAt) {
+            items.append(makeMetadataItem(identifier: .commonIdentifierCreationDate, value: date))
+        }
+        if let description = playerDescription(title: title, post: post) {
             items.append(makeMetadataItem(identifier: .commonIdentifierDescription, value: description))
         }
 
         return items
     }
 
-    /// Plain-text description for the info panel: teaser preferred (short and
-    /// hand-written), else the post body stripped of HTML, capped so AVKit
-    /// doesn't choke on essay-length values.
-    private func playerDescription(for post: Post?) -> String? {
-        guard let post else { return nil }
-        let raw = [post.attributes.teaser, post.attributes.content]
-            .compactMap { $0 }
-            .first { !$0.isEmpty }
-        guard let raw else { return nil }
-        let text = HTMLRenderer.stripToPlainText(raw)
-        guard !text.isEmpty else { return nil }
-        return text.count > 600 ? String(text.prefix(600)) + "…" : text
+    private func formattedPublishedDate(_ iso: String?) -> String? {
+        guard let iso, !iso.isEmpty else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
+        else { return nil }
+        return date.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .omitted)
+                .locale(AppLanguage.current.locale)
+        )
     }
 
     /// Fetch the poster asynchronously and append it as artwork metadata; the
@@ -347,8 +448,8 @@ final class PlayerHostViewController: UIViewController {
     /// list and surface it as native navigation markers (transport-bar chapter
     /// skipping + the Chapters info tab).
     private func attachChapterMarkers(to item: AVPlayerItem, post: Post?, duration: Double?) {
-        guard let html = post?.attributes.content else { return }
-        let chapters = ChapterParser.chapters(fromHTML: html, duration: duration)
+        guard let post, let source = PostBody.source(post.attributes) else { return }
+        let chapters = ChapterParser.chapters(fromHTML: source, duration: duration)
         guard !chapters.isEmpty else { return }
 
         log.info("Parsed \(chapters.count) chapters from post content")
@@ -367,19 +468,55 @@ final class PlayerHostViewController: UIViewController {
             ))
         }
         item.navigationMarkerGroups = [
-            AVNavigationMarkersGroup(title: "Chapters", timedNavigationMarkers: groups)
+            AVNavigationMarkersGroup(title: L10n.string("Chapters"), timedNavigationMarkers: groups)
         ]
     }
 
     // MARK: - Custom info panel
 
-    /// "Details" tab in the swipe-down panel: full description without leaving
-    /// playback.
-    private func configureInfoPanel(post: Post?, campaign: Campaign?) {
-        guard let post else { return }
-        let details = UIHostingController(rootView: PlayerInfoView(post: post, campaign: campaign))
-        details.title = "Details"
-        playerViewController.customInfoViewControllers = [details]
+    /// "Episodes" tab in the swipe-down panel, listing the collection's
+    /// episodes (focused on the one playing). The native Info tab carries the
+    /// title, channel/date and description, so this is the only extra tab.
+    private func configureEpisodesTab(
+        episodes: [Post],
+        currentPostID: String,
+        onSelectEpisode: ((String) -> Void)?
+    ) {
+        guard episodes.count > 1, let onSelectEpisode else {
+            playerViewController.customInfoViewControllers = []
+            return
+        }
+
+        let episodesVC = UIHostingController(rootView: PlayerEpisodesView(
+            episodes: episodes,
+            currentPostID: currentPostID,
+            onSelect: onSelectEpisode
+        ))
+        episodesVC.title = L10n.string("Episodes")
+        episodesVC.preferredContentSize = CGSize(width: 0, height: 380)
+        playerViewController.customInfoViewControllers = [episodesVC]
+    }
+
+    /// Info panel body: the title on its own line, then (when present) the
+    /// post's text body. Falls back to whichever of the two exists.
+    private func playerDescription(title: String, post: Post?) -> String? {
+        let body = post.flatMap { post -> String? in
+            if let body = PostBody.plainText(post.attributes), !body.isEmpty {
+                return body
+            }
+            if let teaser = post.attributes.teaser, !teaser.isEmpty {
+                return teaser
+            }
+            return nil
+        }
+
+        let heading = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (heading.isEmpty, body) {
+        case (false, .some(let body)): return "\(heading)\n\n\(body)"
+        case (false, .none): return heading
+        case (true, .some(let body)): return body
+        case (true, .none): return nil
+        }
     }
 
     private func makeMetadataItem(identifier: AVMetadataIdentifier, value: String) -> AVMetadataItem {

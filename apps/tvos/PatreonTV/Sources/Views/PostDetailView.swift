@@ -13,13 +13,38 @@ import os.log
 struct PostDetailView: View {
 
     let postID: String
-    /// When true (Top Shelf "Play", the featured hero button, deep links with
-    /// /play), playback starts as soon as the post loads.
+    /// When true (Top Shelf "Play", deep links with /play), playback starts as
+    /// soon as the post loads.
     var autoplay: Bool = false
+    /// Set when this post was opened from within a collection. Makes the Up Next
+    /// overlay advance through the collection (oldest→newest) instead of the
+    /// creator's feed.
+    var collectionID: String? = nil
+    /// Ordered playable post IDs from the shelf the post was opened from
+    /// (left→right). When set, Up Next advances to the next card on the right
+    /// (skipping finished posts) instead of the creator's feed.
+    var queue: [String]? = nil
+    /// Where this post was opened from; selects the auto-advance preference.
+    var autoplaySource: AutoplaySource
+    /// Opens an episode with autoplay (remote Play button). The second argument
+    /// is the collection the episode belongs to, when known. Supplied by the
+    /// hosting stack.
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
-    init(postID: String, autoplay: Bool = false) {
+    init(
+        postID: String,
+        autoplay: Bool = false,
+        collectionID: String? = nil,
+        queue: [String]? = nil,
+        autoplaySource: AutoplaySource,
+        onPlayPost: ((String, String?) -> Void)? = nil
+    ) {
         self.postID = postID
         self.autoplay = autoplay
+        self.collectionID = collectionID
+        self.queue = queue
+        self.autoplaySource = autoplaySource
+        self.onPlayPost = onPlayPost
         _currentPostID = State(initialValue: postID)
     }
 
@@ -28,8 +53,26 @@ struct PostDetailView: View {
     @State private var currentPostID: String
     /// The next post queued by the Up Next overlay after playback finishes.
     @State private var upNext: Post?
+    /// The next post resolved ahead of time so the Up Next card can appear
+    /// instantly in the final seconds.
+    @State private var queuedNext: Post?
+    /// Seconds left shown on the Up Next card, driven by the player.
+    @State private var upNextCountdown: Int?
+    /// Set when the viewer cancels the Up Next suggestion: the current video
+    /// finishes but the next one doesn't start.
+    @State private var upNextCancelled = false
     @State private var post: Post?
     @State private var campaign: Campaign?
+    /// Collections this post belongs to (for the "In this collection" shelf).
+    @State private var collections: [PatreonCollection] = []
+    /// Poll attached to this post, rendered read-only.
+    @State private var poll: Poll?
+    @State private var pollChoices: [PollChoice] = []
+    @State private var pollSelectedChoiceIDs: Set<String> = []
+    /// Images attached to an `image_file` post, in response order.
+    @State private var imageURLs: [URL] = []
+    @State private var showImageViewer = false
+    @State private var showCollectionPicker = false
     @State private var videoDuration: Double?
     @State private var heroImageURL: URL?
     @State private var mediaURL: URL?
@@ -43,7 +86,7 @@ struct PostDetailView: View {
     /// focusable (the creator-name link), which felt arbitrary.
     @FocusState private var focusedControl: FocusTarget?
 
-    private enum FocusTarget: Hashable { case play }
+    private enum FocusTarget: Hashable { case play, viewImages }
     @State private var isLoading = true
     @State private var playbackSource: MediaPlaybackSource?
     @State private var isPreparingPlayback = false
@@ -83,13 +126,9 @@ struct PostDetailView: View {
                     UpNextOverlayView(
                         post: next,
                         creatorName: campaign?.attributes.name,
-                        countdownSeconds: ContentPreferences.shared.autoplayNext ? 10 : nil,
-                        onPlay: { Task { await playNext(next) } },
-                        onDismiss: {
-                            upNext = nil
-                            playbackSource = nil
-                        }
+                        countdown: upNextCountdown
                     )
+                    .ignoresSafeArea()
                 }
             }
         }
@@ -104,6 +143,9 @@ struct PostDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(playbackErrorMessage ?? "")
+        }
+        .sheet(isPresented: $showCollectionPicker) {
+            CollectionPickerSheet(collections: collections, focusPostID: currentPostID)
         }
     }
 
@@ -137,11 +179,39 @@ struct PostDetailView: View {
                 onPlaybackFailure: { message in
                     presentPlaybackError(message)
                 },
-                onPlaybackEnded: {
+                onPlaybackEnded: { postID in
+                    guard postID == currentPostID else { return }
                     Task { await handlePlaybackEnded() }
-                }
+                },
+                onUpNextTick: { postID, remaining in
+                    guard postID == currentPostID else { return }
+                    handleUpNextTick(remaining)
+                },
+                upNextActive: upNext != nil,
+                onPlayNext: {
+                    guard let next = upNext else { return }
+                    Task { await playNext(next) }
+                },
+                onCancelUpNext: { cancelUpNext() },
+                episodes: collectionEpisodes,
+                onSelectEpisode: { id in selectEpisode(id) }
             )
         }
+    }
+
+    /// Episodes of the collection this post belongs to (cached when the
+    /// collection was opened), for the player's Episodes info tab.
+    private var collectionEpisodes: [Post] {
+        guard let collection = collections.first else { return [] }
+        return CollectionPostsCache.shared.posts(for: collection.id) ?? []
+    }
+
+    /// Switch playback to another episode of the collection without leaving the
+    /// player.
+    private func selectEpisode(_ id: String) {
+        guard id != currentPostID else { return }
+        currentPostID = id
+        Task { await prepareAndPlay() }
     }
 
     @ViewBuilder
@@ -155,13 +225,35 @@ struct PostDetailView: View {
 
                 playbackSection(post: post)
 
+                imageSection(post: post)
+
+                if let collection = collections.first {
+                    CollectionEpisodesShelf(
+                        title: collection.attributes.title ?? L10n.string("Collection"),
+                        collectionID: collection.id,
+                        currentPostID: post.id,
+                        onPlay: { id in onPlayPost?(id, collection.id) }
+                    )
+                }
+
                 descriptionSection(post: post)
+
+                pollSection(post: post)
 
                 Spacer(minLength: 60)
             }
         }
         .scrollClipDisabled()
-        .defaultFocus($focusedControl, .play)
+        .defaultFocus($focusedControl, defaultFocusTarget(post: post))
+    }
+
+    /// Where focus lands when the page opens: the image "View" button for image
+    /// posts, otherwise the Play button.
+    private func defaultFocusTarget(post: Post) -> FocusTarget? {
+        if post.attributes.postType == .imageFile, !imageURLs.isEmpty {
+            return .viewImages
+        }
+        return .play
     }
 
     @ViewBuilder
@@ -213,7 +305,7 @@ struct PostDetailView: View {
                         .clipShape(Capsule())
                 }
 
-                Text(post.attributes.title ?? "Untitled")
+                Text(post.attributes.title ?? L10n.string("Untitled"))
                     .font(.system(size: 64, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(3)
@@ -249,7 +341,23 @@ struct PostDetailView: View {
         HStack(spacing: 24) {
             if let campaign {
                 NavigationLink(value: DeepLinkDestination.creator(id: campaign.id)) {
-                    Label(campaign.attributes.name ?? "Creator", systemImage: "person.circle.fill")
+                    Label(campaign.attributes.name ?? L10n.string("Creator"), systemImage: "person.circle.fill")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if collections.count == 1, let collection = collections.first {
+                NavigationLink(value: DeepLinkDestination.collection(id: collection.id, focusPostID: post.id)) {
+                    Label("Collection", systemImage: "square.stack")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+            } else if collections.count > 1 {
+                Button {
+                    showCollectionPicker = true
+                } label: {
+                    Label("Collections", systemImage: "square.stack")
                         .font(.title3.weight(.medium))
                 }
                 .buttonStyle(.bordered)
@@ -274,12 +382,16 @@ struct PostDetailView: View {
             }
 
             if let comments = post.attributes.commentCount, comments > 0 {
-                Label("\(comments)", systemImage: "bubble.left")
-                    .font(.title3)
-                    .foregroundStyle(PatreonColors.secondaryText)
+                NavigationLink(value: DeepLinkDestination.comments(postID: post.id, commentCount: comments)) {
+                    Label(L10n.format("format.postComments", L10n.number(comments)), systemImage: "bubble.left")
+                        .font(.title3.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel(L10n.format("format.postCommentsAccessibility", L10n.number(comments)))
             }
         }
         .padding(.horizontal, 60)
+        .focusSection()
     }
 
     @ViewBuilder
@@ -290,7 +402,7 @@ struct PostDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ProgressView(value: progress.positionSeconds / progress.durationSeconds)
                             .tint(PatreonColors.brand)
-                        Text("Watched \(formatTime(progress.positionSeconds)) of \(formatTime(progress.durationSeconds))")
+                        Text(L10n.format("format.watched", formatTime(progress.positionSeconds), formatTime(progress.durationSeconds)))
                             .font(.subheadline)
                             .foregroundStyle(PatreonColors.secondaryText)
                     }
@@ -309,12 +421,13 @@ struct PostDetailView: View {
                     .tint(PatreonColors.brand)
                     .disabled(isPreparingPlayback)
                     .focused($focusedControl, equals: .play)
+                    // The Siri Remote Play button starts playback too, not just
+                    // the select/click.
+                    .onPlayPauseCommand { Task { await prepareAndPlay() } }
 
                     if resumeProgress != nil {
                         Button {
-                            PlaybackProgressStore.shared.clear(postID: currentPostID)
-                            resumeProgressStamp = UUID()
-                            Task { await prepareAndPlay() }
+                            startOver()
                         } label: {
                             Text("Start Over")
                                 .font(.title3.weight(.medium))
@@ -323,6 +436,7 @@ struct PostDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(isPreparingPlayback)
+                        .onPlayPauseCommand { startOver() }
                     }
                 }
 
@@ -331,6 +445,7 @@ struct PostDetailView: View {
                 }
             }
             .padding(.horizontal, 60)
+            .focusSection()
         } else if post.attributes.currentUserCanView == false {
             lockedNotice
         }
@@ -346,8 +461,8 @@ struct PostDetailView: View {
                 .frame(maxWidth: 1400, alignment: .leading)
         }
 
-        if let content = post.attributes.content, !content.isEmpty {
-            Text(HTMLRenderer.attributedString(from: content))
+        if let content = PostBody.attributed(post.attributes) {
+            Text(content)
                 .font(.body)
                 .foregroundStyle(PatreonColors.primaryText.opacity(0.9))
                 .padding(.horizontal, 60)
@@ -355,6 +470,46 @@ struct PostDetailView: View {
         }
         // No filler when both teaser and content are empty — many video posts
         // have no description text, and "Video from <creator>" added nothing.
+    }
+
+    @ViewBuilder
+    private func imageSection(post: Post) -> some View {
+        if post.attributes.postType == .imageFile, !imageURLs.isEmpty {
+            Button {
+                showImageViewer = true
+            } label: {
+                Label(
+                    imageURLs.count > 1
+                        ? L10n.format("format.viewImages", L10n.number(imageURLs.count))
+                        : L10n.string("View"),
+                    systemImage: "arrow.up.left.and.arrow.down.right"
+                )
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 32)
+                .padding(.vertical, 18)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(PatreonColors.brand)
+            .focused($focusedControl, equals: .viewImages)
+            .onPlayPauseCommand { showImageViewer = true }
+            .padding(.horizontal, 60)
+            .focusSection()
+            .fullScreenCover(isPresented: $showImageViewer) {
+                ImageViewer(images: imageURLs)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pollSection(post: Post) -> some View {
+        if post.attributes.postType == .poll, let poll, !pollChoices.isEmpty {
+            PollSection(
+                poll: poll,
+                choices: pollChoices,
+                selectedChoiceIDs: pollSelectedChoiceIDs
+            )
+            .padding(.horizontal, 60)
+        }
     }
 
     private func heroSubtitle(post: Post) -> String? {
@@ -373,13 +528,13 @@ struct PostDetailView: View {
 
     private func postTypeLabel(_ type: Post.PostType?) -> String? {
         switch type {
-        case .videoExternalFile, .videoEmbed: "Video"
-        case .audioFile, .audioEmbed, .podcast: "Audio"
-        case .imageFile: "Image"
-        case .textOnly: "Post"
-        case .link: "Link"
-        case .poll: "Poll"
-        case .livestreamYoutube, .livestreamCrowdcast: "Livestream"
+        case .videoExternalFile, .videoEmbed: L10n.string("Video")
+        case .audioFile, .audioEmbed, .podcast: L10n.string("Audio")
+        case .imageFile: L10n.string("Image")
+        case .textOnly: L10n.string("Post")
+        case .link: L10n.string("Link")
+        case .poll: L10n.string("Poll")
+        case .livestreamYoutube, .livestreamCrowdcast: L10n.string("Livestream")
         case .other, nil: nil
         }
     }
@@ -391,7 +546,10 @@ struct PostDetailView: View {
         guard let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else {
             return nil
         }
-        return date.formatted(date: .abbreviated, time: .omitted)
+        return date.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .omitted)
+                .locale(AppLanguage.current.locale)
+        )
     }
 
     private var resumeProgress: PlaybackProgress? {
@@ -405,9 +563,9 @@ struct PostDetailView: View {
 
     private var playButtonLabel: String {
         if let p = resumeProgress {
-            return "Resume from \(formatTime(p.positionSeconds))"
+            return L10n.format("format.resumeFrom", formatTime(p.positionSeconds))
         }
-        return "Play"
+        return L10n.string("Play")
     }
 
     private func formatTime(_ seconds: Double) -> String {
@@ -442,11 +600,16 @@ struct PostDetailView: View {
         }
         isLoading = false
 
-        // Honor the autoplay flag from Top Shelf / deep links / featured Play,
-        // exactly once per presentation.
-        if autoplay, !didAutoplay, post != nil, mediaURL != nil {
+        // Honor the autoplay flag from Top Shelf / deep links / remote Play,
+        // exactly once per presentation. Image posts open their viewer instead
+        // of trying (and failing) to start playback.
+        if autoplay, !didAutoplay, post != nil {
             didAutoplay = true
-            await prepareAndPlay()
+            if post?.attributes.postType == .imageFile, !imageURLs.isEmpty {
+                showImageViewer = true
+            } else if mediaURL != nil {
+                await prepareAndPlay()
+            }
         }
     }
 
@@ -478,27 +641,182 @@ struct PostDetailView: View {
         videoDuration = resolvedDuration
         heroImageURL = resolvedHero
             ?? doc.data.attributes.posterImageURL
+
+        collections = (doc.included ?? []).compactMap {
+            if case .collection(let collection) = $0 { return collection }
+            return nil
+        }
+
+        poll = (doc.included ?? []).compactMap {
+            if case .poll(let poll) = $0 { return poll }
+            return nil
+        }.first
+        pollChoices = (doc.included ?? []).compactMap {
+            if case .pollChoice(let choice) = $0 { return choice }
+            return nil
+        }.sorted { ($0.attributes.position ?? 0) < ($1.attributes.position ?? 0) }
+        pollSelectedChoiceIDs = Set((doc.included ?? []).compactMap { inc -> String? in
+            guard case .pollResponse(let response) = inc,
+                  let choiceID = response.relationships?.choice?.data?.id
+            else { return nil }
+            return choiceID
+        })
+
+        var mediaByID: [String: Media] = [:]
+        for inc in doc.included ?? [] {
+            if case .media(let media) = inc { mediaByID[media.id] = media }
+        }
+        let orderedImages = (doc.data.relationships?.images?.data ?? []).compactMap { ref -> URL? in
+            guard let urls = mediaByID[ref.id]?.attributes.imageURLs else { return nil }
+            return urls.original ?? urls.defaultLarge ?? urls.url
+        }
+        if !orderedImages.isEmpty {
+            imageURLs = orderedImages
+        } else if let single = doc.data.attributes.image?.largeURL ?? doc.data.attributes.image?.url {
+            imageURLs = [single]
+        } else {
+            imageURLs = []
+        }
     }
 
     // MARK: - Up Next
 
-    /// Playback finished: queue the creator's next post if one exists,
-    /// otherwise just close the player.
+    /// Called ~once a second during the final seconds: shows the Up Next card
+    /// once we enter the window and keeps its countdown in sync with the video.
+    private func handleUpNextTick(_ remaining: Double) {
+        guard !upNextCancelled else { return }
+        if upNext == nil, let next = queuedNext {
+            log.info("Up Next window: showing \(next.id)")
+            upNext = next
+        }
+        if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
+            upNextCountdown = max(0, Int(remaining.rounded()))
+        }
+    }
+
+    /// Hide the Up Next card/actions and keep the current video playing to its
+    /// end (without starting the next one).
+    private func cancelUpNext() {
+        upNextCancelled = true
+        upNext = nil
+        upNextCountdown = nil
+    }
+
+    /// Playback finished. If the card is already up, honor it (advance when
+    /// autoplay is on, else leave it for the viewer). Otherwise resolve a next
+    /// post, or close the player when there's none.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
-        guard let campaignID = campaign?.id,
-              let next = await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
-        else {
+        NotificationCenter.default.post(name: .playbackDidFinish, object: nil)
+        log.info("Playback ended: collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil") cancelled=\(upNextCancelled)")
+
+        if upNextCancelled {
             playbackSource = nil
             return
         }
-        upNext = next
+
+        if let next = upNext {
+            if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
+                await playNext(next)
+            }
+            return
+        }
+
+        let resolved: Post?
+        if let queuedNext {
+            resolved = queuedNext
+        } else {
+            resolved = await resolveNext()
+        }
+        guard let next = resolved else {
+            playbackSource = nil
+            return
+        }
+        if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
+            await playNext(next)
+        } else {
+            upNext = next
+            upNextCountdown = nil
+        }
+    }
+
+    /// Collections always use the Collections preference, even when the post
+    /// was opened through a creator/search route.
+    private var effectiveAutoplaySource: AutoplaySource {
+        collectionID == nil ? autoplaySource : .collections
+    }
+
+    /// Resolve the post to play after this one: the next card in the shelf we
+    /// came from, else the next episode in the collection, else the creator's
+    /// next feed post.
+    private func resolveNext() async -> Post? {
+        if let collectionID {
+            return await nextEpisode(in: collectionID)
+        }
+        if let queue, !queue.isEmpty {
+            return await nextInShelfQueue(queue)
+        }
+        guard let campaignID = campaign?.id else { return nil }
+        return await UpNextResolver.next(after: currentPostID, campaignID: campaignID)
+    }
+
+    /// The next playable card to the right in the shelf playback started from,
+    /// skipping posts that are already finished. Returns nil at the end of the
+    /// shelf — deliberately no fallback to the creator feed.
+    private func nextInShelfQueue(_ queue: [String]) async -> Post? {
+        guard let nextID = UpNextResolver.selectNextID(
+            afterPostID: currentPostID,
+            in: queue,
+            isFinished: { PlaybackProgressStore.shared.progress(for: $0)?.isFinished == true }
+        ) else {
+            log.info("Up Next: no next shelf card after \(currentPostID)")
+            return nil
+        }
+        guard let doc = try? await PatreonClient.shared.post(id: nextID) else {
+            log.info("Up Next: failed to fetch shelf neighbor \(nextID)")
+            return nil
+        }
+        log.info("Up Next: shelf neighbor \(nextID)")
+        return doc.data
+    }
+
+    /// Resolve the next post up front so the card appears instantly.
+    private func preloadNext() async {
+        upNextCancelled = false
+        queuedNext = await resolveNext()
+        log.info("Preloaded up next: \(queuedNext?.id ?? "none")")
+    }
+
+    /// The immediate next playable episode after the one playing, in the
+    /// collection's oldest→newest order (the order the Episodes strip shows).
+    /// Fetches and caches the collection if it isn't cached yet.
+    private func nextEpisode(in collectionID: String) async -> Post? {
+        var posts = CollectionPostsCache.shared.posts(for: collectionID) ?? []
+        if posts.isEmpty {
+            guard let doc = try? await PatreonClient.shared.collection(id: collectionID) else {
+                log.info("Up Next: collection \(collectionID) not cached and fetch failed")
+                return nil
+            }
+            posts = doc.data.orderedPosts(from: doc.included ?? [])
+            CollectionPostsCache.shared.store(collection: doc.data, posts: posts)
+        }
+
+        let oldestFirst = Array(posts.reversed())
+        guard let index = oldestFirst.firstIndex(where: { $0.id == currentPostID }) else {
+            log.info("Up Next: current \(currentPostID) not found among \(oldestFirst.count) episodes")
+            return nil
+        }
+        let next = oldestFirst.dropFirst(index + 1).first { UpNextResolver.isPlayable($0) }
+        log.info("Up Next: index \(index)/\(oldestFirst.count) -> \(next?.id ?? "none")")
+        return next
     }
 
     /// Advance to the queued post: swap the detail view's subject and start
     /// playback with a freshly fetched URL (Mux tokens are ephemeral).
     private func playNext(_ next: Post) async {
         upNext = nil
+        upNextCountdown = nil
+        queuedNext = nil
         currentPostID = next.id
         post = next            // provisional; prepareAndPlay refreshes the full doc
         heroImageURL = next.attributes.posterImageURL
@@ -520,6 +838,13 @@ struct PostDetailView: View {
         }
     }
 
+    /// Clear any saved progress and play from the start.
+    private func startOver() {
+        PlaybackProgressStore.shared.clear(postID: currentPostID)
+        resumeProgressStamp = UUID()
+        Task { await prepareAndPlay() }
+    }
+
     /// Re-fetch post on play so Mux HLS tokens are fresh (~24h expiry).
     private func prepareAndPlay() async {
         isPreparingPlayback = true
@@ -532,13 +857,15 @@ struct PostDetailView: View {
                 // The detail view is still showing (post != nil), so surface
                 // this via the playback alert rather than errorMessage, which
                 // only renders when the whole page failed to load.
-                presentPlaybackError("No playable media URL was returned for this post.")
+                presentPlaybackError(L10n.string("No playable media URL was returned for this post."))
                 mediaURL = nil
                 return
             }
             mediaURL = source.url
             log.info("Starting playback host=\(source.url.host() ?? "?") ext=\(source.url.pathExtension)")
             playbackSource = source
+            // Resolve the next post up front so the Up Next card is instant.
+            Task { await preloadNext() }
         } catch {
             presentPlaybackError(
                 (error as? PatreonError)?.errorDescription ?? error.localizedDescription

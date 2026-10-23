@@ -167,7 +167,11 @@ final class PatreonClient {
 
     /// GET /api/stream — the fan's home feed of posts from creators they follow.
     /// Requires a session_id cookie; returns empty with OAuth Bearer alone.
-    func homeFeed(cursor: String? = nil, limit: Int = 20) async throws -> Page<Post> {
+    func homeFeed(
+        cursor: String? = nil,
+        limit: Int = 20,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> Page<Post> {
         var qi: [URLQueryItem] = [
             URLQueryItem(name: "include", value: "user,campaign,attachments_media,post_file,media,audio,images"),
             URLQueryItem(name: "fields[post]", value: PostFields.default),
@@ -179,7 +183,7 @@ final class PatreonClient {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
         let url = baseURL.appending(path: "stream").appending(queryItems: qi)
-        return try await fetch(Page<Post>.self, from: url)
+        return try await fetch(Page<Post>.self, from: url, cachePolicy: cachePolicy)
     }
 
     /// Creators the user supports — parsed from `/api/current_user` includes.
@@ -195,21 +199,29 @@ final class PatreonClient {
     }
 
     /// GET /api/campaigns/{id} — one campaign's public info.
-    func campaign(id: String) async throws -> SingleResource<Campaign> {
+    func campaign(
+        id: String,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> SingleResource<Campaign> {
         let url = baseURL.appending(path: "campaigns/\(id)")
             .appending(queryItems: [
                 URLQueryItem(name: "fields[campaign]", value: [
                     "name", "vanity", "url", "summary", "creation_name",
                     "patron_count", "is_nsfw", "image_url", "image_small_url",
                     "cover_photo_url", "main_video_url", "main_video_embed",
-                    "has_rss", "rss_feed_title",
+                    "has_rss", "rss_feed_title", "post_count",
                 ].joined(separator: ",")),
             ])
-        return try await fetch(SingleResource<Campaign>.self, from: url)
+        return try await fetch(SingleResource<Campaign>.self, from: url, cachePolicy: cachePolicy)
     }
 
     /// GET /api/campaigns/{id}/posts — posts on one campaign.
-    func campaignPosts(campaignID: String, cursor: String? = nil, limit: Int = 20) async throws -> Page<Post> {
+    func campaignPosts(
+        campaignID: String,
+        cursor: String? = nil,
+        limit: Int = 20,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> Page<Post> {
         var qi: [URLQueryItem] = [
             URLQueryItem(name: "include", value: "attachments_media,post_file,media,audio,images"),
             URLQueryItem(name: "fields[post]", value: PostFields.default),
@@ -220,22 +232,144 @@ final class PatreonClient {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
         let url = baseURL.appending(path: "campaigns/\(campaignID)/posts").appending(queryItems: qi)
-        return try await fetch(Page<Post>.self, from: url)
+        return try await fetch(Page<Post>.self, from: url, cachePolicy: cachePolicy)
+    }
+
+    /// GET /api/stream filtered to one campaign, optionally limited to a set of
+    /// post types. `/campaigns/{id}/posts` ignores `filter[post_type]`, but
+    /// `/api/stream` honours `filter[campaign_id]` and a comma-separated
+    /// `filter[post_type]`.
+    func campaignStream(
+        campaignID: String,
+        postTypes: [Post.PostType],
+        cursor: String? = nil,
+        limit: Int = 30,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> Page<Post> {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "filter[campaign_id]", value: campaignID),
+            URLQueryItem(name: "include", value: "user,campaign,attachments_media,post_file,media,audio,images"),
+            URLQueryItem(name: "fields[post]", value: PostFields.default),
+            URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,cover_photo_url,url,creation_name,patron_count,is_nsfw"),
+            URLQueryItem(name: "fields[media]", value: MediaFields.default),
+            URLQueryItem(name: "page[count]", value: String(limit)),
+        ]
+        if !postTypes.isEmpty {
+            qi.append(URLQueryItem(
+                name: "filter[post_type]",
+                value: postTypes.map(\.rawValue).joined(separator: ",")
+            ))
+        }
+        if let cursor {
+            qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
+        let url = baseURL.appending(path: "stream").appending(queryItems: qi)
+        return try await fetch(Page<Post>.self, from: url, cachePolicy: cachePolicy)
+    }
+
+    /// GET /api/campaigns/{id}?include=collections — the creator's collections.
+    /// There is no `/collections` endpoint; they arrive as `included`.
+    func collections(
+        campaignID: String,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> [PatreonCollection] {
+        let url = baseURL.appending(path: "campaigns/\(campaignID)")
+            .appending(queryItems: [
+                URLQueryItem(name: "include", value: "collections"),
+                URLQueryItem(name: "fields[campaign]", value: "name"),
+            ])
+        let doc = try await fetch(SingleResource<Campaign>.self, from: url, cachePolicy: cachePolicy)
+        return (doc.included ?? []).compactMap { inc in
+            if case .collection(let collection) = inc { return collection }
+            return nil
+        }
+    }
+
+    /// GET /api/collection/{id}?include=posts — one collection with all of its
+    /// posts in `included`, in a single response. (The `/campaigns/{id}/posts`
+    /// endpoint ignores `filter[collection_id]`, so this is the only reliable
+    /// way to fetch a collection's posts.)
+    func collection(
+        id: String,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> SingleResource<PatreonCollection> {
+        let url = baseURL.appending(path: "collection/\(id)")
+            .appending(queryItems: [
+                URLQueryItem(name: "include", value: "posts"),
+                URLQueryItem(name: "fields[post]", value: PostFields.default),
+            ])
+        return try await fetch(SingleResource<PatreonCollection>.self, from: url, cachePolicy: cachePolicy)
     }
 
     /// GET /api/posts/{id} — a single post with media includes.
     /// Returns the full document; callers walk `included` for the Media
     /// resource containing the Mux HLS URL.
-    func post(id: String) async throws -> SingleResource<Post> {
+    func post(
+        id: String,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> SingleResource<Post> {
         let url = baseURL.appending(path: "posts/\(id)")
             .appending(queryItems: [
-                URLQueryItem(name: "include", value: "campaign,user,attachments_media,post_file,audio,media,images"),
+                URLQueryItem(name: "include", value: "campaign,user,attachments_media,post_file,audio,media,images,collections,poll"),
                 URLQueryItem(name: "fields[post]", value: PostFields.full),
                 URLQueryItem(name: "fields[media]", value: MediaFields.full),
                 URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,url,is_nsfw"),
+                URLQueryItem(name: "fields[poll]", value: "question_text,question_type,num_responses,closes_at"),
+                URLQueryItem(name: "fields[poll_choice]", value: "text_content,position,num_responses"),
             ])
-        return try await fetch(SingleResource<Post>.self, from: url)
+        return try await fetch(SingleResource<Post>.self, from: url, cachePolicy: cachePolicy)
     }
+
+    /// GET /api/posts/{id}/comments2 — top-level comments only, each carrying a
+    /// `reply_count`. Replies are fetched per comment via `replies(commentID:)`.
+    func comments(
+        postID: String,
+        sort: CommentSort = .best,
+        cursor: String? = nil,
+        limit: Int = 50
+    ) async throws -> CommentPage {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "include", value: "commenter"),
+            URLQueryItem(name: "fields[comment]", value: Self.commentFields),
+            URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
+            URLQueryItem(name: "page[count]", value: String(limit)),
+            URLQueryItem(name: "sort", value: sort.apiValue),
+            URLQueryItem(name: "json-api-version", value: "1.0"),
+            URLQueryItem(name: "json-api-use-default-includes", value: "false"),
+        ]
+        if let cursor {
+            qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
+        let url = baseURL.appending(path: "posts/\(postID)/comments2").appending(queryItems: qi)
+        return try await fetch(CommentPage.self, from: url)
+    }
+
+    /// GET /api/comments/{id}/replies2 — direct replies, oldest first.
+    func replies(
+        commentID: String,
+        cursor: String? = nil,
+        limit: Int = 50
+    ) async throws -> CommentPage {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "include", value: "commenter"),
+            URLQueryItem(name: "fields[comment]", value: Self.commentFields),
+            URLQueryItem(name: "fields[user]", value: "full_name,image_url,url"),
+            URLQueryItem(name: "page[count]", value: String(limit)),
+            URLQueryItem(name: "sort", value: "created"),
+            URLQueryItem(name: "json-api-version", value: "1.0"),
+            URLQueryItem(name: "json-api-use-default-includes", value: "false"),
+        ]
+        if let cursor {
+            qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
+        let url = baseURL.appending(path: "comments/\(commentID)/replies2").appending(queryItems: qi)
+        return try await fetch(CommentPage.self, from: url)
+    }
+
+    private static let commentFields = [
+        "body", "created", "deleted_at", "is_by_creator", "is_by_patron",
+        "vote_sum", "reply_count",
+    ].joined(separator: ",")
 
     /// GET /api/search — Patreon's internal search. Returns `campaign-document`
     /// resources (creators) with all fields inline; there is no `included` array.
@@ -257,12 +391,15 @@ final class PatreonClient {
     /// GETs with bounded retry: 429s honor Retry-After (capped), 5xx and
     /// transient URLErrors back off exponentially. All requests here are
     /// idempotent reads, so retrying is safe.
-    private func get(_ url: URL) async throws -> (Data, HTTPURLResponse) {
+    private func get(
+        _ url: URL,
+        cachePolicy: URLRequest.CachePolicy
+    ) async throws -> (Data, HTTPURLResponse) {
         var attempt = 0
         while true {
             attempt += 1
             do {
-                return try await performGET(url)
+                return try await performGET(url, cachePolicy: cachePolicy)
             } catch {
                 guard attempt < maxAttempts,
                       let delay = Self.retryDelay(for: error, attempt: attempt)
@@ -294,9 +431,13 @@ final class PatreonClient {
         }
     }
 
-    private func performGET(_ url: URL) async throws -> (Data, HTTPURLResponse) {
+    private func performGET(
+        _ url: URL,
+        cachePolicy: URLRequest.CachePolicy
+    ) async throws -> (Data, HTTPURLResponse) {
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
+        req.cachePolicy = cachePolicy
         req.setValue("https://www.patreon.com/", forHTTPHeaderField: "Referer")
         if let sessionID {
             req.setValue("session_id=\(sessionID)", forHTTPHeaderField: "Cookie")
@@ -330,8 +471,12 @@ final class PatreonClient {
 
     /// Fetches and decodes off the main actor. Decoding a 30-post page with
     /// includes is heavy enough to hitch the focus engine if done on main.
-    private func fetch<T: Decodable & Sendable>(_ type: T.Type, from url: URL) async throws -> T {
-        let (data, _) = try await get(url)
+    private func fetch<T: Decodable & Sendable>(
+        _ type: T.Type,
+        from url: URL,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> T {
+        let (data, _) = try await get(url, cachePolicy: cachePolicy)
         return try await Self.decodeDetached(type, from: data)
     }
 
@@ -356,13 +501,13 @@ enum PatreonError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unauthorized: "Your session has expired. Please sign in again."
-        case .forbidden: "You don't have permission to view this content."
-        case .notFound: "This page could not be found."
-        case .rateLimited(let s): "Patreon is rate-limiting us. Try again in \(Int(s))s."
-        case .http(let status, _): "Patreon returned HTTP \(status)."
-        case .badResponse: "Unexpected response from Patreon."
-        case .decoding(let underlying): "Could not read response: \(underlying)"
+        case .unauthorized: L10n.string("error.sessionExpired")
+        case .forbidden: L10n.string("error.forbidden")
+        case .notFound: L10n.string("error.notFound")
+        case .rateLimited(let s): L10n.format("format.rateLimited", Int(s))
+        case .http(let status, _): L10n.format("format.httpError", status)
+        case .badResponse: L10n.string("error.badResponse")
+        case .decoding(let underlying): L10n.format("format.decodingError", String(describing: underlying))
         }
     }
 }
@@ -374,13 +519,13 @@ enum PostFields {
     static let `default` = [
         "title", "teaser", "post_type", "published_at",
         "thumbnail", "thumbnail_url", "image", "meta_image_url",
-        "url", "is_paid", "current_user_can_view", "content",
+        "url", "is_paid", "current_user_can_view", "content", "content_json_string",
         "embed_url", "embed",
     ].joined(separator: ",")
 
     /// Everything a post detail screen might need.
     static let full = [
-        "title", "content", "teaser", "post_type", "published_at",
+        "title", "content", "content_json_string", "teaser", "post_type", "published_at",
         "thumbnail", "thumbnail_url", "image", "meta_image_url",
         "url", "is_paid", "current_user_can_view",
         "embed_url", "embed", "post_file", "video_preview",

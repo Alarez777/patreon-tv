@@ -13,8 +13,18 @@ import os
 
 struct CreatorsView: View {
 
+    /// When the app opens pinned to Creators, focus the first card instead of
+    /// leaving focus on the tab bar.
+    var focusFirstCardOnEntry: Bool = false
+
     @State private var vm = CreatorsViewModel()
     @State private var prefs = ContentPreferences.shared
+    /// Navigation path, so a Creator page here can start playback within this
+    /// tab (remote Play button on a focused post).
+    @State private var path: [DeepLinkDestination] = []
+
+    @FocusState private var focusedCardID: String?
+    @State private var didFocusFirstCard = false
 
     /// Entries after applying the mature-content gate.
     private var visibleEntries: [CreatorsViewModel.Entry] {
@@ -24,7 +34,7 @@ struct CreatorsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 switch vm.state {
                 case .idle, .loading:
@@ -39,7 +49,10 @@ struct CreatorsView: View {
             }
             .task { await vm.load() }
             .background(PatreonColors.background.ignoresSafeArea())
-            .appNavigationDestinations()
+            .appNavigationDestinations(
+                onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: $1, queue: nil, source: .channels)) },
+                onPlayCollection: { path.playCollection(collectionID: $0, postID: $1) }
+            )
         }
     }
 
@@ -55,11 +68,29 @@ struct CreatorsView: View {
                         CreatorCard(campaign: entry.campaign)
                     }
                     .buttonStyle(.card)
+                    .focused($focusedCardID, equals: entry.campaign.id)
                 }
             }
             .padding(60)
         }
         .scrollClipDisabled()
+        // Keyed on the first entry id and the enabled flag so it fires once
+        // entries decode, and is cancelled if the page navigates away mid-delay
+        // (so the launch focus can't steal focus from a pushed creator).
+        .task(id: focusTaskID) {
+            guard focusFirstCardOnEntry, path.isEmpty, !didFocusFirstCard,
+                  let first = visibleEntries.first?.id else { return }
+            didFocusFirstCard = true
+            try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
+            focusedCardID = first
+        }
+    }
+
+    /// Identity for the focus task. Includes the flag/path so navigating away
+    /// cancels the pending focus instead of letting it fire under a pushed page.
+    private var focusTaskID: String {
+        "\(visibleEntries.first?.id ?? "")|\(focusFirstCardOnEntry && path.isEmpty)"
     }
 }
 
@@ -101,7 +132,7 @@ struct CreatorCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(campaign.attributes.name ?? "Unknown creator")
+                Text(campaign.attributes.name ?? L10n.string("Unknown creator"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(1)
@@ -117,7 +148,7 @@ struct CreatorCard: View {
         }
         .frame(width: cardWidth, alignment: .top)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(campaign.attributes.name ?? "Creator"), \(campaign.attributes.creationName ?? "")")
+        .accessibilityLabel(L10n.format("format.accessibilityCreator", campaign.attributes.name ?? L10n.string("Creator"), campaign.attributes.creationName ?? ""))
     }
 
     /// A colored tile with the creator's initial, used when no avatar loads.

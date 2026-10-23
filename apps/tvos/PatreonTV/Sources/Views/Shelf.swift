@@ -17,8 +17,8 @@ struct Shelf: View {
 
     let title: String
     let posts: [Post]
-    /// Optional lookup: given a post, return its owning Campaign. Enables
-    /// creator names in the focused-poster metadata for the hero band.
+    /// Optional lookup: given a post, return its owning Campaign, so each card
+    /// can show the creator's name.
     var campaignFor: ((Post) -> Campaign?)? = nil
     /// Called when the shelf's data source should page in more items — we pass
     /// the last-visible post so the caller can decide whether to fetch more.
@@ -27,6 +27,25 @@ struct Shelf: View {
     /// to the creator's page). Shown with the optional avatar.
     var headerLink: DeepLinkDestination? = nil
     var headerAvatarURL: URL? = nil
+    /// Called when the user presses Play/Pause on a focused card: open the post
+    /// and start playback directly, skipping the detail screen's Play button.
+    /// Args: post id, the shelf's playback queue (see `playbackQueue`), and its
+    /// autoplay source.
+    var onPlay: ((String, [String]?, AutoplaySource) -> Void)? = nil
+    /// Ordered playable post IDs for this shelf, in display order (left→right).
+    /// Passed into the detail so Up Next follows the shelf instead of the
+    /// creator's feed. Nil keeps the default (creator-feed) behavior.
+    var playbackQueue: [String]? = nil
+    /// Where this shelf's posts came from; each source has its own autoplay
+    /// preference.
+    var playbackSource: AutoplaySource = .channels
+    /// When true, the shelf takes focus on its first card once posts are
+    /// available. Used for Home's leading shelf when the app opens on a pinned
+    /// tab, so focus lands in the content instead of the tab bar.
+    var focusFirstCardOnEntry: Bool = false
+
+    @FocusState private var focusedPostID: String?
+    @State private var didFocusFirstCard = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -35,11 +54,19 @@ struct Shelf: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 32) {
                     ForEach(posts) { post in
-                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                        NavigationLink(value: DeepLinkDestination.post(
+                            id: post.id,
+                            autoplay: false,
+                            collectionID: nil,
+                            queue: playbackQueue,
+                            source: playbackSource
+                        )) {
                             PostCard(post: post, campaign: campaignFor?(post))
                         }
                         .buttonStyle(.card)   // Native tvOS focus effect (parallax + lift)
-                        .focusedValue(\.focusedPoster, focusedPoster(for: post))
+                        .postActionsMenu(post: post)
+                        .focused($focusedPostID, equals: post.id)
+                        .onPlayPauseCommand { onPlay?(post.id, playbackQueue, playbackSource) }
                         .onAppear {
                             // Cheap heuristic: if we're within 5 of the end,
                             // ask for more. Real prefetch policy lives in the
@@ -56,6 +83,23 @@ struct Shelf: View {
             .scrollClipDisabled()
         }
         .focusSection()
+        // Keyed on the first post id and the enabled flag so it fires once posts
+        // decode, and is *cancelled* if focus-on-entry is withdrawn mid-delay
+        // (e.g. a deep link pushes a detail page right after launch), so the
+        // launch focus can never steal focus from a pushed page.
+        .task(id: focusTaskID) {
+            guard focusFirstCardOnEntry, !didFocusFirstCard, let first = posts.first?.id else { return }
+            didFocusFirstCard = true
+            try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
+            focusedPostID = first
+        }
+    }
+
+    /// Identity for the focus task. Includes the flag so a later `false` cancels
+    /// the pending focus instead of letting it fire under a pushed page.
+    private var focusTaskID: String {
+        "\(posts.first?.id ?? "")|\(focusFirstCardOnEntry)"
     }
 
     @ViewBuilder
@@ -83,7 +127,7 @@ struct Shelf: View {
             }
             .buttonStyle(.bordered)
             .padding(.horizontal, 60)
-            .accessibilityLabel("\(title), view creator")
+            .accessibilityLabel(L10n.format("format.accessibilityCollection", title))
         } else {
             Text(title)
                 .font(.title2.weight(.semibold))
@@ -91,18 +135,5 @@ struct Shelf: View {
                 .padding(.horizontal, 60)
                 .accessibilityAddTraits(.isHeader)
         }
-    }
-
-    private func focusedPoster(for post: Post) -> FocusedPoster {
-        let campaign = campaignFor?(post)
-        return FocusedPoster(
-            postID: post.id,
-            title: post.attributes.title,
-            heroImageURL: post.attributes.posterImageURL,
-            creatorName: campaign?.attributes.name,
-            campaignID: campaign?.id ?? post.relationships?.campaign?.data?.id,
-            publishedAt: post.attributes.publishedAt,
-            isPaid: post.attributes.isPaid ?? false
-        )
     }
 }

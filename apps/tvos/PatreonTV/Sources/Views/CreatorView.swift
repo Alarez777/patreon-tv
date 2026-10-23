@@ -14,9 +14,15 @@ struct CreatorView: View {
 
     let campaignID: String
     var membership: Membership?
+    /// Opens a post and starts playback directly (remote Play button on a focused
+    /// card). Supplied by the hosting tab's navigation stack.
+    var onPlayPost: ((String, String?) -> Void)? = nil
 
     @State private var vm = CreatorViewModel()
     @FocusState private var heroFocused: Bool
+    /// Initial focus lands on the Collections button so the creator's
+    /// collections are the first action offered.
+    @FocusState private var collectionsFocused: Bool
 
     var body: some View {
         Group {
@@ -29,7 +35,16 @@ struct CreatorView: View {
                 ErrorView(message: m) { Task { await vm.reload(campaignID: campaignID) } }
             }
         }
-        .task { await vm.load(campaignID: campaignID) }
+        .task {
+            await vm.load(campaignID: campaignID)
+            // A pushed page otherwise leaves focus on the tab bar. Move it onto
+            // the Collections button once the content is on screen.
+            try? await Task.sleep(for: .milliseconds(200))
+            collectionsFocused = true
+        }
+        .onAppear {
+            Task { await vm.refreshIfStale(campaignID: campaignID) }
+        }
         .background(PatreonColors.background.ignoresSafeArea())
     }
 
@@ -56,7 +71,7 @@ struct CreatorView: View {
                 .accessibilityIdentifier("creator-hero")
 
                 if let summary = vm.campaign?.attributes.summary, !summary.isEmpty {
-                    aboutSection(summary: summary)
+                    summarySection(summary: summary)
                 }
 
                 postsHeader
@@ -66,6 +81,7 @@ struct CreatorView: View {
             .padding(.bottom, 60)
         }
         .scrollClipDisabled()
+        .defaultFocus($collectionsFocused, true)
     }
 
     private var postsHeader: some View {
@@ -74,13 +90,27 @@ struct CreatorView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
             Spacer()
+
+            filterMenu
+
+            NavigationLink(value: DeepLinkDestination.collections(campaignID: campaignID)) {
+                Label("Collections", systemImage: "square.stack")
+                    .font(.title3.weight(.semibold))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(.bordered)
+            .focused($collectionsFocused)
+            .accessibilityIdentifier("creator-collections")
+            .accessibilityLabel(Text("Collections"))
+
             // Destination-style link is deliberate here: the view model isn't
             // Hashable/Codable, so it can't be a DeepLinkDestination value. This
             // push is never mixed with programmatic path writes, so it's safe.
             // Passing the shared VM (not a snapshot) lets search cover the whole
             // catalog as pages stream in.
             NavigationLink {
-                CreatorPostSearchView(vm: vm, campaignID: campaignID)
+                CreatorPostSearchView(vm: vm, campaignID: campaignID, onPlayPost: onPlayPost)
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.title3.weight(.semibold))
@@ -88,7 +118,8 @@ struct CreatorView: View {
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
-            .accessibilityLabel("Search this creator's posts")
+            .accessibilityIdentifier("creator-search")
+            .accessibilityLabel(Text("Search this creator's posts"))
         }
         .padding(.horizontal, 60)
         // Full-width focus target: lets "up" from any grid card (incl. left
@@ -96,14 +127,54 @@ struct CreatorView: View {
         .focusSection()
     }
 
+    /// Content-type filter, next to Collections. Only categories with posts are
+    /// listed, each with its count from the campaign's `post_count` map.
+    private var filterMenu: some View {
+        let counts = vm.campaign?.attributes.postCount
+        let available = CreatorPostFilter.allCases.filter { filter in
+            filter == .all || (filter.count(in: counts) ?? 0) > 0
+        }
+        return Menu {
+            ForEach(available) { filter in
+                Button {
+                    Task { await vm.select(filter: filter, campaignID: campaignID) }
+                } label: {
+                    if filter == vm.selectedFilter {
+                        Label(filterItemTitle(filter, counts: counts), systemImage: "checkmark")
+                    } else {
+                        Text(filterItemTitle(filter, counts: counts))
+                    }
+                }
+            }
+        } label: {
+            Label(filterMenuLabel, systemImage: "line.3.horizontal.decrease.circle")
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityLabel(Text("Filter posts by type"))
+    }
+
+    private func filterItemTitle(_ filter: CreatorPostFilter, counts: Campaign.PostCount?) -> String {
+        guard filter != .all, let count = filter.count(in: counts) else { return filter.title }
+        return "\(filter.title) (\(L10n.number(count)))"
+    }
+
+    private var filterMenuLabel: String {
+        vm.selectedFilter == .all ? L10n.string("Filter") : vm.selectedFilter.title
+    }
+
     @ViewBuilder
     private var postsGrid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(vm.posts) { post in
-                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: nil, source: .channels)) {
                     PostCard(post: post, campaign: vm.campaign)
                 }
                 .buttonStyle(.card)
+                .postActionsMenu(post: post)
+                .onPlayPauseCommand { onPlayPost?(post.id, nil) }
                 .onAppear {
                     // Keep the feed loading forever as you scroll.
                     Task { await vm.loadMore(campaignID: campaignID, current: post) }
@@ -139,14 +210,22 @@ struct CreatorView: View {
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
 
-                if let creation = vm.campaign?.attributes.creationName,
-                   !creation.isEmpty {
-                    // creation_name is already a full phrase (e.g. "creating
-                    // YouTube videos…" / "Creating Drunk Content"); show as-is.
-                    Text(creation)
-                        .font(.title3)
-                        .foregroundStyle(.white.opacity(0.85))
+                HStack(alignment: .firstTextBaseline, spacing: 24) {
+                    if let creation = vm.campaign?.attributes.creationName,
+                       !creation.isEmpty {
+                        // creation_name is already a full phrase (e.g. "creating
+                        // YouTube videos…" / "Creating Drunk Content"); show as-is.
+                        Text(creation)
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    heroStats
                 }
+                .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 60)
             .padding(.bottom, 60)
@@ -184,7 +263,11 @@ struct CreatorView: View {
         HStack(spacing: 6) {
             Image(systemName: "heart.fill")
             let cents = membership?.attributes.currentlyEntitledAmountCents ?? 0
-            Text(cents > 0 ? "Supporting at $\(formatCents(cents))" : "Supporting")
+            Text(
+                cents > 0
+                    ? L10n.format("format.supportingAt", formatCents(cents))
+                    : L10n.string("Supporting")
+            )
         }
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 12)
@@ -194,23 +277,45 @@ struct CreatorView: View {
         .clipShape(Capsule())
     }
 
-    private func aboutSection(summary: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("About")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(PatreonColors.primaryText)
-            Text(HTMLRenderer.stripToPlainText(summary))
-                .font(.body)
-                .foregroundStyle(PatreonColors.secondaryText)
-                .lineLimit(3)
-                .frame(maxWidth: 1400, alignment: .leading)
+    private func summarySection(summary: String) -> some View {
+        Text(HTMLRenderer.stripToPlainText(summary))
+            .font(.body)
+            .foregroundStyle(PatreonColors.secondaryText)
+            .lineLimit(3)
+            .frame(maxWidth: 1400, alignment: .leading)
+            .padding(.horizontal, 60)
+    }
+
+    @ViewBuilder
+    private var heroStats: some View {
+        let members = vm.campaign?.attributes.patronCount
+        let posts = vm.campaign?.attributes.postCount?.total
+
+        if members != nil || posts != nil {
+            HStack(spacing: 16) {
+                if let members {
+                    Label(L10n.count(members, one: "count.members.one", other: "count.members.other"), systemImage: "person.2.fill")
+                }
+                if members != nil, posts != nil {
+                    Text("·").foregroundStyle(.white.opacity(0.5))
+                }
+                if let posts {
+                    Label(L10n.count(posts, one: "count.posts.one", other: "count.posts.other"), systemImage: "square.grid.2x2.fill")
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.white.opacity(0.85))
+            .shadow(color: .black.opacity(0.5), radius: 4, y: 1)
         }
-        .padding(.horizontal, 60)
     }
 
     private func formatCents(_ cents: Int) -> String {
         let dollars = Double(cents) / 100.0
-        return String(format: "%.2f", dollars)
+        return String(
+            format: "%.2f",
+            locale: AppLanguage.current.locale,
+            dollars
+        )
     }
 }
 
@@ -222,6 +327,7 @@ private struct CreatorPostSearchView: View {
 
     let vm: CreatorViewModel
     let campaignID: String
+    let onPlayPost: ((String, String?) -> Void)?
 
     @State private var query: String = ""
 
@@ -246,10 +352,12 @@ private struct CreatorPostSearchView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 40) {
                     ForEach(results) { post in
-                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false)) {
+                        NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: nil, queue: nil, source: .channels)) {
                             PostCard(post: post, campaign: vm.campaign)
                         }
                         .buttonStyle(.card)
+                        .postActionsMenu(post: post)
+                        .onPlayPauseCommand { onPlayPost?(post.id, nil) }
                     }
                 }
                 .padding(60)
@@ -261,15 +369,31 @@ private struct CreatorPostSearchView: View {
             }
         }
         .scrollClipDisabled()
-        .searchable(text: $query, prompt: "Search \(vm.campaign?.attributes.name ?? "posts")")
+        .searchable(
+            text: $query,
+            prompt: L10n.format(
+                "format.searchPosts",
+                vm.campaign?.attributes.name ?? L10n.string("Posts")
+            )
+        )
         .background(PatreonColors.background.ignoresSafeArea())
-        // Pull the rest of the catalog so search isn't limited to loaded pages.
-        .task { await vm.loadAllRemaining(campaignID: campaignID) }
+        // Search covers the whole catalog, so drop any content-type filter the
+        // grid had applied, then pull every remaining page.
+        .task {
+            if vm.selectedFilter != .all {
+                await vm.select(filter: .all, campaignID: campaignID)
+            }
+            await vm.loadAllRemaining(campaignID: campaignID)
+        }
     }
 
     private var emptyMessage: String {
-        if query.isEmpty { return vm.isLoadingAll ? "Loading posts…" : "Type to search" }
-        return vm.isLoadingAll ? "Searching…" : "No posts match \"\(query)\""
+        if query.isEmpty {
+            return vm.isLoadingAll ? L10n.string("Loading posts…") : L10n.string("Type to search")
+        }
+        return vm.isLoadingAll
+            ? L10n.string("Searching…")
+            : L10n.format("format.noPostsMatch", query)
     }
 }
 
@@ -285,6 +409,10 @@ final class CreatorViewModel {
     private(set) var isLoadingAll = false
     private var nextCursor: String?
     private var isFetchingMore = false
+    private var isRefreshing = false
+    private var lastRefreshAt: Date?
+    /// Active content-type filter for the grid.
+    private(set) var selectedFilter: CreatorPostFilter = .all
 
     /// True while more pages remain to fetch.
     var hasMore: Bool { nextCursor != nil }
@@ -300,15 +428,93 @@ final class CreatorViewModel {
         state = .loading
         do {
             async let campaignTask = PatreonClient.shared.campaign(id: campaignID)
-            async let postsTask = PatreonClient.shared.campaignPosts(campaignID: campaignID, limit: 30)
+            async let postsTask = PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: selectedFilter.postTypes,
+                limit: 30
+            )
             let (campaignDoc, postsPage) = try await (campaignTask, postsTask)
             self.campaign = campaignDoc.data
             self.posts = postsPage.data
             self.nextCursor = postsPage.nextCursor
+            self.lastRefreshAt = Date()
             state = .loaded
         } catch {
             log.error("Creator load failed: \(String(describing: error))")
             state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Switch the content-type filter and reload the first page.
+    func select(filter: CreatorPostFilter, campaignID: String) async {
+        guard filter != selectedFilter else { return }
+        selectedFilter = filter
+        posts = []
+        nextCursor = nil
+        state = .loading
+        do {
+            let page = try await PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: filter.postTypes,
+                limit: 30
+            )
+            posts = page.data
+            nextCursor = page.nextCursor
+            lastRefreshAt = Date()
+            state = .loaded
+        } catch {
+            log.error("Creator filter load failed: \(String(describing: error))")
+            state = .error((error as? PatreonError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Re-fetch the newest page when the creator page comes back into view.
+    func refreshIfStale(
+        campaignID: String,
+        minInterval: TimeInterval = ContentRefresh.pageMinInterval
+    ) async {
+        guard state == .loaded else { return }
+        if let last = lastRefreshAt, Date().timeIntervalSince(last) < minInterval {
+            return
+        }
+        await refresh(campaignID: campaignID)
+    }
+
+    /// Silent first-page refresh: merges new posts in, keeps the deeper
+    /// pagination cursor, and leaves the visible grid alone when nothing changed.
+    func refresh(campaignID: String) async {
+        guard state == .loaded, !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        let filter = selectedFilter
+        do {
+            async let campaignTask = PatreonClient.shared.campaign(
+                id: campaignID,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            async let postsTask = PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: filter.postTypes,
+                limit: 30,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            let (campaignDoc, postsPage) = try await (campaignTask, postsTask)
+
+            // The viewer may have switched filters while we were fetching.
+            guard state == .loaded, selectedFilter == filter else { return }
+
+            campaign = campaignDoc.data
+            let outcome = FeedMerge.merge(existing: posts, incoming: postsPage.data)
+            if outcome.changed {
+                posts = outcome.posts
+                if nextCursor == nil { nextCursor = postsPage.nextCursor }
+            }
+            lastRefreshAt = Date()
+        } catch is CancellationError {
+            // Left the page; keep what we had.
+        } catch {
+            log.error("Creator refresh failed: \(String(describing: error))")
         }
     }
 
@@ -320,7 +526,12 @@ final class CreatorViewModel {
         isFetchingMore = true
         defer { isFetchingMore = false }
         do {
-            let page = try await PatreonClient.shared.campaignPosts(campaignID: campaignID, cursor: cursor, limit: 30)
+            let page = try await PatreonClient.shared.campaignStream(
+                campaignID: campaignID,
+                postTypes: selectedFilter.postTypes,
+                cursor: cursor,
+                limit: 30
+            )
             append(page.data)
             nextCursor = page.nextCursor
         } catch {
@@ -341,8 +552,11 @@ final class CreatorViewModel {
         while let cursor = nextCursor, pages < 50, !Task.isCancelled {
             pages += 1
             do {
-                let page = try await PatreonClient.shared.campaignPosts(
-                    campaignID: campaignID, cursor: cursor, limit: 60
+                let page = try await PatreonClient.shared.campaignStream(
+                    campaignID: campaignID,
+                    postTypes: selectedFilter.postTypes,
+                    cursor: cursor,
+                    limit: 60
                 )
                 append(page.data)
                 nextCursor = page.nextCursor

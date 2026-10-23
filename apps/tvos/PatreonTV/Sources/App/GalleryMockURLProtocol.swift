@@ -4,7 +4,7 @@
 //
 //  DEBUG-only offline stub for the Patreon API. Activated with GALLERY_MOCK=1
 //  alongside gallery mode. Lets UI tests and screenshot captures render a
-//  fully-populated Home (hero, Continue Watching, creator rows) with no
+//  fully-populated Home (feed, Continue Watching, creator rows) with no
 //  network and no session cookie.
 //
 //  Routed by URL path; every response is a minimal-but-valid JSON:API

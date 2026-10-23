@@ -6,6 +6,13 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>PatreonTV</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>es</string>
+		<string>pt-BR</string>
+		<string>fr</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -50,8 +57,6 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>PairingBaseURL</key>
-	<string>$(PAIRING_BASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

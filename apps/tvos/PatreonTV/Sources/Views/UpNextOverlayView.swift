@@ -2,9 +2,9 @@
 //  UpNextOverlayView.swift
 //  PatreonTV
 //
-//  Netflix-style "Up Next" card shown over the player when an item finishes.
-//  With autoplay enabled it counts down and auto-advances; otherwise it waits
-//  for the user. Escapable at all times (FOCUS rules: no traps).
+//  Visual "Up Next" card shown over the player in the final seconds. It's a
+//  preview only — the actionable controls are the player's native
+//  `contextualActions` (Next / Cancel), so they get system focus.
 //
 
 import NukeUI
@@ -14,42 +14,20 @@ struct UpNextOverlayView: View {
 
     let post: Post
     let creatorName: String?
-    /// Seconds until auto-advance; nil disables the countdown ("Autoplay next"
-    /// setting off).
-    let countdownSeconds: Int?
-    let onPlay: () -> Void
-    let onDismiss: () -> Void
-
-    @State private var remaining: Int = .max
-    @Namespace private var focusNamespace
+    /// Seconds left before auto-advance; nil hides the countdown ("Autoplay
+    /// next" setting off). Driven by the player so it matches the video.
+    let countdown: Int?
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            // Dim the (ended) video behind so the card reads at 10 feet.
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.85)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        // Fill the screen and anchor the card bottom-trailing so it reads as
+        // part of the native action buttons. No full-screen dim (it would
+        // darken those buttons).
+        card
+            .padding(.trailing, 80)
+            // Sit above the native contextual-action buttons.
+            .padding(.bottom, 200)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             .allowsHitTesting(false)
-
-            card
-                .padding(.trailing, 80)
-                .padding(.bottom, 80)
-        }
-        // Claim focus from the (ended) player so the buttons are usable.
-        .focusScope(focusNamespace)
-        .task {
-            guard let total = countdownSeconds else { return }
-            remaining = total
-            while remaining > 0 {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { return }
-                remaining -= 1
-            }
-            onPlay()
-        }
     }
 
     private var card: some View {
@@ -62,7 +40,7 @@ struct UpNextOverlayView: View {
                     .foregroundStyle(PatreonColors.brand)
                     .textCase(.uppercase)
 
-                Text(post.attributes.title ?? "Untitled")
+                Text(post.attributes.title ?? L10n.string("Untitled"))
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
@@ -73,26 +51,12 @@ struct UpNextOverlayView: View {
                         .foregroundStyle(.white.opacity(0.65))
                         .lineLimit(1)
                 }
-
-                HStack(spacing: 16) {
-                    Button(action: onPlay) {
-                        Label("Play Now", systemImage: "play.fill")
-                            .font(.body.weight(.semibold))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PatreonColors.brand)
-                    .prefersDefaultFocus(in: focusNamespace)
-
-                    Button("Dismiss", action: onDismiss)
-                        .buttonStyle(.bordered)
-                }
-                .padding(.top, 8)
             }
             .frame(maxWidth: 560, alignment: .leading)
         }
         .padding(28)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
     }
 
@@ -116,16 +80,21 @@ struct UpNextOverlayView: View {
     }
 
     private var countdownLabel: String {
-        if countdownSeconds != nil, remaining != .max, remaining >= 0 {
-            return "Up Next in \(remaining)s"
+        if let countdown {
+            return L10n.format("format.upNextIn", max(countdown, 0))
         }
-        return "Up Next"
+        return L10n.string("Up Next")
     }
 
     private var accessibilitySummary: String {
-        var parts = ["Up next: \(post.attributes.title ?? "Untitled")"]
-        if let creatorName { parts.append("from \(creatorName)") }
-        if countdownSeconds != nil { parts.append("playing automatically in \(remaining) seconds") }
+        var parts = [
+            L10n.format(
+                "format.upNextTitle",
+                post.attributes.title ?? L10n.string("Untitled")
+            )
+        ]
+        if let creatorName { parts.append(L10n.format("format.fromCreator", creatorName)) }
+        if let countdown { parts.append(L10n.format("format.autoPlayIn", max(countdown, 0))) }
         return parts.joined(separator: ", ")
     }
 }

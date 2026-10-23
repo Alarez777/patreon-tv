@@ -49,7 +49,7 @@ Real Patreon API responses (redacted) from a paying-patron account. Use these as
 2. **No Ruby anywhere.** `xcode-project-setup` skill's Anti-Ruby Mandate applies to the whole repo.
 3. **No Firebase Crashlytics** — its tvOS support is "official beta". Use Sentry or OSLog+MetricKit.
 4. **No `AsyncImage` in shelves.** Recycles cause flicker. Use `Nuke`.
-5. **Never invent auth mechanisms.** The auth flow is device pairing: the TV requests a code from the pairing portal (`site/functions/api/pairing/*`), the user signs in on their phone/computer at `patreontv.com/link/<code>`, the portal captures the `session_id` cookie, and the TV claims it and stores it in the Keychain. See `apps/tvos/PatreonTV/Sources/Auth/`.
+5. **Never invent auth mechanisms.** The auth flow is manual: the user copies the Patreon `session_id` cookie from a desktop browser's developer tools and pastes it into the TV. The app validates it against Patreon and stores it in the Keychain. There is no pairing portal or intermediary. See `apps/tvos/PatreonTV/Sources/Auth/`.
 6. **Video URLs are ephemeral** — Patreon returns Mux HLS URLs with ~24h token expiry. Never persist them; re-fetch on play.
 7. **Don't commit credentials.** `harness/.env` is gitignored. Add anything sensitive to `.gitignore` before staging.
 8. **Match Swiftfin's file naming conventions** where they exist — we borrow enough patterns from them that consistency helps.

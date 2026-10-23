@@ -2,9 +2,9 @@
 //  HomeViewModel.swift
 //  PatreonTV
 //
-//  Data source for HomeView. Fetches the home feed, keeps a Post → Campaign
-//  lookup for creator names, and exposes a fallback hero item so the top
-//  band has something to show before the user has focused a card.
+//  Data source for HomeView. Fetches the paginated home feed, keeps a
+//  Post → Campaign lookup for creator names, and builds the per-creator rows
+//  and the Continue Watching shelf.
 //
 
 import Foundation
@@ -52,6 +52,22 @@ final class HomeViewModel {
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Home")
 
+    /// Page size for the merged feed (initial load and each "load more"). The
+    /// "New" shelf shows the loaded pages and grows.
+    private let homeFeedPageSize = 20
+    private var homeFeedCursor: String?
+    private var isFetchingHomeFeed = false
+
+    /// Guards silent refreshes so the timer, foreground event and playback-end
+    /// signal can't fire overlapping requests.
+    private var isRefreshing = false
+    /// Last time a refresh was *attempted*. Used to debounce event-driven
+    /// refreshes (foreground, re-appear) without hiding a failed attempt.
+    private var lastRefreshAttempt: Date?
+    /// Creator rows are built after the first paint; a refresh must not merge
+    /// into a partially-built row list.
+    private var isBuildingCreatorRows = false
+
     func load() async {
         guard state == .idle else { return }
         await reload()
@@ -60,24 +76,168 @@ final class HomeViewModel {
     func reload() async {
         state = .loading
         do {
-            let page = try await PatreonClient.shared.homeFeed(limit: 30)
+            let page = try await PatreonClient.shared.homeFeed(limit: homeFeedPageSize)
             homeFeed = page.data
+            homeFeedCursor = page.nextCursor
             indexCampaigns(from: page.included ?? [])
             writeTopShelfSnapshot()
             state = homeFeed.isEmpty ? .empty : .loaded
+            lastRefreshAttempt = Date()
         } catch {
+            // The view went away mid-request (tab switch / app backgrounded).
+            // Reset so the next .task can retry instead of getting stuck.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                state = .idle
+                return
+            }
             log.error("Home feed load failed: \(String(describing: error))")
             state = .error(errorMessage(from: error))
             return
         }
 
         // Creator rows and Continue Watching both load after the first paint
-        // (the hero and merged shelf are already interactive). Run them
-        // concurrently so resolving off-feed Continue Watching posts doesn't
-        // wait on the per-creator pages.
+        // (the merged shelf is already interactive). Run them concurrently so
+        // resolving off-feed Continue Watching posts doesn't wait on the
+        // per-creator pages.
+        //
+        // Block refreshes until the rows exist; otherwise a silent refresh
+        // could merge into (or be overwritten by) the rows being built.
+        isBuildingCreatorRows = true
+        defer { isBuildingCreatorRows = false }
         async let rows: Void = buildCreatorRows()
-        async let continueWatch: Void = rebuildContinueWatching()
+        async let continueWatch: Void = refreshContinueWatching()
         _ = await (rows, continueWatch)
+    }
+
+    /// Page in more of the merged feed when the viewer nears its end. Mirrors
+    /// `loadMoreCreatorRow`: only fires within the last few cards, one request
+    /// at a time, and stops once the stream is exhausted (no cursor).
+    func loadMoreHomeFeed(current: Post) async {
+        guard let cursor = homeFeedCursor, !isFetchingHomeFeed else { return }
+        guard let index = homeFeed.firstIndex(where: { $0.id == current.id }),
+              index >= homeFeed.count - 5
+        else { return }
+
+        isFetchingHomeFeed = true
+        defer { isFetchingHomeFeed = false }
+
+        do {
+            let page = try await PatreonClient.shared.homeFeed(cursor: cursor, limit: homeFeedPageSize)
+            let known = Set(homeFeed.map(\.id))
+            homeFeed.append(contentsOf: page.data.filter { !known.contains($0.id) })
+            homeFeed.sort { ($0.attributes.publishedAt ?? "") > ($1.attributes.publishedAt ?? "") }
+            homeFeedCursor = page.nextCursor
+            indexCampaigns(from: page.included ?? [])
+        } catch {
+            log.error("Home feed pagination failed: \(String(describing: error))")
+        }
+    }
+
+    // MARK: - Silent refresh
+
+    /// Re-fetch the first stream page only when the last attempt is older than
+    /// `minInterval`. Event triggers (foreground, re-appear) share this so a
+    /// burst of appearances doesn't turn into a burst of requests.
+    func refreshIfStale(minInterval: TimeInterval = ContentRefresh.foregroundMinInterval) async {
+        guard state == .loaded || state == .empty else { return }
+        if let last = lastRefreshAttempt, Date().timeIntervalSince(last) < minInterval {
+            return
+        }
+        await refresh()
+    }
+
+    /// Pull the newest page and merge it into the visible feed without showing
+    /// a spinner or dropping the deeper pages already paginated in.
+    func refresh() async {
+        guard !isRefreshing, !isBuildingCreatorRows else { return }
+        guard state == .loaded || state == .empty else { return }
+
+        isRefreshing = true
+        lastRefreshAttempt = Date()
+        defer { isRefreshing = false }
+
+        do {
+            let page = try await PatreonClient.shared.homeFeed(
+                limit: homeFeedPageSize,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            await applyRefresh(page)
+        } catch {
+            // The view went away; keep the last good content.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+            log.error("Home refresh failed: \(String(describing: error))")
+        }
+    }
+
+    private func applyRefresh(_ page: Page<Post>) async {
+        let outcome = FeedMerge.merge(existing: homeFeed, incoming: page.data)
+
+        if outcome.changed {
+            homeFeed = outcome.posts
+            // Keep the deeper pagination cursor. Only adopt the page's cursor
+            // when we had none (an empty feed that now has content).
+            if homeFeedCursor == nil {
+                homeFeedCursor = page.nextCursor
+            }
+            indexCampaigns(from: page.included ?? [])
+            writeTopShelfSnapshot()
+            if state == .empty { state = .loaded }
+        }
+
+        let rows = mergeFeedPosts(page.data, into: creatorRows)
+        if rows.changed {
+            creatorRows = sortedRows(rows.rows)
+        }
+
+        guard outcome.changed || rows.changed else { return }
+
+        // Props on Continue Watching cards may have been refreshed too.
+        await refreshContinueWatching()
+    }
+
+    /// Distribute the refreshed page into the per-creator rows, adding a row if
+    /// a creator's first post shows up after the initial memberships pass.
+    private func mergeFeedPosts(
+        _ posts: [Post],
+        into rows: [CreatorRow]
+    ) -> (rows: [CreatorRow], changed: Bool) {
+        guard !posts.isEmpty else { return (rows, false) }
+
+        var grouped: [String: [Post]] = [:]
+        var campaigns: [String: Campaign] = [:]
+        for post in posts {
+            guard let campaignID = post.relationships?.campaign?.data?.id else { continue }
+            grouped[campaignID, default: []].append(post)
+            if campaigns[campaignID] == nil, let campaign = campaignsByID[campaignID] {
+                campaigns[campaignID] = campaign
+            }
+        }
+
+        var result = rows
+        var indexByCampaign: [String: Int] = [:]
+        for (index, row) in result.enumerated() {
+            indexByCampaign[row.id] = index
+        }
+
+        var changed = false
+        for (campaignID, incoming) in grouped {
+            if let index = indexByCampaign[campaignID] {
+                let outcome = FeedMerge.merge(existing: result[index].posts, incoming: incoming)
+                if outcome.changed {
+                    result[index].posts = outcome.posts
+                    changed = true
+                }
+            } else if let campaign = campaigns[campaignID] {
+                indexByCampaign[campaignID] = result.count
+                result.append(CreatorRow(
+                    campaign: campaign,
+                    posts: FeedMerge.merge(existing: [], incoming: incoming).posts,
+                    cursor: nil
+                ))
+                changed = true
+            }
+        }
+        return (result, changed)
     }
 
     // MARK: - Per-creator rows
@@ -200,7 +360,7 @@ final class HomeViewModel {
     /// Older in-progress posts often aren't in the recent feed, so resolve any
     /// we don't already hold by fetching them individually — otherwise a
     /// half-watched but not-recent video silently vanishes from the shelf.
-    private func rebuildContinueWatching() async {
+    func refreshContinueWatching() async {
         let entries = PlaybackProgressStore.shared.inProgress()
         guard !entries.isEmpty else {
             continueWatching = []
@@ -249,7 +409,7 @@ final class HomeViewModel {
         let items = homeFeed.prefix(10).map { post in
             TopShelfSnapshot.Item(
                 postID: post.id,
-                title: post.attributes.title ?? "Untitled",
+                title: post.attributes.title ?? L10n.string("Untitled"),
                 creator: campaign(for: post)?.attributes.name,
                 imageURL: post.attributes.posterImageURL,
                 publishedAt: post.attributes.publishedAt
@@ -288,7 +448,7 @@ final class HomeViewModel {
 
     private func errorMessage(from error: Error) -> String {
         if let pe = error as? PatreonError {
-            return pe.errorDescription ?? "Something went wrong."
+            return pe.errorDescription ?? L10n.string("Something went wrong.")
         }
         return error.localizedDescription
     }

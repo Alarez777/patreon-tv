@@ -29,11 +29,22 @@ struct PostCard: View {
             posterImage
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
+                .overlay(alignment: .topTrailing) {
+                    if showsProgress { UnwatchedCorner(postID: post.id) }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if let count = post.imageCount {
+                        imageBadge(count)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    if showsProgress { ResumeBar(postID: post.id, width: cardWidth) }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(alignment: .topTrailing) { badge }
+                .overlay(alignment: .bottomLeading) { badge }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(post.attributes.title ?? "Untitled")
+                Text(post.attributes.title ?? L10n.string("Untitled"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(2)
@@ -79,6 +90,24 @@ struct PostCard: View {
         }
     }
 
+    /// Instagram-style image post marker: the count (only for galleries) and
+    /// overlapping squares in a dark capsule.
+    private func imageBadge(_ count: Int) -> some View {
+        HStack(spacing: 6) {
+            if count > 1 {
+                Text("\(count)")
+            }
+            Image(systemName: "square.on.square")
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.black.opacity(0.65), in: Capsule())
+        .padding(14)
+        .accessibilityHidden(true)
+    }
+
     @ViewBuilder
     private var badge: some View {
         if post.attributes.isPaid == true {
@@ -89,7 +118,7 @@ struct PostCard: View {
                 .background(PatreonColors.brand.opacity(0.9))
                 .foregroundStyle(.white)
                 .clipShape(Capsule())
-                .padding(8)
+                .padding(14)
         }
     }
 
@@ -97,10 +126,25 @@ struct PostCard: View {
         campaign?.attributes.name
     }
 
+    /// Watched/resume cues only make sense for content that can actually be
+    /// played (video/audio). Polls, text, images and links never get progress.
+    private var showsProgress: Bool {
+        UpNextResolver.isPlayable(post)
+    }
+
     private var accessibilityLabel: String {
-        let title = post.attributes.title ?? "Untitled post"
-        let creator = campaign?.attributes.name.map { " by \($0)" } ?? ""
-        let paid = post.attributes.isPaid == true ? ", patron-only" : ""
-        return "\(title)\(creator)\(paid)"
+        let title = post.attributes.title ?? L10n.string("Untitled post")
+        let creator = campaign?.attributes.name.map {
+            L10n.format("format.accessibilityBy", $0)
+        } ?? ""
+        let paid = post.attributes.isPaid == true
+            ? L10n.string("format.accessibilityPatronOnly")
+            : ""
+        let images = post.imageCount.map { count in
+            count > 1
+                ? L10n.format("format.accessibilityImages", L10n.number(count))
+                : L10n.string("format.accessibilityImagePost")
+        } ?? ""
+        return "\(title)\(creator)\(paid)\(images)"
     }
 }

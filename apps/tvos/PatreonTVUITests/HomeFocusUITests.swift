@@ -3,9 +3,8 @@
 //  PatreonTVUITests
 //
 //  Reproduces the reported Home focus trap with real Siri Remote presses:
-//  from a card in the first shelf, swiping up must eventually reach the top
-//  tab bar (via the featured hero carousel). Runs fully offline against
-//  GalleryMockURLProtocol (GALLERY_MOCK=1).
+//  from a card in a shelf, swiping up must eventually reach the top tab bar.
+//  Runs fully offline against GalleryMockURLProtocol (GALLERY_MOCK=1).
 //
 
 import XCTest
@@ -32,10 +31,10 @@ final class HomeFocusUITests: XCTestCase {
         }
     }
 
-    /// Home is loaded once a featured hero slide exists.
+    /// Home is loaded once the leading shelf's header is on screen.
     private func waitForHome(_ app: XCUIApplication) {
-        let slide = app.buttons.matching(identifier: "featured-slide").firstMatch
-        XCTAssertTrue(slide.waitForExistence(timeout: 20), "Home never loaded (mock feed missing?)")
+        let header = app.staticTexts["New"].firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: 20), "Home never loaded (mock feed missing?)")
         sleep(2)   // let initial focus settle
     }
 
@@ -46,12 +45,12 @@ final class HomeFocusUITests: XCTestCase {
         let app = launchHome()
         waitForHome(app)
 
-        // Down into the first shelf (Continue Watching), then right two cards.
+        // Down into a shelf, then right a couple of cards.
         press(.down, times: 2)
         press(.right, times: 2)
 
-        // Now try to come back up: shelf → featured hero → tab bar.
-        // Generous press budget; the assertion is what matters.
+        // Now try to come back up to the tab bar. Generous press budget; the
+        // assertion is what matters.
         let homeTab = app.buttons["Home"].firstMatch
         var reachedTabBar = false
         for _ in 0..<8 {
@@ -71,21 +70,26 @@ final class HomeFocusUITests: XCTestCase {
         )
     }
 
-    /// Sanity check the stepping stone: up from a card in the first shelf must
-    /// land on the full-width featured hero, which then yields to the tab bar.
-    func test_up_from_first_shelf_lands_on_featured_hero() {
+    /// On launch, focus should land in the leading shelf's first card rather
+    /// than sitting on the tab bar.
+    func test_opens_focused_in_leading_shelf() {
         let app = launchHome()
         waitForHome(app)
 
-        press(.down, times: 2)
-        press(.right, times: 3)
-        press(.up)
+        let homeTab = app.buttons["Home"].firstMatch
+        XCTAssertFalse(
+            homeTab.hasFocus,
+            "Launch focus should move off the tab bar into Home's content"
+        )
 
-        let heroFocused = app.buttons
-            .matching(identifier: "featured-slide")
+        let focused = app.descendants(matching: .any)
             .matching(NSPredicate(format: "hasFocus == true"))
             .firstMatch
-        XCTAssertTrue(heroFocused.exists, "Up from a shelf card should land on the featured hero")
+        XCTAssertTrue(focused.exists, "A leading-shelf card should hold focus on launch")
+        XCTAssertTrue(
+            focused.label.contains("Episode"),
+            "Expected a leading-shelf card focused, got: \(focused.debugDescription)"
+        )
     }
 }
 
@@ -136,5 +140,20 @@ final class CreatorFocusUITests: XCTestCase {
             \(app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch.debugDescription)
             """
         )
+    }
+
+    /// A pushed creator page otherwise leaves focus on the tab bar. It must open
+    /// focused on the Collections button.
+    func test_opens_focused_on_collections() {
+        let app = XCUIApplication()
+        app.launchEnvironment["GALLERY_SCREEN"] = "creator"
+        app.launchEnvironment["GALLERY_MOCK"] = "1"
+        app.launch()
+
+        let collections = app.buttons.matching(identifier: "creator-collections").firstMatch
+        XCTAssertTrue(collections.waitForExistence(timeout: 20), "Creator page never loaded")
+        sleep(2)
+
+        XCTAssertTrue(collections.hasFocus, "Creator page should open focused on Collections")
     }
 }

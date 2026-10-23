@@ -13,12 +13,14 @@ struct PatreonTVApp: App {
 
     @State private var authStore = AuthStore()
     @State private var router = DeepLinkRouter()
+    @State private var preferences = ContentPreferences.shared
 
     var body: some Scene {
         WindowGroup {
             content
                 .environment(authStore)
                 .environment(router)
+                .environment(\.locale, preferences.language.locale)
                 .onOpenURL { url in
                     router.handle(url: url)
                 }

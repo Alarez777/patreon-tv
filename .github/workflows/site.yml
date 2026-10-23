@@ -11,6 +11,10 @@ on:
     paths:
       - "site/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build site
@@ -37,10 +41,6 @@ jobs:
       - name: Type-check Pages Functions
         working-directory: site
         run: npm run check:functions
-
-      - name: Unit tests (pairing state machine)
-        working-directory: site
-        run: npm test
 
       - name: Build
         working-directory: site

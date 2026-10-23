@@ -161,7 +161,7 @@ final class AudioPlayerModel {
                     self.log.error("Audio failed for post \(self.postID): \(String(describing: item.error))")
                     self.onFailure?(
                         item.error?.localizedDescription
-                            ?? "The audio stopped playing. Its link may have expired — try again."
+                            ?? L10n.string("The audio stopped playing. Its link may have expired — try again.")
                     )
                 default:
                     break

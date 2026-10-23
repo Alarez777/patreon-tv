@@ -11,8 +11,5 @@
     "noUnusedParameters": true,
     "skipLibCheck": true
   },
-  "include": ["."],
-  // Tests run (and are type-checked at runtime) under vitest with node types;
-  // this project checks the deployed function code against workers-types.
-  "exclude": ["**/*.test.ts"]
+  "include": ["."]
 }

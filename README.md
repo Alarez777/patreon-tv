@@ -2,23 +2,32 @@
 
 A native tvOS app for watching your favorite Patreon creators on the big screen.
 
-- **One app.** No companion. No LAN server. Downloaded from the App Store, sign in once, done.
+- **One app.** No companion, no LAN server, no pairing portal. Sign in once, done.
 - **Netflix-style browsing.** Focus-driven shelves, hero art that follows what you're looking at, snappy transitions.
 - **Native video.** Patreon-hosted video plays directly in `AVPlayer` via signed Mux HLS — no proxy, HDR, PiP, AirPlay.
+- **Four languages.** English (US), Spanish (Latin America), Portuguese (Brazil), and French. The first launch follows the Apple TV language; Settings can change it.
 - **Free & open source** — MIT.
+
+> **Fork notice:** This repository started from
+> [DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv)
+> and has since diverged. It is maintained independently and is not affiliated
+> with the upstream project.
 
 ## Status
 
-**Early scaffolding.** Do not attempt to ship yet.
+**v2.0.0** — first public release of this fork (October 2026). The app is
+feature-complete for browsing creators, collections, posts, comments and
+video/audio playback, and ships as an unsigned IPA attached to the GitHub
+release. See [`CHANGELOG.md`](./CHANGELOG.md) for everything that changed since
+the fork.
 
 ## Repo layout
 
 ```
 patreon-tv/
 ├── apps/tvos/          The Apple TV app (SwiftUI, tvOS 17+, XcodeGen)
-├── site/               Marketing + legal + pairing portal + deep-link fallback
-│                       (Astro → Cloudflare Pages; pairing API lives in
-│                       site/functions/ as Pages Functions backed by KV)
+├── site/               Marketing + legal + deep-link fallback
+│                       (Astro → Cloudflare Pages)
 ├── harness/            Node scripts for live-testing the Patreon API
 └── docs/               User-facing docs (WIP)
 ```
@@ -42,26 +51,34 @@ open PatreonTV.xcodeproj
 
 Choose your Apple TV or the tvOS Simulator as the run destination and build.
 
+## Download & install
+
+Grab `PatreonTV-2.0.0-unsigned.ipa` from the
+[latest release](https://github.com/Alarez777/patreon-tv/releases/latest).
+
+The IPA is unsigned, so tvOS will not install it as-is:
+
+1. Sign it with your own Apple Developer certificate, **or** build and run
+   `apps/tvos` from Xcode with your team selected.
+2. Install it with a sideloading tool such as
+   [ATVLoadly](https://github.com/bitxeno/atvloadly) (Docker, Linux/OpenWrt) —
+   it signs the IPA with your Apple ID or certificate and can auto-refresh it
+   before the provisioning profile expires (7 days on a free Apple ID).
+
 ## Build an installable IPA
 
-The **tvOS IPA** GitHub Actions workflow builds the Release app and uploads
-three artifacts: an unsigned `.ipa` (`PatreonTV-unsigned`), the raw
-`.xcarchive`, and the `xcodebuild` log. It is `workflow_dispatch`-only, so run
-it from **your own fork**:
+Pushing a `v*` tag runs the **tvOS IPA** workflow, which builds the Release app
+and attaches `PatreonTV-<version>-unsigned.ipa` to the matching GitHub release.
+The version is read from `apps/tvos/project.yml`, and the workflow fails if the
+tag does not match it. The `xcodebuild` log is kept as a run artifact.
+
+To build without publishing — or from **your own fork**:
 
 1. Fork this repo on GitHub.
 2. In the fork, open the **Actions** tab and enable workflows (forks start with
    Actions disabled).
-3. Run **tvOS IPA → Run workflow**. Leave `pairing_base_url` empty for the
-   production service, or set it for a local relay (see
-   [Use your own pairing server](#use-your-own-pairing-server)).
+3. Run **tvOS IPA → Run workflow**.
 4. Download `PatreonTV-unsigned` from the finished run's Artifacts.
-
-The IPA is unsigned. Sign it with your own Apple Developer certificate (or just
-build/run from Xcode with your team selected), then install it with a
-sideloading tool such as [ATVLoadly](https://github.com/bitxeno/atvloadly)
-(Docker, Linux/OpenWrt) — it signs the IPA with your Apple ID or certificate and
-can auto-refresh it.
 
 The same build, locally:
 
@@ -78,36 +95,61 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 ```
 
-## Use your own pairing server
+## Sign-in
 
-Device-link sign-in has the TV poll the pairing portal until you paste your
-Patreon `session_id` cookie. By default that portal is the hosted service at
-`https://patreontv.com`, so the cookie is handled by that service (sealed at
-rest, but still an internet round-trip).
+PatreonTV uses the same web session as your browser. That is what lets the app
+see paid posts; Patreon's OAuth tokens do not unlock them. There is no pairing
+site and no intermediary server: the session ID goes straight from your browser
+to the Apple TV.
 
-To keep the `session_id` entirely on your own network, run the pairing service
-yourself and bake its address into the IPA:
+### 1. Get the `session_id` cookie
 
-1. Start the local relay — it builds the site, binds `0.0.0.0:8788`, and
-   auto-detects your LAN IP:
+Do this on a computer. The cookie is HttpOnly, so mobile browsers can't reveal
+it.
 
-   ```bash
-   cd site
-   npm install
-   npm run dev:pairing
-   ```
+1. Open your browser and the developer tools:
+   - Windows / Linux: `F12`
+   - Mac: `⌥⌘I`
+2. Sign in at [patreon.com](https://www.patreon.com).
+3. Open the cookies panel:
+   - **Firefox:** Storage → Cookies → `https://www.patreon.com`
+   - **Chrome / Edge:** Application → Storage → Cookies → `https://www.patreon.com`
+   - **Safari:** Develop → Show Web Inspector → Storage → Cookies
+4. Select the `session_id` row and copy only its **value** (not the cookie
+   name). In Firefox/Chrome you can right-click the value or double-click it
+   and copy.
 
-   Note the origin it prints, e.g. `http://192.168.1.50:8788`.
+### 2. Send it to your iPhone or iPad
 
-2. Run the **tvOS IPA** workflow and set `pairing_base_url` to that origin
-   (leave it empty to pair against the production service).
+- **Mac + iPhone/iPad on the same Apple Account:** use **Universal Clipboard**.
+  Copy the value on the Mac, focus the TV's session field, then paste from the
+  iPhone/iPad keyboard. Make sure Handoff and Universal Clipboard are enabled on
+  both devices.
+- **Linux or Windows:** use [LocalSend](https://localsend.org) to send the
+  value from the computer to the phone over your local network. It does not go
+  through an internet service. KDE Connect is another option on Linux.
+- **Avoid** email, chat, or cloud notes for this value. Treat it like a
+  password.
 
-3. Install the resulting IPA. The TV now polls your relay, and the
-   `session_id` never reaches `patreontv.com`.
+### 3. Paste it on the TV
 
-The relay and the TV must be on the same LAN; the relay itself still needs
-internet access to reach Patreon. For Debug builds in Xcode, `dev-pairing.sh`
-rewires `PAIRING_BASE_URL` automatically — see [`site/README.md`](./site/README.md).
+1. On the TV's sign-in screen, focus the **Session ID** field. The iPhone/iPad
+   keyboard should appear.
+2. Paste the value and choose **Continue**. The app checks it against Patreon
+   and stores it only in the tvOS Keychain.
+3. If pasting fails, you can type the value with the Siri Remote. It's long, but
+   you should only need to do it once.
+
+### Security notes
+
+- The `session_id` grants full access to your Patreon account while it is valid.
+  Keep it private.
+- Signing out of that browser session may also sign out the TV.
+- On a shared TV, use **Settings → Sign Out** when you're done. That removes the
+  local copy; to revoke the session itself, sign out of it in the browser or
+  change your Patreon password.
+- If you think the ID leaked, sign out of the Patreon session and sign in again
+  with a fresh cookie.
 
 ## Contributing
 

@@ -2,8 +2,8 @@
 //  SettingsView.swift
 //  PatreonTV
 //
-//  Minimal settings — sign out for MVP. Later: playback quality, captions,
-//  autoplay next, parental controls.
+//  App settings: language, mature content, autoplay, collections, launch tab,
+//  comment order and sign out.
 //
 
 import NukeUI
@@ -13,71 +13,232 @@ struct SettingsView: View {
 
     @Environment(AuthStore.self) private var auth
     @State private var prefs = ContentPreferences.shared
+    @FocusState private var languageFocused: Bool
+    @FocusState private var autoplayRowFocused: Bool
+
+    private let settingsControlWidth: CGFloat = 1100
 
     var body: some View {
-        @Bindable var prefs = prefs
+        NavigationStack {
+            GeometryReader { proxy in
+                let third = max(0, proxy.size.width / 3)
 
-        return VStack(spacing: 32) {
-            Spacer()
+                HStack(spacing: 0) {
+                    profileColumn
+                        .frame(
+                            width: third,
+                            height: proxy.size.height,
+                            alignment: .center
+                        )
 
-            if let user = auth.currentUser {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        optionsColumn
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 40)
+                    }
+                    .frame(width: third * 2, height: proxy.size.height)
+                }
+                .background(PatreonColors.background.ignoresSafeArea())
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profileColumn: some View {
+        if let user = auth.currentUser {
+            VStack(alignment: .center, spacing: 20) {
                 avatar(for: user)
 
-                VStack(spacing: 8) {
-                    Text(user.attributes.fullName ?? "Signed in")
+                VStack(alignment: .center, spacing: 6) {
+                    Text(user.attributes.fullName ?? L10n.string("Signed in"))
                         .font(.title)
                         .foregroundStyle(PatreonColors.primaryText)
+                        .multilineTextAlignment(.center)
                     if let email = user.attributes.email {
                         Text(email)
                             .foregroundStyle(PatreonColors.secondaryText)
+                            .multilineTextAlignment(.center)
                     }
                 }
-            }
 
-            Toggle(isOn: $prefs.showMatureContent) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Show mature content")
-                        .foregroundStyle(PatreonColors.primaryText)
-                    Text("Reveal creators and posts flagged as NSFW.")
-                        .font(.caption)
-                        .foregroundStyle(PatreonColors.secondaryText)
-                }
+                versionFooter
             }
-            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private var optionsColumn: some View {
+        @Bindable var prefs = prefs
+
+        return VStack(alignment: .center, spacing: 28) {
+            languageSection
+
+            SettingsToggleRow(
+                title: "Show mature content",
+                detail: "Reveal creators and posts flagged as NSFW.",
+                isOn: $prefs.showMatureContent
+            )
+
+            SettingsToggleRow(
+                title: "Show Continue Collection",
+                detail: "Show the collection you opened most recently on Home.",
+                isOn: $prefs.showContinueCollection
+            )
+
+            SettingsToggleRow(
+                title: "Oldest episodes first",
+                detail: "Open a collection's episodes oldest-first; off lists newest first.",
+                isOn: $prefs.collectionOldestFirst
+            )
+
+            autoplayRow
+
+            initialTabSection
+            commentOrderSection
+            signOutButton
+        }
+        .frame(width: settingsControlWidth, alignment: .center)
+    }
+
+    private var signOutButton: some View {
+        Button {
+            auth.signOut()
+        } label: {
+            Text("Sign Out")
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 48)
+                .padding(.vertical, 20)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(PatreonColors.brand)
+        .padding(.top, 8)
+    }
+
+    private var versionFooter: some View {
+        Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+            .font(.footnote)
+            .foregroundStyle(PatreonColors.tertiaryText)
             .padding(.top, 8)
+    }
 
-            Toggle(isOn: $prefs.autoplayNext) {
+    private var languageSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Language")
+                .foregroundStyle(PatreonColors.primaryText)
+            Text("The app language. Defaults to your Apple TV language.")
+                .font(.caption)
+                .foregroundStyle(PatreonColors.secondaryText)
+
+            Menu {
+                ForEach(AppLanguage.allCases) { language in
+                    Button {
+                        prefs.language = language
+                    } label: {
+                        if language == prefs.language {
+                            Label(language.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(language.displayName)
+                        }
+                    }
+                }
+            } label: {
+                GeometryReader { proxy in
+                    HStack(spacing: 10) {
+                        Image(systemName: "globe")
+                            .foregroundStyle(languageFocused ? Color.black : PatreonColors.primaryText)
+                        MarqueeText(
+                            text: prefs.language.displayName,
+                            font: .body.weight(.medium),
+                            color: languageFocused ? .black : PatreonColors.primaryText,
+                            availableWidth: max(0, proxy.size.width - 70),
+                            isActive: languageFocused
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .frame(height: 46)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.bordered)
+            .frame(width: settingsControlWidth)
+            .focused($languageFocused)
+            .accessibilityLabel(Text("Language"))
+        }
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
+    }
+
+    private var autoplayRow: some View {
+        NavigationLink {
+            AutoplaySettingsView()
+        } label: {
+            HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Autoplay next")
-                        .foregroundStyle(PatreonColors.primaryText)
-                    Text("When something ends, start the creator's next post after a countdown.")
+                        .foregroundStyle(
+                            autoplayRowFocused ? Color.black : PatreonColors.primaryText
+                        )
+                    Text("Choose where playback advances to the next post automatically.")
                         .font(.caption)
-                        .foregroundStyle(PatreonColors.secondaryText)
+                        .foregroundStyle(
+                            autoplayRowFocused
+                                ? Color.black.opacity(0.7)
+                                : PatreonColors.secondaryText
+                        )
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(
+                        autoplayRowFocused ? Color.black : PatreonColors.tertiaryText
+                    )
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .frame(width: settingsControlWidth)
+        .focused($autoplayRowFocused)
+    }
+
+    private var initialTabSection: some View {
+        @Bindable var prefs = prefs
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Initial tab")
+                .foregroundStyle(PatreonColors.primaryText)
+            Text("Which tab opens when PatreonTV launches.")
+                .font(.caption)
+                .foregroundStyle(PatreonColors.secondaryText)
+            Picker("Initial tab", selection: $prefs.initialTab) {
+                ForEach(ContentPreferences.InitialTab.allCases) { tab in
+                    Text(tab.title).tag(tab)
                 }
             }
-            .frame(maxWidth: 700)
-
-            Button {
-                auth.signOut()
-            } label: {
-                Text("Sign Out")
-                    .font(.title3.weight(.semibold))
-                    .padding(.horizontal, 48)
-                    .padding(.vertical, 20)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(PatreonColors.brand)
-            .padding(.top, 16)
-
-            Spacer()
-
-            Text("PatreonTV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
-                .font(.footnote)
-                .foregroundStyle(PatreonColors.tertiaryText)
-                .padding(.bottom, 40)
+            .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(PatreonColors.background.ignoresSafeArea())
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
+    }
+
+    private var commentOrderSection: some View {
+        @Bindable var prefs = prefs
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Comment order")
+                .foregroundStyle(PatreonColors.primaryText)
+            Text("How a post's comments open. The comments screen can still reorder them for that visit.")
+                .font(.caption)
+                .foregroundStyle(PatreonColors.secondaryText)
+            Picker("Comment order", selection: $prefs.commentSort) {
+                ForEach(CommentSort.allCases) { sort in
+                    Text(sort.title).tag(sort)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
 
     private func avatar(for user: PatreonUser) -> some View {

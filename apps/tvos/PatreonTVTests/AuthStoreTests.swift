@@ -17,6 +17,29 @@ final class AuthStoreTests: XCTestCase {
         XCTAssertTrue(AuthStore.shouldClearSession(after: PatreonError.forbidden))
     }
 
+    func test_maps_sign_in_errors() {
+        XCTAssertEqual(
+            AuthStore.signInError(from: PatreonError.unauthorized),
+            .invalidSession
+        )
+        XCTAssertEqual(
+            AuthStore.signInError(from: PatreonError.forbidden),
+            .invalidSession
+        )
+        XCTAssertEqual(
+            AuthStore.signInError(from: PatreonError.rateLimited(retryAfterSeconds: 30)),
+            .rateLimited(retryAfter: 30)
+        )
+        XCTAssertEqual(
+            AuthStore.signInError(from: URLError(.notConnectedToInternet)),
+            .network
+        )
+        XCTAssertEqual(
+            AuthStore.signInError(from: PatreonError.decoding(underlying: URLError(.cannotParseResponse))),
+            .unexpected
+        )
+    }
+
     func test_keeps_session_on_transient_errors() {
         XCTAssertFalse(AuthStore.shouldClearSession(after: URLError(.notConnectedToInternet)))
         XCTAssertFalse(AuthStore.shouldClearSession(after: URLError(.timedOut)))

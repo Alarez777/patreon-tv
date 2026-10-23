@@ -19,6 +19,9 @@ struct SearchView: View {
     @State private var vm = SearchViewModel()
     @State private var prefs = ContentPreferences.shared
     @State private var query: String = ""
+    /// Navigation path, so a creator opened from search can start playback
+    /// within this tab (remote Play button on a focused post).
+    @State private var path: [DeepLinkDestination] = []
 
     /// Results after applying the mature-content gate.
     private var visibleResults: [CampaignSearchResult] {
@@ -28,7 +31,7 @@ struct SearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 switch vm.state {
                 case .idle:
@@ -57,7 +60,10 @@ struct SearchView: View {
                 }
             }
             .background(PatreonColors.background.ignoresSafeArea())
-            .appNavigationDestinations()
+            .appNavigationDestinations(
+                onPlayPost: { path.append(.post(id: $0, autoplay: true, collectionID: $1, queue: nil, source: .channels)) },
+                onPlayCollection: { path.playCollection(collectionID: $0, postID: $1) }
+            )
         }
     }
 
@@ -80,7 +86,7 @@ struct SearchView: View {
             Image(systemName: "exclamationmark.magnifyingglass")
                 .font(.system(size: 60))
                 .foregroundStyle(PatreonColors.secondaryText)
-            Text("No creators for \"\(query)\"")
+            Text(L10n.format("format.noCreatorsFor", query))
                 .font(.title3)
                 .foregroundStyle(PatreonColors.primaryText)
         }
@@ -130,7 +136,7 @@ struct SearchCreatorCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(result.attributes.name ?? result.attributes.creatorName ?? "Creator")
+                Text(result.attributes.name ?? result.attributes.creatorName ?? L10n.string("Creator"))
                     .font(.headline)
                     .foregroundStyle(PatreonColors.primaryText)
                     .lineLimit(1)
@@ -146,7 +152,7 @@ struct SearchCreatorCard: View {
         }
         .frame(width: cardWidth, alignment: .top)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(result.attributes.name ?? "Creator"), \(result.attributes.creationName ?? "")")
+        .accessibilityLabel(L10n.format("format.accessibilityCreator", result.attributes.name ?? L10n.string("Creator"), result.attributes.creationName ?? ""))
     }
 }
 

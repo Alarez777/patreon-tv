@@ -8,14 +8,12 @@ Built with [Astro](https://astro.build) and deploys to
 
 | Path | Purpose |
 |---|---|
-| `/` | Marketing landing page — "coming soon" hero + feature grid |
+| `/` | Marketing landing page — download CTA + feature grid |
 | `/privacy` | Privacy policy (required by Apple for App Store submission) |
 | `/terms` | Terms of Service |
 | `/support` | FAQ + contact — required for App Store listing (Support URL field) |
 | `/post/:id` | Deep-link fallback for `patreontv://post/<id>` shares |
 | `/creator/:id` | Deep-link fallback for `patreontv://creator/<id>` shares |
-| `/link/:code` | Device-link sign-in portal (pair Apple TV with Patreon) |
-| `/api/pairing/*` | Pairing API — create code (POST), status (GET), claim session (POST), complete (POST) |
 | `/api/health` | JSON health endpoint for uptime monitoring |
 | `/.well-known/apple-app-site-association` | Universal Links manifest (needs Team ID) |
 
@@ -29,35 +27,17 @@ npm run dev
 
 Open http://localhost:4321.
 
-### Device-link sign-in (local dev — iPhone + Apple TV Simulator)
+### Sign-in
 
-Run the pairing service on your **LAN IP** so your iPhone can scan the QR code.
-The dev script auto-detects your Mac's IP, points the tvOS Debug
-`PAIRING_BASE_URL` (in `apps/tvos/project.yml`) at it for the session, and
-restores the file when the server stops. Re-run `xcodegen generate` after the
-script changes it.
-
-```bash
-cd site
-npm install
-npm run dev:pairing
-```
-
-This binds `0.0.0.0:8788` and sets `PAIRING_PUBLIC_ORIGIN` to e.g.
-`http://192.168.1.148:8788`. Rebuild/run the tvOS app in Xcode (DEBUG).
-
-Open the link on a **computer** (the `session_id` cookie is HttpOnly and can't
-be read on a phone): sign in at patreon.com, copy the `session_id` cookie from
-the browser's developer tools, and paste it on the link page.
-
-Override the detected IP: `PAIRING_LAN_IP=10.0.0.5 npm run dev:pairing`
+Sign-in is handled entirely on the Apple TV: the user pastes the
+`session_id` cookie copied from a desktop browser's developer tools. The
+site has no pairing API or session storage.
 
 ## Checks & tests
 
 ```bash
 npm run check            # astro check (pages)
 npm run check:functions  # tsc against functions/ with workers-types
-npm test                 # vitest — pairing state machine, sealing, rate limiter
 ```
 
 ## Deploy to Cloudflare Pages
@@ -75,12 +55,6 @@ npm test                 # vitest — pairing state machine, sealing, rate limit
 4. Once deployed, in the project's **Custom domains** tab, add
    `patreontv.com` (or whatever your production domain is). Cloudflare
    handles the TLS cert automatically.
-5. Set the pairing secrets (Settings → Environment variables):
-   - `PAIRING_SESSION_KEY` — **required**: `openssl rand -base64 32`. Seals
-     Patreon session cookies at rest in KV.
-   - Bind a KV namespace to `PAIRING` (Settings → Functions → KV bindings).
-6. Recommended: add a Cloudflare WAF rate-limiting rule on
-   `/api/pairing/*` — the in-app KV limiter is best-effort only.
 
 ### Command-line deploy (alternative)
 

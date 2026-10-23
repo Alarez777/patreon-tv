@@ -10,6 +10,7 @@
 //
 
 import Foundation
+import Observation
 
 struct PlaybackProgress: Codable, Hashable {
     let postID: String
@@ -23,9 +24,21 @@ struct PlaybackProgress: Codable, Hashable {
         guard durationSeconds > 0 else { return false }
         return positionSeconds / durationSeconds >= 0.95
     }
+
+    /// Fraction of the runtime that counts as "started". Below it the post still
+    /// reads as not started, so a brief tap or a couple of seconds of playback
+    /// don't make a card look watched.
+    static let startedFraction: Double = 0.05
+
+    /// True once playback has meaningfully begun (past `startedFraction`).
+    var isStarted: Bool {
+        guard durationSeconds > 0 else { return false }
+        return positionSeconds / durationSeconds >= Self.startedFraction
+    }
 }
 
 @MainActor
+@Observable
 final class PlaybackProgressStore {
 
     static let shared = PlaybackProgressStore()
@@ -74,9 +87,35 @@ final class PlaybackProgressStore {
             .map { $0 }
     }
 
+    /// The most recently watched post among the given ids (finished or not) —
+    /// used to put initial focus on the last episode played.
+    func mostRecent(in postIDs: some Collection<String>) -> PlaybackProgress? {
+        let set = Set(postIDs)
+        return records.values
+            .filter { set.contains($0.postID) }
+            .max { $0.lastUpdated < $1.lastUpdated }
+    }
+
     func clear(postID: String) {
         records.removeValue(forKey: postID)
         save()
+    }
+
+    /// Marks a post as watched without knowing its runtime: store a record at
+    /// 100% so it reads as finished (hides the resume bar / unwatched corner,
+    /// and drops it from Continue Watching).
+    func markWatched(postID: String) {
+        record(PlaybackProgress(
+            postID: postID,
+            positionSeconds: 1,
+            durationSeconds: 1,
+            lastUpdated: Date()
+        ))
+    }
+
+    /// Clears any progress so the post reads as "not started" again.
+    func markUnwatched(postID: String) {
+        clear(postID: postID)
     }
 
     func clearAll() {

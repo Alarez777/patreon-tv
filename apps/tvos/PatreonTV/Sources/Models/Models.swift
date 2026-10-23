@@ -46,8 +46,51 @@ struct Page<T: JSONAPIResource>: Decodable, Sendable {
     }
 }
 
+/// Comment lists are inconsistent: `data` is usually an array, but `replies2`
+/// can return a single comment object, and `meta`/`links` vary by endpoint.
+/// Decode leniently so one unexpected field doesn't discard the whole page.
+struct CommentPage: Decodable, Sendable {
+    let data: [Comment]
+    let included: [Included]?
+    let meta: PageMeta?
+    let links: Links?
+
+    private enum CodingKeys: String, CodingKey { case data, included, meta, links }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let list = try? container.decode([Comment].self, forKey: .data) {
+            data = list
+        } else if let single = try? container.decode(Comment.self, forKey: .data) {
+            data = [single]
+        } else if container.contains(.data) {
+            // Surface the real decoding error instead of silently showing an
+            // empty thread.
+            data = try container.decode([Comment].self, forKey: .data)
+        } else {
+            data = []
+        }
+
+        included = try? container.decodeIfPresent([Included].self, forKey: .included)
+        meta = try? container.decodeIfPresent(PageMeta.self, forKey: .meta)
+        links = try? container.decodeIfPresent(Links.self, forKey: .links)
+    }
+
+    var nextCursor: String? {
+        if let cursor = meta?.pagination?.cursors?.next { return cursor }
+        guard let next = links?.next,
+              let components = URLComponents(string: next),
+              let cursor = components.queryItems?.first(where: { $0.name == "page[cursor]" })?.value
+        else { return nil }
+        return cursor
+    }
+}
+
 struct PageMeta: Decodable, Sendable {
     let pagination: PageCursors?
+    /// Comment lists report their total here.
+    let count: Int?
 }
 
 struct PageCursors: Decodable, Sendable {
@@ -81,9 +124,15 @@ protocol JSONAPIResource: Decodable, Identifiable, Sendable {
 enum Included: Decodable {
     case campaign(Campaign)
     case media(Media)
+    case post(Post)
     case user(PatreonUser)
     case member(Membership)
     case tier(Tier)
+    case collection(PatreonCollection)
+    case poll(Poll)
+    case pollChoice(PollChoice)
+    case pollResponse(PollResponse)
+    case comment(Comment)
     case unknown(type: String, id: String)
 
     private enum CodingKeys: String, CodingKey { case type, id }
@@ -101,12 +150,24 @@ enum Included: Decodable {
                 self = .campaign(try Campaign(from: decoder))
             case "media":
                 self = .media(try Media(from: decoder))
+            case "post":
+                self = .post(try Post(from: decoder))
             case "user":
                 self = .user(try PatreonUser(from: decoder))
             case "member":
                 self = .member(try Membership(from: decoder))
             case "reward", "tier":
                 self = .tier(try Tier(from: decoder))
+            case "collection":
+                self = .collection(try PatreonCollection(from: decoder))
+            case "poll":
+                self = .poll(try Poll(from: decoder))
+            case "poll_choice":
+                self = .pollChoice(try PollChoice(from: decoder))
+            case "poll_response":
+                self = .pollResponse(try PollResponse(from: decoder))
+            case "comment":
+                self = .comment(try Comment(from: decoder))
             default:
                 self = .unknown(type: type, id: id)
             }
@@ -119,11 +180,27 @@ enum Included: Decodable {
         switch self {
         case .campaign(let x): x.id
         case .media(let x): x.id
+        case .post(let x): x.id
         case .user(let x): x.id
         case .member(let x): x.id
         case .tier(let x): x.id
+        case .collection(let x): x.id
+        case .poll(let x): x.id
+        case .pollChoice(let x): x.id
+        case .pollResponse(let x): x.id
+        case .comment(let x): x.id
         case .unknown(_, let id): id
         }
+    }
+}
+
+extension Collection where Element == Included {
+    /// The first campaign (creator) name present in a response's `included`.
+    var firstCampaignName: String? {
+        for item in self {
+            if case .campaign(let campaign) = item { return campaign.attributes.name }
+        }
+        return nil
     }
 }
 
@@ -179,6 +256,8 @@ struct Campaign: JSONAPIResource {
         /// Only present on some endpoints (e.g., campaign detail).
         let coverPhotoURL: URL?
         let hasRSS: Bool?
+        /// Per-media-type post counts (request `fields[campaign]=post_count`).
+        let postCount: Campaign.PostCount?
 
         /// Best avatar to display: the real avatar photo, falling back to image_url.
         var bestAvatarURL: URL? { avatarPhotoURL ?? imageURL }
@@ -193,7 +272,21 @@ struct Campaign: JSONAPIResource {
             case avatarPhotoURL = "avatar_photo_url"
             case coverPhotoURL = "cover_photo_url"
             case hasRSS = "has_rss"
+            case postCount = "post_count"
         }
+    }
+
+    /// The campaign's `post_count` breakdown, grouped by media category.
+    struct PostCount: Decodable, Hashable {
+        let total: Int?
+        let video: Int?
+        let image: Int?
+        let text: Int?
+        let audio: Int?
+        let podcast: Int?
+        let poll: Int?
+        let link: Int?
+        let livestream: Int?
     }
 }
 
@@ -268,7 +361,7 @@ struct Tier: JSONAPIResource {
 
 // MARK: - Post
 
-struct Post: JSONAPIResource {
+struct Post: JSONAPIResource, Equatable {
     let id: String
     let type: String
     let attributes: Attributes
@@ -299,6 +392,8 @@ struct Post: JSONAPIResource {
     struct Attributes: Decodable, Hashable {
         let title: String?
         let content: String?              // HTML body (may be null for gated posts)
+        /// Newer posts store the body as ProseMirror JSON instead of HTML.
+        let contentJSONString: String?
         let teaser: String?
         let postType: PostType?
         let publishedAt: String?
@@ -322,6 +417,7 @@ struct Post: JSONAPIResource {
 
         enum CodingKeys: String, CodingKey {
             case title, content, teaser, url, image
+            case contentJSONString = "content_json_string"
             case postType = "post_type"
             case publishedAt = "published_at"
             case isPaid = "is_paid"
@@ -338,9 +434,12 @@ struct Post: JSONAPIResource {
     struct PostImageRef: Decodable, Hashable {
         let url: URL?
         let thumbURL: URL?
+        /// Full-size variant (used by the image post viewer).
+        let largeURL: URL?
         enum CodingKeys: String, CodingKey {
             case url
             case thumbURL = "thumb_url"
+            case largeURL = "large_url"
         }
     }
 
@@ -356,6 +455,103 @@ struct Post: JSONAPIResource {
             case campaign, user, media, images, audio
             case attachmentsMedia = "attachments_media"
         }
+    }
+
+    /// Number of images on an image post. Falls back to 1 when the API omits
+    /// the `images` relationship but the post still has a primary image.
+    var imageCount: Int? {
+        guard attributes.postType == .imageFile else { return nil }
+        if let count = relationships?.images?.data?.count, count > 0 {
+            return count
+        }
+        return attributes.image != nil ? 1 : nil
+    }
+}
+
+// MARK: - Poll
+
+/// A Patreon poll. `choices` and `current_user_responses` arrive as separated
+/// resources in the post document's `included` array.
+struct Poll: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+
+    struct Attributes: Decodable, Hashable {
+        let questionText: String?
+        let questionType: String?
+        let numResponses: Int?
+        let closesAt: String?
+
+        enum CodingKeys: String, CodingKey {
+            case questionText = "question_text"
+            case questionType = "question_type"
+            case numResponses = "num_responses"
+            case closesAt = "closes_at"
+        }
+    }
+}
+
+struct PollChoice: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+
+    struct Attributes: Decodable, Hashable {
+        let textContent: String?
+        let position: Int?
+        let numResponses: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case position
+            case textContent = "text_content"
+            case numResponses = "num_responses"
+        }
+    }
+}
+
+struct PollResponse: JSONAPIResource {
+    let id: String
+    let type: String
+    let relationships: Relationships?
+
+    struct Relationships: Decodable, Hashable {
+        let choice: RelationRef?
+    }
+}
+
+// MARK: - Comment
+
+/// A post comment. `commenter` is the author.
+struct Comment: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+    let relationships: Relationships?
+
+    struct Attributes: Decodable, Hashable {
+        let body: String?
+        let created: String?
+        let deletedAt: String?
+        let isByCreator: Bool?
+        let isByPatron: Bool?
+        /// Net like count.
+        let voteSum: Int?
+        /// Number of direct replies (present on top-level comments).
+        let replyCount: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case body, created
+            case deletedAt = "deleted_at"
+            case isByCreator = "is_by_creator"
+            case isByPatron = "is_by_patron"
+            case voteSum = "vote_sum"
+            case replyCount = "reply_count"
+        }
+    }
+
+    struct Relationships: Decodable, Hashable {
+        let commenter: RelationRef?
     }
 }
 
@@ -434,11 +630,26 @@ struct Media: JSONAPIResource {
         let fileName: String?
         let downloadURL: URL?
         let display: Display?
+        /// Image media carry their size variants here.
+        let imageURLs: ImageURLs?
 
         enum CodingKeys: String, CodingKey {
             case mimetype, state, display
             case fileName = "file_name"
             case downloadURL = "download_url"
+            case imageURLs = "image_urls"
+        }
+    }
+
+    /// The `image_urls` map on image media.
+    struct ImageURLs: Decodable, Hashable {
+        let url: URL?
+        let original: URL?
+        let defaultLarge: URL?
+
+        enum CodingKeys: String, CodingKey {
+            case url, original
+            case defaultLarge = "default_large"
         }
     }
 
@@ -464,6 +675,82 @@ struct Media: JSONAPIResource {
     struct Thumbnail: Decodable, Hashable {
         let url: URL?
         let position: Double?
+    }
+}
+
+// MARK: - Collection (a creator-curated list of posts)
+
+/// Named `PatreonCollection` so it doesn't shadow Swift's `Collection` protocol.
+struct PatreonCollection: JSONAPIResource {
+    let id: String
+    let type: String
+    let attributes: Attributes
+
+    struct Attributes: Decodable, Hashable {
+        let title: String?
+        let description: String?
+        /// Total posts in the collection (the API caps each page separately).
+        let numPosts: Int?
+        /// Ordered post ids matching the collection's own sort.
+        let postIDs: [Int]?
+        let postSortType: String?
+        let thumbnail: Thumbnail?
+
+        enum CodingKeys: String, CodingKey {
+            case title, description, thumbnail
+            case numPosts = "num_posts"
+            case postIDs = "post_ids"
+            case postSortType = "post_sort_type"
+        }
+    }
+
+    /// Patreon returns several resized variants; the `thumbnail*` keys are
+    /// square crops — ideal for the two-column collections list.
+    struct Thumbnail: Decodable, Hashable {
+        let url: URL?
+        let defaultURL: URL?
+        let thumbnailURL: URL?
+        let thumbnailLargeURL: URL?
+        let thumbnailSmallURL: URL?
+
+        enum CodingKeys: String, CodingKey {
+            case url
+            case defaultURL = "default"
+            case thumbnailURL = "thumbnail"
+            case thumbnailLargeURL = "thumbnail_large"
+            case thumbnailSmallURL = "thumbnail_small"
+        }
+
+        /// Best square image for a poster: prefer the large square crop.
+        var bestImageURL: URL? {
+            thumbnailLargeURL ?? thumbnailURL ?? defaultURL ?? url
+        }
+
+        /// Wide (roughly 16:9) art for horizontal shelf cards.
+        var wideImageURL: URL? { defaultURL ?? url }
+    }
+}
+
+extension PatreonCollection {
+
+    /// The posts from a `?include=posts` document, in the collection's own order
+    /// (by `post_ids`). Falls back to the include order when `post_ids` is absent.
+    func orderedPosts(from included: [Included]) -> [Post] {
+        let byID = Dictionary(
+            included.compactMap { item -> (String, Post)? in
+                if case .post(let post) = item { return (post.id, post) }
+                return nil
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        guard let order = attributes.postIDs, !order.isEmpty else {
+            return included.compactMap {
+                if case .post(let post) = $0 { return post }
+                return nil
+            }
+        }
+        return order.compactMap { byID[String($0)] }
     }
 }
 

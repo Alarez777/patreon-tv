@@ -58,6 +58,17 @@ final class PlaybackProgressStoreTests: XCTestCase {
         XCTAssertFalse(zeroDuration.isFinished)
     }
 
+    func test_isStarted_thresholds() {
+        let notStarted = PlaybackProgress(postID: "a", positionSeconds: 4, durationSeconds: 100, lastUpdated: Date())
+        XCTAssertFalse(notStarted.isStarted)
+
+        let started = PlaybackProgress(postID: "b", positionSeconds: 5, durationSeconds: 100, lastUpdated: Date())
+        XCTAssertTrue(started.isStarted)
+
+        let zeroDuration = PlaybackProgress(postID: "c", positionSeconds: 50, durationSeconds: 0, lastUpdated: Date())
+        XCTAssertFalse(zeroDuration.isStarted)
+    }
+
     func test_continueWatching_excludes_finished_and_unknown() {
         let now = Date()
         store.record(.init(postID: "watching-1", positionSeconds: 10, durationSeconds: 100, lastUpdated: now))
@@ -77,10 +88,29 @@ final class PlaybackProgressStoreTests: XCTestCase {
         XCTAssertEqual(list.map(\.postID), ["known"])
     }
 
+    func test_inProgress_excludes_finished_and_sorts_recent_first() {
+        let older = Date().addingTimeInterval(-120)
+        let newer = Date().addingTimeInterval(-60)
+        store.record(.init(postID: "older", positionSeconds: 10, durationSeconds: 100, lastUpdated: older))
+        store.record(.init(postID: "newer", positionSeconds: 20, durationSeconds: 100, lastUpdated: newer))
+        store.record(.init(postID: "finished", positionSeconds: 99, durationSeconds: 100, lastUpdated: newer))
+        store.record(.init(postID: "barely-started", positionSeconds: 3, durationSeconds: 100, lastUpdated: newer))
+
+        XCTAssertEqual(store.inProgress().map(\.postID), ["newer", "older"])
+    }
+
     func test_clear_removes_single_entry() {
         store.record(.init(postID: "x", positionSeconds: 10, durationSeconds: 100, lastUpdated: Date()))
         XCTAssertNotNil(store.progress(for: "x"))
         store.clear(postID: "x")
         XCTAssertNil(store.progress(for: "x"))
+    }
+
+    func test_markWatched_then_markUnwatched() {
+        store.markWatched(postID: "m")
+        XCTAssertEqual(store.progress(for: "m")?.isFinished, true)
+
+        store.markUnwatched(postID: "m")
+        XCTAssertNil(store.progress(for: "m"))
     }
 }
