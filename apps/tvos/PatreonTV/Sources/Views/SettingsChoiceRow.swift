@@ -42,8 +42,14 @@ struct SettingsChoiceRow<Option: Hashable>: View {
         return Button {
             selection = option
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Text(label(option))
+                    // "Último usado" / "Dernier utilisé" do not fit a quarter
+                    // of the row at the default size: keep every option on one
+                    // line and shrink just the long one instead of wrapping.
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .allowsTightening(true)
                 // Always laid out, so selecting an option does not shift the
                 // labels: only the check mark tells them apart.
                 Image(systemName: "checkmark")
