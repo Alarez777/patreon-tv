@@ -28,7 +28,7 @@ struct SettingsChoiceRow<Option: Hashable>: View {
     private func segment(for option: Option) -> some View {
         let isSelected = option == selection
 
-        return Button {
+        let button = Button {
             selection = option
         } label: {
             HStack(spacing: 8) {
@@ -42,11 +42,18 @@ struct SettingsChoiceRow<Option: Hashable>: View {
             .frame(maxWidth: .infinity, minHeight: 40)
         }
         .buttonStyle(.bordered)
-        // The selected option is filled with the brand colour; tvOS still draws
-        // its own white focus highlight on top, so focused and selected never
-        // get confused.
-        .tint(isSelected ? PatreonColors.brand : PatreonColors.cardSurface)
         .accessibilityLabel(Text(label(option)))
         .accessibilityAddTraits(isSelected ? .isSelected : AccessibilityTraits())
+
+        return Group {
+            // Only the committed option is tinted. tvOS derives a bordered
+            // button's label colour from its tint, so tinting every segment
+            // left the unselected ones dark-on-dark and hard to read.
+            if isSelected {
+                button.tint(PatreonColors.brand)
+            } else {
+                button
+            }
+        }
     }
 }
