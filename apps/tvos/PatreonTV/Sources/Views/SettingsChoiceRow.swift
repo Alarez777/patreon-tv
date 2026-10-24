@@ -16,6 +16,8 @@ struct SettingsChoiceRow<Option: Hashable>: View {
     let label: (Option) -> String
     @Binding var selection: Option
 
+    private let cornerRadius: CGFloat = 12
+
     var body: some View {
         HStack(spacing: 8) {
             ForEach(options, id: \.self) { option in
@@ -25,35 +27,38 @@ struct SettingsChoiceRow<Option: Hashable>: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Every segment keeps the same view hierarchy no matter which option is
+    /// selected. Switching view types here (for example with a conditional
+    /// `.tint`) makes SwiftUI rebuild the button and tvOS drops focus to a
+    /// neighbouring row, so selection is drawn as an overlay instead.
     private func segment(for option: Option) -> some View {
         let isSelected = option == selection
 
-        let button = Button {
+        return Button {
             selection = option
         } label: {
             HStack(spacing: 8) {
                 Text(label(option))
                     .fontWeight(isSelected ? .semibold : .regular)
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .fontWeight(.semibold)
-                }
+                // Always laid out, so selecting an option does not shift the
+                // labels or change the label's structure.
+                Image(systemName: "checkmark")
+                    .fontWeight(.semibold)
+                    .opacity(isSelected ? 1 : 0)
+                    .accessibilityHidden(true)
             }
             .frame(maxWidth: .infinity, minHeight: 40)
         }
         .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: cornerRadius))
+        .overlay {
+            // Brand outline on the committed value. The focused segment still
+            // gets tvOS's own white highlight, so the two never get confused.
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .strokeBorder(PatreonColors.brand, lineWidth: 3)
+                .opacity(isSelected ? 1 : 0)
+        }
         .accessibilityLabel(Text(label(option)))
         .accessibilityAddTraits(isSelected ? .isSelected : AccessibilityTraits())
-
-        return Group {
-            // Only the committed option is tinted. tvOS derives a bordered
-            // button's label colour from its tint, so tinting every segment
-            // left the unselected ones dark-on-dark and hard to read.
-            if isSelected {
-                button.tint(PatreonColors.brand)
-            } else {
-                button
-            }
-        }
     }
 }
