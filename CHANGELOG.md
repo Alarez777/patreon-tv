@@ -4,6 +4,10 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Changed
+
+- Settings' **Initial tab** and **Comment order** options no longer change just by swiping across them. Swiping only moves the highlight; the check mark stays on the current value and the change is applied when you press Select.
+
 ## [2.0.2] - 2026-10-23
 
 ### Changed
