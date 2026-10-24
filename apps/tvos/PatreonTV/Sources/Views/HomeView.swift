@@ -3,7 +3,7 @@
 //  PatreonTV
 //
 //  The couch-first landing screen: a vertical stack of horizontal shelves —
-//  "New" first, then Continue Watching, Continue Collection,
+//  "Recent" first, then Continue Watching, Continue Collection,
 //  and a row per creator.
 //
 
@@ -168,7 +168,11 @@ struct HomeView: View {
                             Task { await vm.loadMoreHomeFeed(current: post) }
                         },
                         onPlay: onPlayPost,
-                        playbackQueue: feed.filter { UpNextResolver.isPlayable($0) }.map(\.id),
+                        // Every card in display order; the detail view skips
+                        // finished/non-playable neighbors using the full post
+                        // document, since shelf listing metadata can be
+                        // incomplete (missing post_type / current_user_can_view).
+                        playbackQueue: feed.map(\.id),
                         playbackSource: .new,
                         focusFirstCardOnEntry: focusFirstShelfCard
                     )
@@ -180,6 +184,9 @@ struct HomeView: View {
                         posts: continueWatching,
                         campaignFor: { vm.campaign(for: $0) },
                         onPlay: onPlayPost,
+                        // Follow this shelf too: Up Next is the card to the
+                        // right, not the creator's feed.
+                        playbackQueue: continueWatching.map(\.id),
                         playbackSource: .continueWatching
                     )
                     .transition(.opacity.combined(with: .move(edge: .top)))

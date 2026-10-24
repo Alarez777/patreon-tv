@@ -32,9 +32,10 @@ struct Shelf: View {
     /// Args: post id, the shelf's playback queue (see `playbackQueue`), and its
     /// autoplay source.
     var onPlay: ((String, [String]?, AutoplaySource) -> Void)? = nil
-    /// Ordered playable post IDs for this shelf, in display order (left→right).
-    /// Passed into the detail so Up Next follows the shelf instead of the
-    /// creator's feed. Nil keeps the default (creator-feed) behavior.
+    /// Ordered post IDs for this shelf, in display order (left→right). Passed
+    /// into the detail so Up Next follows the shelf instead of the creator's
+    /// feed; the detail skips finished and non-playable cards. Nil keeps the
+    /// default (creator-feed) behavior.
     var playbackQueue: [String]? = nil
     /// Where this shelf's posts came from; each source has its own autoplay
     /// preference.

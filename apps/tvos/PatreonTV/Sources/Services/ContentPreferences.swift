@@ -53,7 +53,7 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(autoplayNext, forKey: autoplayNextKey) }
     }
 
-    /// Auto-advance for the Home "New" shelf.
+    /// Auto-advance for the Home "Recent" shelf.
     var autoplayNew: Bool {
         didSet { UserDefaults.standard.set(autoplayNew, forKey: autoplayNewKey) }
     }
