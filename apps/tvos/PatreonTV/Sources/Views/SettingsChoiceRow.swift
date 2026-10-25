@@ -43,6 +43,13 @@ struct SettingsChoiceRow<Option: Hashable>: View {
             selection = option
         } label: {
             HStack(spacing: 6) {
+                // Invisible mirror of the check mark keeps the label centred
+                // whether or not this option is the selected one.
+                Image(systemName: "checkmark")
+                    .opacity(0)
+                    .frame(width: 18)
+                    .accessibilityHidden(true)
+
                 Text(label(option))
                     // "Último usado" / "Dernier utilisé" do not fit a quarter
                     // of the row at the default size: keep every option on one
@@ -50,10 +57,12 @@ struct SettingsChoiceRow<Option: Hashable>: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .allowsTightening(true)
+
                 // Always laid out, so selecting an option does not shift the
                 // labels: only the check mark tells them apart.
                 Image(systemName: "checkmark")
                     .opacity(isSelected ? 1 : 0)
+                    .frame(width: 18)
                     .accessibilityHidden(true)
             }
             .frame(maxWidth: .infinity, minHeight: 40)
