@@ -6,7 +6,7 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ### Added
 
-- The Creators tab now groups creators into **Paid memberships** and **Free memberships**, with the paid ones listed first. Paid status comes from `/api/members` (`active_patron`) plus `/api/pledges`, so subscriptions that endpoint hides are still counted.
+- The Creators tab now groups creators into **Paid memberships** and **Free memberships**, with the paid ones listed first. Paid status comes from `/api/members` (`active_patron`) plus `/api/pledges`, so subscriptions that endpoint hides are still counted. Both groups are sorted alphabetically by creator name.
 
 ### Changed
 

@@ -101,8 +101,9 @@ struct CreatorsView: View {
         }
     }
 
-    /// One section header plus the grid of its creators. Paid memberships get
-    /// the brand heart and primary text so they read as the important group.
+    /// One section header plus the grid of its creators. Paid memberships use
+    /// primary text and free follows secondary text, so the paid group reads
+    /// as the more important one.
     private func section(
         title: String,
         entries: [CreatorsViewModel.Entry],
@@ -110,11 +111,6 @@ struct CreatorsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 24) {
             HStack(spacing: 10) {
-                if isPaid {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(PatreonColors.brand)
-                }
-
                 Text(title)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(
@@ -243,6 +239,20 @@ final class CreatorsViewModel {
     var paidEntries: [Entry] { entries.filter(\.isPaid) }
     var freeEntries: [Entry] { entries.filter { !$0.isPaid } }
 
+    /// Alphabetical by creator name in the app's language. Case, accents and
+    /// numeric runs are ignored, and ties fall back to the id so the order is
+    /// stable across reloads.
+    nonisolated static func alphabetically(_ lhs: Campaign, _ rhs: Campaign) -> Bool {
+        let left = lhs.attributes.name ?? ""
+        let right = rhs.attributes.name ?? ""
+        let comparison = left.compare(
+            right,
+            options: [.caseInsensitive, .diacriticInsensitive, .numeric],
+            locale: AppLanguage.current.locale
+        )
+        return comparison == .orderedSame ? lhs.id < rhs.id : comparison == .orderedAscending
+    }
+
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Creators")
 
     func load() async {
@@ -284,11 +294,12 @@ final class CreatorsViewModel {
                 pledgeCampaignIDs: pledgeCampaignIDs
             )
 
-            entries = split.paid.compactMap { id in
-                campaignsByID[id].map { Entry(campaign: $0, isPaid: true) }
-            } + split.free.compactMap { id in
-                campaignsByID[id].map { Entry(campaign: $0, isPaid: false) }
-            }
+            entries = split.paid.compactMap { campaignsByID[$0] }
+                .sorted(by: Self.alphabetically)
+                .map { Entry(campaign: $0, isPaid: true) }
+            + split.free.compactMap { campaignsByID[$0] }
+                .sorted(by: Self.alphabetically)
+                .map { Entry(campaign: $0, isPaid: false) }
 
             state = entries.isEmpty ? .empty : .loaded
         } catch {

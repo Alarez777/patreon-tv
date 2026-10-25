@@ -110,4 +110,35 @@ final class CreatorSectionsTests: XCTestCase {
         XCTAssertFalse(doc.data.isActivePatron)
         XCTAssertFalse(doc.data.isCurrentRelationship)
     }
+
+    /// Both sections are listed A–Z, ignoring case and accents.
+    func test_creators_sort_alphabetically() throws {
+        let zeta = try campaign(id: "c3", name: "zeta")
+        let beta = try campaign(id: "c2", name: "Beta")
+        let alvarez = try campaign(id: "c1", name: "Álvarez")
+
+        let sorted = [zeta, beta, alvarez]
+            .sorted(by: CreatorsViewModel.alphabetically)
+            .map(\.id)
+
+        XCTAssertEqual(sorted, ["c1", "c2", "c3"])
+    }
+
+    func test_creators_with_the_same_name_fall_back_to_id() throws {
+        let second = try campaign(id: "c2", name: "Same")
+        let first = try campaign(id: "c1", name: "Same")
+
+        let sorted = [second, first]
+            .sorted(by: CreatorsViewModel.alphabetically)
+            .map(\.id)
+
+        XCTAssertEqual(sorted, ["c1", "c2"])
+    }
+
+    private func campaign(id: String, name: String) throws -> Campaign {
+        let json = """
+        { "type": "campaign", "id": "\(id)", "attributes": { "name": "\(name)" } }
+        """
+        return try JSONAPIDecoder.decode(Campaign.self, from: Data(json.utf8))
+    }
 }
