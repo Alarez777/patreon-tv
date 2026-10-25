@@ -84,6 +84,7 @@
 "Pause" = "Pause";
 "Play" = "Lire";
 "Play starts the collection" = "Lire démarre la collection";
+"Play a collection from its oldest unfinished episode, even if you watched a newer one last." = "Lire une collection depuis son plus ancien épisode non terminé, même si vous en avez regardé un plus récent en dernier.";
 "Playback Problem" = "Problème de lecture";
 "Podcasts" = "Podcasts";
 "Poll" = "Sondage";
@@ -107,6 +108,7 @@
 "Searching…" = "Recherche…";
 "Select to hide replies" = "Sélectionnez pour masquer les réponses";
 "Select to show replies" = "Sélectionnez pour afficher les réponses";
+"Series mode for collections" = "Mode série pour les collections";
 "Session ID" = "ID de session";
 "Settings" = "Réglages";
 "Show Continue Collection" = "Afficher Continuer la collection";

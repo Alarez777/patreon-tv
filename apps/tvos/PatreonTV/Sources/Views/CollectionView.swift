@@ -91,8 +91,15 @@ struct CollectionView: View {
         let requested = focusPostID.flatMap { id in
             vm.posts.contains { $0.id == id } ? id : nil
         }
+        // Series mode focuses the episode Play would start: the oldest one that
+        // isn't finished, or the oldest when everything is done.
+        let seriesFocus = ContentPreferences.shared.collectionSeriesMode
+            ? CollectionPlaybackResolver.target(in: vm.posts)?.postID
+            : nil
+        let lastPlayed = PlaybackProgressStore.shared.mostRecent(in: vm.posts.map(\.id))?.postID
         guard let target = requested
-                ?? PlaybackProgressStore.shared.mostRecent(in: vm.posts.map(\.id))?.postID
+                ?? seriesFocus
+                ?? lastPlayed
                 ?? vm.posts.first?.id
         else { return }
         try? await Task.sleep(for: .milliseconds(250))
