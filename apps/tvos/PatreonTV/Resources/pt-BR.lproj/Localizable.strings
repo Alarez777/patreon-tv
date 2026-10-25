@@ -37,12 +37,14 @@
 "Filter" = "Filtrar";
 "Filter posts by type" = "Filtrar publicações por tipo";
 "Find creators" = "Encontrar criadores";
+"Free memberships" = "Assinaturas gratuitas";
 "Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you." = "Mantenha este cookie em sigilo. Copie no seu próprio computador — não em um compartilhado ou público — e cole direto na Apple TV. Nunca envie por e-mail, chat ou notas na nuvem: quem tiver acesso a ele pode entrar na sua conta do Patreon. O PatreonTV o guarda com segurança no Keychain do tvOS, mas os passos intermediários são sua responsabilidade.";
 "Home" = "Início";
 "How a post's comments open. The comments screen can still reorder them for that visit." = "Como os comentários de uma publicação abrem. A tela de comentários ainda pode mudar a ordem naquela visita.";
 "HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV." = "Cookie HttpOnly: só aparece nas ferramentas de um navegador de computador. Sair desse navegador também encerra a sessão desta TV.";
 "Image" = "Imagem";
 "Images" = "Imagens";
+"Paid memberships" = "Assinaturas pagas";
 "In the developer tools, open Application (Chrome) or Storage (Firefox/Safari) → Cookies → https://www.patreon.com." = "Nas ferramentas, abra Application (Chrome) ou Storage (Firefox/Safari) → Cookies → https://www.patreon.com.";
 "In this collection" = "Nesta coleção";
 "Initial tab" = "Aba inicial";
