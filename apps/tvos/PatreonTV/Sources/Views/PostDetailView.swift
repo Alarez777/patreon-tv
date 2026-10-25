@@ -868,6 +868,16 @@ struct PostDetailView: View {
 
     /// Re-fetch post on play so Mux HLS tokens are fresh (~24h expiry).
     private func prepareAndPlay() async {
+        // The same video may already be floating in Picture in Picture: bring
+        // that instance back instead of opening a second player (and a second
+        // audio track) from the start.
+        if PictureInPictureSession.shared.canRestore(postID: currentPostID) {
+            PictureInPictureSession.shared.requestFullScreen()
+            return
+        }
+        // Playing anything else replaces whatever is floating in PiP.
+        PictureInPictureSession.shared.finish()
+
         isPreparingPlayback = true
         defer { isPreparingPlayback = false }
 
