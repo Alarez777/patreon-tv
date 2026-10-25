@@ -21,7 +21,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     MARKETING_VERSION: "2.0.2"
-    CURRENT_PROJECT_VERSION: "14"
+    CURRENT_PROJECT_VERSION: "15"
 
 targets:
   PatreonTV:
@@ -61,6 +61,11 @@ targets:
         UIRequiredDeviceCapabilities:
           - arm64
         UILaunchScreen: {}
+        # Apple requires the audio background mode for Picture in Picture
+        # ("Audio, AirPlay, and Picture in Picture"). Without it AVKit offers no
+        # PiP control at all. See PlayerHostViewController.activateAudioSession().
+        UIBackgroundModes:
+          - audio
     entitlements:
       path: PatreonTV/PatreonTV.entitlements
       properties:

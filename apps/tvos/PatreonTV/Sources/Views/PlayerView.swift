@@ -6,6 +6,7 @@
 //  Patreon-hosted MP4, and any AVPlayer-compatible URL.
 //
 
+import AVFoundation
 import AVKit
 import Foundation
 import SwiftUI
@@ -82,7 +83,10 @@ struct PlayerView: UIViewControllerRepresentable {
 
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
         coordinator.detach()
-        host.playerViewController.player?.pause()
+        // PiP keeps playing in a system window; pausing here would stop it.
+        if !host.isPictureInPictureActive {
+            host.playerViewController.player?.pause()
+        }
         host.teardown()
     }
 
@@ -250,10 +254,14 @@ struct PlayerView: UIViewControllerRepresentable {
 /// Embeds `AVPlayerViewController` edge-to-edge. SwiftUI `fullScreenCover` +
 /// bare `AVPlayerViewController` often lays out at zero width on tvOS.
 @MainActor
-final class PlayerHostViewController: UIViewController {
+final class PlayerHostViewController: UIViewController, AVPlayerViewControllerDelegate {
 
     let playerViewController = AVPlayerViewController()
     private var didConfigure = false
+    /// System Picture in Picture state, kept in sync by the delegate so that
+    /// dismissing the screen or leaving the app does not stop the floating
+    /// video.
+    private(set) var isPictureInPictureActive = false
     /// Strong reference: `AVAssetResourceLoader` holds its delegate weakly.
     private var assetResourceLoader: PatreonAssetResourceLoader?
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
@@ -261,6 +269,15 @@ final class PlayerHostViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+
+        playerViewController.delegate = self
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
 
         addChild(playerViewController)
         playerViewController.view.translatesAutoresizingMaskIntoConstraints = false
@@ -312,6 +329,67 @@ final class PlayerHostViewController: UIViewController {
     func teardown() {
         assetResourceLoader?.invalidate()
         assetResourceLoader = nil
+        NotificationCenter.default.removeObserver(self)
+        // While PiP is running the system owns playback; leave the session
+        // active or the floating video loses its audio.
+        if !isPictureInPictureActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+
+    // MARK: - Picture in Picture
+
+    /// PiP needs an active playback audio session. Without one AVKit does not
+    /// offer the Picture in Picture control at all.
+    private func activateAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback)
+            try session.setActive(true)
+        } catch {
+            log.error("Audio session activation failed: \(String(describing: error))")
+        }
+
+        if !AVPictureInPictureController.isPictureInPictureSupported() {
+            log.info("Picture in Picture is not supported on this device")
+        }
+    }
+
+    /// The audio background mode PiP requires would otherwise let playback
+    /// continue with no picture when the user leaves the app. PiP handles its
+    /// own background playback, so only pause when it is not active.
+    @objc private func handleDidEnterBackground() {
+        guard !isPictureInPictureActive else { return }
+        playerViewController.player?.pause()
+    }
+
+    func playerViewControllerWillStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+        isPictureInPictureActive = true
+    }
+
+    func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+        isPictureInPictureActive = true
+    }
+
+    func playerViewController(
+        _ playerViewController: AVPlayerViewController,
+        failedToStartPictureInPictureWithError error: Error
+    ) {
+        isPictureInPictureActive = false
+        log.error("Picture in Picture failed to start: \(error.localizedDescription, privacy: .public)")
+    }
+
+    func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+        isPictureInPictureActive = false
+    }
+
+    /// The full-screen cover is still presented when PiP stops, so there is
+    /// nothing to rebuild; just let the system finish the transition.
+    func playerViewController(
+        _ playerViewController: AVPlayerViewController,
+        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void
+    ) {
+        completionHandler(true)
     }
 
     func configure(
@@ -327,6 +405,8 @@ final class PlayerHostViewController: UIViewController {
     ) {
         guard !didConfigure else { return }
         didConfigure = true
+
+        activateAudioSession()
 
         // Both Mux and Patreon media URLs are self-signed with an expiring token
         // in the query string, so a plain asset streams them directly and
