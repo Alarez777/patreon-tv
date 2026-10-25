@@ -4,6 +4,8 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-10-25
+
 ### Added
 
 - The Creators tab now groups creators into **Paid memberships** and **Free memberships**, with the paid ones listed first. Paid status comes from `/api/members` (`active_patron`) plus `/api/pledges`, so subscriptions that endpoint hides are still counted. Both groups are sorted alphabetically by creator name.
@@ -11,11 +13,6 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 ### Changed
 
 - Settings' **Initial tab** and **Comment order** options no longer change just by swiping across them. Swiping only moves the highlight; the check mark stays on the current value and the change is applied when you press Select.
-
-## [2.0.2] - 2026-10-23
-
-### Changed
-
 - Home's "New" shelf is now labelled "Recent" in English, "Recientes" in Spanish, "Récents" in French and "Recentes" in Portuguese. The autoplay settings toggle uses the same name.
 
 ### Fixed
