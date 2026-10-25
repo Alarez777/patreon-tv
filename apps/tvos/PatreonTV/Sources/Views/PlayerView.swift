@@ -6,6 +6,7 @@
 //  Patreon-hosted MP4, and any AVPlayer-compatible URL.
 //
 
+import AVFoundation
 import AVKit
 import Foundation
 import SwiftUI
@@ -63,6 +64,7 @@ struct PlayerView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> PlayerHostViewController {
         let host = PlayerHostViewController()
         host.configure(
+            postID: postID,
             source: source,
             title: title,
             resumeSeconds: resumeSeconds,
@@ -81,6 +83,14 @@ struct PlayerView: UIViewControllerRepresentable {
     }
 
     static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: Coordinator) {
+        // While the video floats in PiP the player must outlive this screen:
+        // detaching would stop progress tracking and drop the delegate that
+        // restores full screen. The PiP session keeps the host alive instead.
+        if host.isPictureInPictureActive {
+            coordinator.setDetached(true)
+            host.detachFromScreen()
+            return
+        }
         coordinator.detach()
         host.playerViewController.player?.pause()
         host.teardown()
@@ -99,6 +109,9 @@ struct PlayerView: UIViewControllerRepresentable {
         private var statusObserver: NSKeyValueObservation?
         private var endObserver: NSObjectProtocol?
         private weak var player: AVPlayer?
+        /// True while the video floats in PiP with no screen owning it. Progress
+        /// keeps being recorded; only the UI-facing callbacks stop.
+        private(set) var isDetached = false
         private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
 
         init(
@@ -113,8 +126,7 @@ struct PlayerView: UIViewControllerRepresentable {
             self.onUpNextTick = onUpNextTick
         }
 
-        func attach(player: AVPlayer, item: AVPlayerItem) {
-            self.player = player
+        func attach(player: AVPlayer, item: AVPlayerItem) {            self.player = player
 
             statusObserver = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
                 guard let self else { return }
@@ -129,6 +141,7 @@ struct PlayerView: UIViewControllerRepresentable {
                         // Media URLs are token-signed with ~24h expiry, so a
                         // long pause can kill the stream. Surface it instead of
                         // leaving a silent black screen.
+                        guard !self.isDetached else { return }
                         self.onFailure?(
                             item.error?.localizedDescription
                                 ?? L10n.string("The video stopped playing. Its link may have expired — try again.")
@@ -148,6 +161,7 @@ struct PlayerView: UIViewControllerRepresentable {
                     guard let self else { return }
                     self.log.info("Playback finished for post \(self.postID)")
                     self.markFinished()
+                    guard !self.isDetached else { return }
                     self.onEnded?(self.postID)
                 }
             }
@@ -185,7 +199,14 @@ struct PlayerView: UIViewControllerRepresentable {
             guard duration.isFinite, duration > 0, position.isFinite else { return }
             let remaining = duration - position
             guard remaining > 0, remaining <= PlayerView.upNextLeadSeconds else { return }
+            guard !isDetached else { return }
             onUpNextTick?(postID, remaining)
+        }
+
+        /// Called when the video starts floating in PiP without a screen: keep
+        /// recording progress, but stop driving the post screen's UI.
+        func setDetached(_ detached: Bool) {
+            isDetached = detached
         }
 
         func detach() {
@@ -250,10 +271,22 @@ struct PlayerView: UIViewControllerRepresentable {
 /// Embeds `AVPlayerViewController` edge-to-edge. SwiftUI `fullScreenCover` +
 /// bare `AVPlayerViewController` often lays out at zero width on tvOS.
 @MainActor
-final class PlayerHostViewController: UIViewController {
+final class PlayerHostViewController: UIViewController, AVPlayerViewControllerDelegate {
 
     let playerViewController = AVPlayerViewController()
     private var didConfigure = false
+    /// Post being played, needed for the PiP session bookkeeping.
+    private(set) var postID: String = ""
+    /// Retained so progress keeps being recorded while PiP owns the video and
+    /// the SwiftUI screen is gone.
+    private var coordinator: PlayerView.Coordinator?
+    /// True when the screen that started playback has been dismissed but the
+    /// video is still floating in PiP.
+    private(set) var isDetachedFromScreen = false
+    /// System Picture in Picture state, kept in sync by the delegate so that
+    /// dismissing the screen or leaving the app does not stop the floating
+    /// video.
+    private(set) var isPictureInPictureActive = false
     /// Strong reference: `AVAssetResourceLoader` holds its delegate weakly.
     private var assetResourceLoader: PatreonAssetResourceLoader?
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Player")
@@ -261,6 +294,15 @@ final class PlayerHostViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+
+        playerViewController.delegate = self
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
 
         addChild(playerViewController)
         playerViewController.view.translatesAutoresizingMaskIntoConstraints = false
@@ -312,9 +354,109 @@ final class PlayerHostViewController: UIViewController {
     func teardown() {
         assetResourceLoader?.invalidate()
         assetResourceLoader = nil
+        NotificationCenter.default.removeObserver(self)
+        // While PiP is running the system owns playback; leave the session
+        // active or the floating video loses its audio.
+        if !isPictureInPictureActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+
+    // MARK: - Picture in Picture
+
+    /// PiP needs an active playback audio session. Without one AVKit does not
+    /// offer the Picture in Picture control at all.
+    private func activateAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback)
+            try session.setActive(true)
+        } catch {
+            log.error("Audio session activation failed: \(String(describing: error))")
+        }
+
+        if !AVPictureInPictureController.isPictureInPictureSupported() {
+            log.info("Picture in Picture is not supported on this device")
+        }
+    }
+
+    /// The audio background mode PiP requires would otherwise let playback
+    /// continue with no picture when the user leaves the app. PiP handles its
+    /// own background playback, so only pause when it is not active.
+    @objc private func handleDidEnterBackground() {
+        guard !isPictureInPictureActive else { return }
+        playerViewController.player?.pause()
+    }
+
+    func playerViewControllerWillStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+        isPictureInPictureActive = true
+        // The screen may be dismissed while the video floats; keep the host
+        // (and this delegate) alive so the system can restore full screen.
+        PictureInPictureSession.shared.adopt(host: self, postID: postID)
+    }
+
+    func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+        isPictureInPictureActive = true
+    }
+
+    func playerViewController(
+        _ playerViewController: AVPlayerViewController,
+        failedToStartPictureInPictureWithError error: Error
+    ) {
+        isPictureInPictureActive = false
+        log.error("Picture in Picture failed to start: \(error.localizedDescription, privacy: .public)")
+    }
+
+    func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+        isPictureInPictureActive = false
+        // Closed from the PiP window (not restored to full screen): nothing is
+        // presenting this player anymore, so stop it and free the session.
+        guard isDetachedFromScreen,
+              !PictureInPictureSession.shared.isRestoringFullScreen else { return }
+        endSessionPlayback()
+    }
+
+    /// The full-screen cover is still presented when PiP stops, so there is
+    /// nothing to rebuild; just let the system finish the transition.
+    func playerViewController(
+        _ playerViewController: AVPlayerViewController,
+        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void
+    ) {
+        // The screen that started playback may be long gone (the user kept
+        // browsing the app or another app). Ask the app to present it again.
+        if viewIfLoaded?.window == nil {
+            PictureInPictureSession.shared.requestFullScreen()
+        }
+        completionHandler(true)
+    }
+
+    // MARK: - Detached (PiP) session
+
+    /// Keep the player alive with no screen attached while the video floats.
+    func detachFromScreen() {
+        isDetachedFromScreen = true
+        coordinator?.setDetached(true)
+    }
+
+    /// The floating player is back on screen: either the system restored it or
+    /// the user pressed Play again on the same post.
+    func reattach() {
+        isDetachedFromScreen = false
+        activateAudioSession()
+    }
+
+    /// Stop and release a player that outlived its screen in PiP.
+    func endSessionPlayback() {
+        coordinator?.detach()
+        coordinator = nil
+        playerViewController.player?.pause()
+        playerViewController.player = nil
+        teardown()
+        PictureInPictureSession.shared.release(host: self)
     }
 
     func configure(
+        postID: String,
         source: MediaPlaybackSource,
         title: String,
         resumeSeconds: Double?,
@@ -327,6 +469,11 @@ final class PlayerHostViewController: UIViewController {
     ) {
         guard !didConfigure else { return }
         didConfigure = true
+
+        self.postID = postID
+        self.coordinator = coordinator
+
+        activateAudioSession()
 
         // Both Mux and Patreon media URLs are self-signed with an expiring token
         // in the query string, so a plain asset streams them directly and
@@ -525,5 +672,34 @@ final class PlayerHostViewController: UIViewController {
         item.value = value as NSString
         item.extendedLanguageTag = "und"
         return item.copy() as! AVMetadataItem
+    }
+}
+
+// MARK: - Restored player
+
+/// Presents the player host that outlived its screen in Picture in Picture.
+/// Unlike `PlayerView`, it never creates a player: the same instance, at the
+/// same position, comes back to full screen.
+struct RestoredPlayerView: UIViewControllerRepresentable {
+
+    let host: PlayerHostViewController
+
+    func makeUIViewController(context: Context) -> PlayerHostViewController {
+        host.reattach()
+        return host
+    }
+
+    func updateUIViewController(_ host: PlayerHostViewController, context: Context) {
+        // The post screen's Up Next surface is gone; keep the native bar clean.
+        host.updateUpNext(isActive: false, onPlay: nil, onCancel: nil)
+    }
+
+    static func dismantleUIViewController(_ host: PlayerHostViewController, coordinator: ()) {
+        // Back to PiP on the way out: keep the session running.
+        if host.isPictureInPictureActive {
+            host.detachFromScreen()
+            return
+        }
+        host.endSessionPlayback()
     }
 }

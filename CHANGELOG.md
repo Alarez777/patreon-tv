@@ -4,6 +4,12 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-25
+
+### Added
+
+- Picture in Picture for video playback. Start it from the player's controls and the video keeps playing in a floating window while you use other apps on the Apple TV. Leaving the app without starting PiP still stops playback. Bringing the video back from the PiP window restores full screen even after browsing elsewhere in the app, and pressing Play on that same post resumes the floating player instead of starting a second one.
+
 ## [2.0.2] - 2026-10-25
 
 ### Added

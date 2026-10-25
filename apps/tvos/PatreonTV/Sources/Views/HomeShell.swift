@@ -53,6 +53,10 @@ struct HomeShell: View {
 
     var body: some View {
         let _ = locale
+        // Binding to the PiP session so a floating video can be brought back to
+        // full screen no matter which tab the user is on.
+        @Bindable var pip = PictureInPictureSession.shared
+
         TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
                 HomeView(
@@ -102,6 +106,12 @@ struct HomeShell: View {
                 homePath = [.creator(id: id)]
             }
             router.consume()
+        }
+        .fullScreenCover(isPresented: $pip.isRestoringFullScreen) {
+            if let host = pip.host {
+                RestoredPlayerView(host: host)
+                    .ignoresSafeArea()
+            }
         }
     }
 
