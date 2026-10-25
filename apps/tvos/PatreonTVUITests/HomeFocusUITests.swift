@@ -33,7 +33,7 @@ final class HomeFocusUITests: XCTestCase {
 
     /// Home is loaded once the leading shelf's header is on screen.
     private func waitForHome(_ app: XCUIApplication) {
-        let header = app.staticTexts["New"].firstMatch
+        let header = app.staticTexts["Recent"].firstMatch
         XCTAssertTrue(header.waitForExistence(timeout: 20), "Home never loaded (mock feed missing?)")
         sleep(2)   // let initial focus settle
     }

@@ -4,6 +4,23 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-10-25
+
+### Added
+
+- The Creators tab now groups creators into **Paid memberships** and **Free memberships**, with the paid ones listed first. Paid status comes from `/api/members` (`active_patron`) plus `/api/pledges`, so subscriptions that endpoint hides are still counted. Both groups are sorted alphabetically by creator name.
+
+### Changed
+
+- Settings' **Initial tab** and **Comment order** options no longer change just by swiping across them. Swiping only moves the highlight; the check mark stays on the current value and the change is applied when you press Select.
+- Home's "New" shelf is now labelled "Recent" in English, "Recientes" in Spanish, "Récents" in French and "Recentes" in Portuguese. The autoplay settings toggle uses the same name.
+
+### Fixed
+
+- With auto-advance off for the current shelf, the Up Next card, its thumbnail and the native Next/Cancel buttons no longer appear, and the player closes when the video ends instead of prompting for a next post. Applies to Recent, Continue Watching, creator/channel and collection playback.
+- Up Next from Home's "Recent" shelf now follows the carousel: the next playable card to the right, resolved against the full post document so incomplete shelf metadata can't silently fall back to the creator's feed. Reaching the end of the shelf means no suggestion.
+- Up Next from "Continue Watching" now follows that shelf's order too, instead of playing the next post from the creator's feed.
+
 ## [2.0.1] - 2026-10-23
 
 ### Added

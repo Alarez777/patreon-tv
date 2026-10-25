@@ -3,7 +3,8 @@
 //  PatreonTVTests
 //
 //  Selection logic for the Up Next queue: playability filtering, unwatched
-//  preference, and "everything watched" fallback.
+//  preference, "everything watched" fallback, and the ordered candidates a
+//  shelf hands to the detail view.
 //
 
 import XCTest
@@ -102,40 +103,51 @@ final class UpNextResolverTests: XCTestCase {
         XCTAssertEqual(next?.id, "2")
     }
 
-    // MARK: - Shelf queue ("New")
+    // MARK: - Shelf queue ("Recent")
 
-    func test_shelf_queue_picks_next_to_the_right() {
+    func test_shelf_candidates_are_ordered_to_the_right() {
         let queue = ["1", "2", "3"]
         XCTAssertEqual(
-            UpNextResolver.selectNextID(afterPostID: "1", in: queue) { _ in false },
-            "2"
+            UpNextResolver.candidatesAfter("1", in: queue) { _ in false },
+            ["2", "3"]
         )
     }
 
-    func test_shelf_queue_skips_finished() {
+    func test_shelf_candidates_skip_finished() {
         let queue = ["1", "2", "3"]
         XCTAssertEqual(
-            UpNextResolver.selectNextID(afterPostID: "1", in: queue) { $0 == "2" },
-            "3"
+            UpNextResolver.candidatesAfter("1", in: queue) { $0 == "2" },
+            ["3"]
         )
     }
 
-    func test_shelf_queue_nil_at_end() {
-        XCTAssertNil(
-            UpNextResolver.selectNextID(afterPostID: "2", in: ["1", "2"]) { _ in false }
+    func test_shelf_candidates_empty_at_end_of_shelf() {
+        XCTAssertEqual(
+            UpNextResolver.candidatesAfter("2", in: ["1", "2"]) { _ in false },
+            []
         )
     }
 
-    func test_shelf_queue_nil_when_all_remaining_finished() {
+    func test_shelf_candidates_empty_when_all_remaining_finished() {
         let queue = ["1", "2", "3"]
-        XCTAssertNil(
-            UpNextResolver.selectNextID(afterPostID: "1", in: queue) { $0 != "1" }
+        XCTAssertEqual(
+            UpNextResolver.candidatesAfter("1", in: queue) { $0 != "1" },
+            []
         )
     }
 
-    func test_shelf_queue_nil_when_current_not_in_queue() {
-        XCTAssertNil(
-            UpNextResolver.selectNextID(afterPostID: "9", in: ["1", "2"]) { _ in false }
+    func test_shelf_candidates_empty_when_current_not_in_queue() {
+        XCTAssertEqual(
+            UpNextResolver.candidatesAfter("9", in: ["1", "2"]) { _ in false },
+            []
+        )
+    }
+
+    func test_shelf_candidates_respect_limit() {
+        let queue = (0..<20).map(String.init)
+        XCTAssertEqual(
+            UpNextResolver.candidatesAfter("0", in: queue, isFinished: { _ in false }, limit: 5),
+            ["1", "2", "3", "4", "5"]
         )
     }
 }

@@ -310,13 +310,11 @@ struct SettingsView: View {
             Text("Which tab opens when PatreonTV launches.")
                 .font(.caption)
                 .foregroundStyle(PatreonColors.secondaryText)
-            Picker("Initial tab", selection: $prefs.initialTab) {
-                ForEach(ContentPreferences.InitialTab.allCases) { tab in
-                    Text(tab.title).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: .infinity)
+            SettingsChoiceRow(
+                options: ContentPreferences.InitialTab.allCases,
+                label: { $0.title },
+                selection: $prefs.initialTab
+            )
         }
         .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }
@@ -330,13 +328,11 @@ struct SettingsView: View {
             Text("How a post's comments open. The comments screen can still reorder them for that visit.")
                 .font(.caption)
                 .foregroundStyle(PatreonColors.secondaryText)
-            Picker("Comment order", selection: $prefs.commentSort) {
-                ForEach(CommentSort.allCases) { sort in
-                    Text(sort.title).tag(sort)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: .infinity)
+            SettingsChoiceRow(
+                options: CommentSort.allCases,
+                label: { $0.title },
+                selection: $prefs.commentSort
+            )
         }
         .frame(maxWidth: settingsControlWidth, alignment: .leading)
     }

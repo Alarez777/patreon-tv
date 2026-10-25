@@ -6,7 +6,7 @@
 "Auto-advance from creator pages and their carousels." = "Avanza automáticamente desde las páginas de creador y sus carruseles.";
 "Auto-advance from the Continue Watching shelf." = "Avanza automáticamente desde el estante Seguir viendo.";
 "Auto-advance through collection episodes." = "Avanza automáticamente por los episodios de la colección.";
-"Auto-advance to the next post from the New shelf." = "Avanza automáticamente a la siguiente publicación del estante Nuevo.";
+"Auto-advance to the next post from the New shelf." = "Avanza automáticamente a la siguiente publicación del estante Recientes.";
 "Autoplay next" = "Reproducir el siguiente automáticamente";
 "Best" = "Mejores";
 "Cached images and posts are always removed. You can also delete your viewing history." = "Las imágenes y los posts en caché siempre se eliminan. También puedes borrar tu historial de reproducción.";
@@ -37,12 +37,14 @@
 "Filter" = "Filtrar";
 "Filter posts by type" = "Filtrar publicaciones por tipo";
 "Find creators" = "Encontrar creadores";
+"Free memberships" = "Suscripciones gratuitas";
 "Handle this cookie carefully. Copy it on your own computer — not a shared or public one — and paste it straight into the Apple TV. Never send it through email, chat or cloud notes: anyone who gets it can access your Patreon account. PatreonTV stores it securely in the tvOS Keychain, but the steps in between are up to you." = "Maneja esta cookie con cuidado. Cópiala en tu propio ordenador —no uno compartido o público— y pégala directamente en el Apple TV. Nunca la envíes por correo, chat o notas en la nube: quien la obtenga puede acceder a tu cuenta de Patreon. PatreonTV la guarda de forma segura en el Keychain de tvOS, pero los pasos intermedios dependen de ti.";
 "Home" = "Inicio";
 "How a post's comments open. The comments screen can still reorder them for that visit." = "Cómo se abren los comentarios de una publicación. La pantalla de comentarios aún puede cambiar el orden en esa visita.";
 "HttpOnly cookie: it only appears in a desktop browser's developer tools. Signing out of that browser also signs out this TV." = "Cookie HttpOnly: solo aparece en las herramientas de un navegador de escritorio. Cerrar sesión en ese navegador también cierra la de este TV.";
 "Image" = "Imagen";
 "Images" = "Imágenes";
+"Paid memberships" = "Suscripciones de pago";
 "In the developer tools, open Application (Chrome) or Storage (Firefox/Safari) → Cookies → https://www.patreon.com." = "En las herramientas, abre Application (Chrome) o Storage (Firefox/Safari) → Cookies → https://www.patreon.com.";
 "In this collection" = "En esta colección";
 "Initial tab" = "Pestaña inicial";
@@ -56,7 +58,7 @@
 "Mark as Unwatched" = "Marcar como no visto";
 "Mark as Watched" = "Marcar como visto";
 "NOW PLAYING" = "REPRODUCIENDO AHORA";
-"New" = "Nuevo";
+"New" = "Recientes";
 "Newest" = "Más recientes";
 "Newest first" = "Más recientes primero";
 "Next" = "Siguiente";

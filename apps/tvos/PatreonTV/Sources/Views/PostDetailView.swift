@@ -122,7 +122,9 @@ struct PostDetailView: View {
                     .id(source.id)
                     .ignoresSafeArea()
 
-                if let next = upNext {
+                // No Up Next surface at all when auto-advance is off for this
+                // source: no card, no thumbnail, no countdown.
+                if let next = upNext, autoplayEnabled {
                     UpNextOverlayView(
                         post: next,
                         creatorName: campaign?.attributes.name,
@@ -187,7 +189,7 @@ struct PostDetailView: View {
                     guard postID == currentPostID else { return }
                     handleUpNextTick(remaining)
                 },
-                upNextActive: upNext != nil,
+                upNextActive: upNext != nil && autoplayEnabled,
                 onPlayNext: {
                     guard let next = upNext else { return }
                     Task { await playNext(next) }
@@ -683,15 +685,15 @@ struct PostDetailView: View {
 
     /// Called ~once a second during the final seconds: shows the Up Next card
     /// once we enter the window and keeps its countdown in sync with the video.
+    /// With auto-advance off this is a no-op — no card, no buttons, no
+    /// countdown — because there is nothing to suggest or advance to.
     private func handleUpNextTick(_ remaining: Double) {
-        guard !upNextCancelled else { return }
+        guard autoplayEnabled, !upNextCancelled else { return }
         if upNext == nil, let next = queuedNext {
             log.info("Up Next window: showing \(next.id)")
             upNext = next
         }
-        if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
-            upNextCountdown = max(0, Int(remaining.rounded()))
-        }
+        upNextCountdown = max(0, Int(remaining.rounded()))
     }
 
     /// Hide the Up Next card/actions and keep the current video playing to its
@@ -702,28 +704,29 @@ struct PostDetailView: View {
         upNextCountdown = nil
     }
 
-    /// Playback finished. If the card is already up, honor it (advance when
-    /// autoplay is on, else leave it for the viewer). Otherwise resolve a next
-    /// post, or close the player when there's none.
+    /// Playback finished. When auto-advance is off, close the player: no Up
+    /// Next card, no manual prompt. Otherwise honor the card already on screen
+    /// (advancing to it), or resolve the next post and advance.
     private func handlePlaybackEnded() async {
         resumeProgressStamp = UUID()   // finished — re-read progress
         NotificationCenter.default.post(name: .playbackDidFinish, object: nil)
-        log.info("Playback ended: collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil") cancelled=\(upNextCancelled)")
+        log.info("Playback ended: source=\(effectiveAutoplaySource.rawValue) autoplay=\(autoplayEnabled) collectionID=\(collectionID ?? "nil") upNext=\(upNext?.id ?? "nil") cancelled=\(upNextCancelled)")
+
+        guard autoplayEnabled else {
+            log.info("Playback ended: autoplay off — closing player")
+            playbackSource = nil
+            return
+        }
 
         if upNextCancelled {
             playbackSource = nil
             return
         }
 
-        if let next = upNext {
-            if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
-                await playNext(next)
-            }
-            return
-        }
-
         let resolved: Post?
-        if let queuedNext {
+        if let upNext {
+            resolved = upNext
+        } else if let queuedNext {
             resolved = queuedNext
         } else {
             resolved = await resolveNext()
@@ -732,12 +735,14 @@ struct PostDetailView: View {
             playbackSource = nil
             return
         }
-        if ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource) {
-            await playNext(next)
-        } else {
-            upNext = next
-            upNextCountdown = nil
-        }
+        await playNext(next)
+    }
+
+    /// Whether automatic advance is enabled for where this post was opened.
+    /// Collections always use the Collections preference, even when the post
+    /// was opened through a creator/search route.
+    private var autoplayEnabled: Bool {
+        ContentPreferences.shared.autoplayEnabled(for: effectiveAutoplaySource)
     }
 
     /// Collections always use the Collections preference, even when the post
@@ -748,12 +753,13 @@ struct PostDetailView: View {
 
     /// Resolve the post to play after this one: the next card in the shelf we
     /// came from, else the next episode in the collection, else the creator's
-    /// next feed post.
+    /// next feed post. A supplied shelf `queue` is authoritative — even when it
+    /// yields nothing, we never fall back to the creator's feed.
     private func resolveNext() async -> Post? {
         if let collectionID {
             return await nextEpisode(in: collectionID)
         }
-        if let queue, !queue.isEmpty {
+        if let queue {
             return await nextInShelfQueue(queue)
         }
         guard let campaignID = campaign?.id else { return nil }
@@ -761,23 +767,38 @@ struct PostDetailView: View {
     }
 
     /// The next playable card to the right in the shelf playback started from,
-    /// skipping posts that are already finished. Returns nil at the end of the
-    /// shelf — deliberately no fallback to the creator feed.
+    /// skipping finished and non-playable cards. Playability is checked against
+    /// the full post document rather than the shelf listing's metadata, which
+    /// can omit `post_type` or `current_user_can_view`. Returns nil at the end
+    /// of the shelf — deliberately no fallback to the creator feed.
     private func nextInShelfQueue(_ queue: [String]) async -> Post? {
-        guard let nextID = UpNextResolver.selectNextID(
-            afterPostID: currentPostID,
+        let candidates = UpNextResolver.candidatesAfter(
+            currentPostID,
             in: queue,
             isFinished: { PlaybackProgressStore.shared.progress(for: $0)?.isFinished == true }
-        ) else {
-            log.info("Up Next: no next shelf card after \(currentPostID)")
+        )
+        guard !candidates.isEmpty else {
+            log.info("Up Next: no next shelf card after \(currentPostID) in queue of \(queue.count)")
             return nil
         }
-        guard let doc = try? await PatreonClient.shared.post(id: nextID) else {
-            log.info("Up Next: failed to fetch shelf neighbor \(nextID)")
-            return nil
+
+        for nextID in candidates {
+            guard let doc = try? await PatreonClient.shared.post(id: nextID) else {
+                log.info("Up Next: failed to fetch shelf neighbor \(nextID)")
+                continue
+            }
+            guard doc.data.attributes.currentUserCanView != false,
+                  UpNextResolver.isPlayable(doc.data)
+                    || MediaPlaybackResolver.resolve(from: doc) != nil
+            else {
+                log.info("Up Next: skipping non-playable shelf neighbor \(nextID)")
+                continue
+            }
+            log.info("Up Next: shelf neighbor \(nextID)")
+            return doc.data
         }
-        log.info("Up Next: shelf neighbor \(nextID)")
-        return doc.data
+        log.info("Up Next: no playable shelf card after \(currentPostID)")
+        return nil
     }
 
     /// Resolve the next post up front so the card appears instantly.
@@ -865,7 +886,15 @@ struct PostDetailView: View {
             log.info("Starting playback host=\(source.url.host() ?? "?") ext=\(source.url.pathExtension)")
             playbackSource = source
             // Resolve the next post up front so the Up Next card is instant.
-            Task { await preloadNext() }
+            // Skip it entirely with auto-advance off: nothing will be shown or
+            // played next, so there's no reason to spend a request.
+            if autoplayEnabled {
+                Task { await preloadNext() }
+            } else {
+                queuedNext = nil
+                upNext = nil
+                upNextCountdown = nil
+            }
         } catch {
             presentPlaybackError(
                 (error as? PatreonError)?.errorDescription ?? error.localizedDescription

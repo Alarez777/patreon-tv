@@ -40,17 +40,27 @@ enum UpNextResolver {
         return candidates.first { !isFinished($0.id) } ?? candidates.first
     }
 
-    /// Pure selection core for shelf playback (unit-tested): given the shelf's
-    /// ordered playable post IDs (left→right) and the current one, return the
-    /// next ID to the right that the viewer hasn't finished. Nil at the end of
-    /// the shelf (deliberately no fallback to the creator's feed).
-    nonisolated static func selectNextID(
-        afterPostID currentID: String,
+    /// Ordered IDs to the right of `currentID` in a shelf's display order,
+    /// skipping posts the viewer already finished. The caller fetches each one
+    /// and stops at the first playable card, so a shelf of text/image posts
+    /// doesn't produce a non-playable suggestion. Nil-equivalent (empty) at the
+    /// end of the shelf — deliberately no fallback to the creator's feed.
+    ///
+    /// `limit` bounds the number of fetches when a long run of neighbors is
+    /// unplayable, so Up Next can't turn into a request storm.
+    nonisolated static func candidatesAfter(
+        _ currentID: String,
         in queue: [String],
-        isFinished: (String) -> Bool
-    ) -> String? {
-        guard let index = queue.firstIndex(of: currentID) else { return nil }
-        return queue[(index + 1)...].first { !isFinished($0) }
+        isFinished: (String) -> Bool,
+        limit: Int = 10
+    ) -> [String] {
+        guard let index = queue.firstIndex(of: currentID) else { return [] }
+        var candidates: [String] = []
+        for id in queue[(index + 1)...] where !isFinished(id) {
+            candidates.append(id)
+            if candidates.count == limit { break }
+        }
+        return candidates
     }
 
     /// Fetches the campaign feed (following the cursor a bounded number of
