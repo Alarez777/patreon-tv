@@ -2,9 +2,10 @@
 //  CreatorsView.swift
 //  PatreonTV
 //
-//  Grid of the creators the user follows. Sourced from /api/members (active
-//  patrons + free follows) unioned with /api/pledges (which surfaces hidden
-//  paid subscriptions that /members can miss). See CreatorsViewModel.reload().
+//  Grid of the creators the user follows, split into paid memberships (listed
+//  first) and free follows. Sourced from /api/members (active patrons + free
+//  follows) unioned with /api/pledges (which surfaces hidden paid subscriptions
+//  that /members can miss). See CreatorsViewModel.reload().
 //
 
 import NukeUI
@@ -26,11 +27,15 @@ struct CreatorsView: View {
     @FocusState private var focusedCardID: String?
     @State private var didFocusFirstCard = false
 
-    /// Entries after applying the mature-content gate.
-    private var visibleEntries: [CreatorsViewModel.Entry] {
+    /// Entries after applying the mature-content gate, split so the paid
+    /// memberships are listed above the free follows.
+    private var visiblePaid: [CreatorsViewModel.Entry] { visible(vm.paidEntries) }
+    private var visibleFree: [CreatorsViewModel.Entry] { visible(vm.freeEntries) }
+
+    private func visible(_ entries: [CreatorsViewModel.Entry]) -> [CreatorsViewModel.Entry] {
         prefs.showMatureContent
-            ? vm.entries
-            : vm.entries.filter { $0.campaign.attributes.isNSFW != true }
+            ? entries
+            : entries.filter { $0.campaign.attributes.isNSFW != true }
     }
 
     var body: some View {
@@ -40,7 +45,11 @@ struct CreatorsView: View {
                 case .idle, .loading:
                     ProgressView().controlSize(.large)
                 case .loaded:
-                    if visibleEntries.isEmpty { CreatorsEmptyView() } else { content }
+                    if visiblePaid.isEmpty && visibleFree.isEmpty {
+                        CreatorsEmptyView()
+                    } else {
+                        content
+                    }
                 case .empty:
                     CreatorsEmptyView()
                 case .error(let m):
@@ -59,16 +68,21 @@ struct CreatorsView: View {
     @ViewBuilder
     private var content: some View {
         ScrollView {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 320, maximum: 380), spacing: 40)],
-                spacing: 40
-            ) {
-                ForEach(visibleEntries) { entry in
-                    NavigationLink(value: DeepLinkDestination.creator(id: entry.campaign.id)) {
-                        CreatorCard(campaign: entry.campaign)
-                    }
-                    .buttonStyle(.card)
-                    .focused($focusedCardID, equals: entry.campaign.id)
+            VStack(alignment: .leading, spacing: 48) {
+                if !visiblePaid.isEmpty {
+                    section(
+                        title: L10n.string("Paid memberships"),
+                        entries: visiblePaid,
+                        isPaid: true
+                    )
+                }
+
+                if !visibleFree.isEmpty {
+                    section(
+                        title: L10n.string("Free memberships"),
+                        entries: visibleFree,
+                        isPaid: false
+                    )
                 }
             }
             .padding(60)
@@ -79,7 +93,7 @@ struct CreatorsView: View {
         // (so the launch focus can't steal focus from a pushed creator).
         .task(id: focusTaskID) {
             guard focusFirstCardOnEntry, path.isEmpty, !didFocusFirstCard,
-                  let first = visibleEntries.first?.id else { return }
+                  let first = (visiblePaid.first ?? visibleFree.first)?.id else { return }
             didFocusFirstCard = true
             try? await Task.sleep(for: .milliseconds(700))
             guard !Task.isCancelled else { return }
@@ -87,10 +101,52 @@ struct CreatorsView: View {
         }
     }
 
+    /// One section header plus the grid of its creators. Paid memberships get
+    /// the brand heart and primary text so they read as the important group.
+    private func section(
+        title: String,
+        entries: [CreatorsViewModel.Entry],
+        isPaid: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(spacing: 10) {
+                if isPaid {
+                    Image(systemName: "heart.fill")
+                        .foregroundStyle(PatreonColors.brand)
+                }
+
+                Text(title)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(
+                        isPaid ? PatreonColors.primaryText : PatreonColors.secondaryText
+                    )
+
+                Text(L10n.number(entries.count))
+                    .font(.title3.monospacedDigit())
+                    .foregroundStyle(PatreonColors.tertiaryText)
+            }
+            .accessibilityElement(children: .combine)
+
+            LazyVGrid(columns: gridColumns, spacing: 40) {
+                ForEach(entries) { entry in
+                    NavigationLink(value: DeepLinkDestination.creator(id: entry.campaign.id)) {
+                        CreatorCard(campaign: entry.campaign)
+                    }
+                    .buttonStyle(.card)
+                    .focused($focusedCardID, equals: entry.campaign.id)
+                }
+            }
+        }
+    }
+
+    private var gridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 320, maximum: 380), spacing: 40)]
+    }
+
     /// Identity for the focus task. Includes the flag/path so navigating away
     /// cancels the pending focus instead of letting it fire under a pushed page.
     private var focusTaskID: String {
-        "\(visibleEntries.first?.id ?? "")|\(focusFirstCardOnEntry && path.isEmpty)"
+        "\((visiblePaid.first ?? visibleFree.first)?.id ?? "")|\(focusFirstCardOnEntry && path.isEmpty)"
     }
 }
 
@@ -176,11 +232,16 @@ final class CreatorsViewModel {
     /// A followed creator's campaign. Wrapped so the view can iterate directly.
     struct Entry: Identifiable {
         let campaign: Campaign
+        /// Active paid membership, as opposed to a free follow.
+        let isPaid: Bool
         var id: String { campaign.id }
     }
 
     private(set) var state: ViewState = .idle
     private(set) var entries: [Entry] = []
+
+    var paidEntries: [Entry] { entries.filter(\.isPaid) }
+    var freeEntries: [Entry] { entries.filter { !$0.isPaid } }
 
     private let log = Logger(subsystem: "com.patreontv.PatreonTV", category: "Creators")
 
@@ -196,36 +257,39 @@ final class CreatorsViewModel {
             // (active patrons + free follows; lapsed excluded), unioned with
             // /api/pledges to catch any paid sub missing from members. NSFW
             // filtering happens in the view so the Settings toggle applies live.
-            var byID: [String: Campaign] = [:]
-            var order: [String] = []
-            func add(_ c: Campaign) {
-                if byID[c.id] == nil { byID[c.id] = c; order.append(c.id) }
-            }
-
-            // 1) All current relationships (active or free), most-recent first.
             let memberDoc = try await PatreonClient.shared.members()
-            var memberCampaigns: [String: Campaign] = [:]
-            for inc in memberDoc.included ?? [] {
-                if case .campaign(let c) = inc { memberCampaigns[c.id] = c }
-            }
-            for member in memberDoc.data where member.isCurrentRelationship {
-                if let cid = member.relationships?.campaign?.data?.id,
-                   let c = memberCampaigns[cid] { add(c) }
-            }
-
-            // 2) Union in active paid pledges (a paid sub can be absent from
-            //    /members but present here).
             let pledgeDoc = try await PatreonClient.shared.pledges()
-            var pledgeCampaigns: [String: Campaign] = [:]
-            for inc in pledgeDoc.included ?? [] {
-                if case .campaign(let c) = inc { pledgeCampaigns[c.id] = c }
-            }
-            for pledge in pledgeDoc.data {
-                if let cid = pledge.relationships?.campaign?.data?.id,
-                   let c = pledgeCampaigns[cid] { add(c) }
+
+            var campaignsByID: [String: Campaign] = [:]
+            for inc in (memberDoc.included ?? []) + (pledgeDoc.included ?? []) {
+                if case .campaign(let campaign) = inc {
+                    campaignsByID[campaign.id] = campaign
+                }
             }
 
-            entries = order.compactMap { byID[$0] }.map { Entry(campaign: $0) }
+            let relationships = memberDoc.data
+                .filter(\.isCurrentRelationship)
+                .compactMap { member -> (campaignID: String, isPaid: Bool)? in
+                    guard let campaignID = member.relationships?.campaign?.data?.id
+                    else { return nil }
+                    return (campaignID, member.isActivePatron)
+                }
+
+            let pledgeCampaignIDs = pledgeDoc.data.compactMap {
+                $0.relationships?.campaign?.data?.id
+            }
+
+            let split = CreatorSections.split(
+                members: relationships,
+                pledgeCampaignIDs: pledgeCampaignIDs
+            )
+
+            entries = split.paid.compactMap { id in
+                campaignsByID[id].map { Entry(campaign: $0, isPaid: true) }
+            } + split.free.compactMap { id in
+                campaignsByID[id].map { Entry(campaign: $0, isPaid: false) }
+            }
+
             state = entries.isEmpty ? .empty : .loaded
         } catch {
             log.error("Creators load failed: \(String(describing: error))")

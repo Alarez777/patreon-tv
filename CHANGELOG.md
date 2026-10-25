@@ -4,6 +4,10 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- The Creators tab now groups creators into **Paid memberships** and **Free memberships**, with the paid ones listed first. Paid status comes from `/api/members` (`active_patron`) plus `/api/pledges`, so subscriptions that endpoint hides are still counted.
+
 ### Changed
 
 - Settings' **Initial tab** and **Comment order** options no longer change just by swiping across them. Swiping only moves the highlight; the check mark stays on the current value and the change is applied when you press Select.
