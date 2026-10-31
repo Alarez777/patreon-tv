@@ -39,6 +39,7 @@ final class ContentPreferences {
     private let autoplayCollectionsKey = "autoplay_collections"
     private let continueCollectionKey = "show_continue_collection"
     private let collectionOldestFirstKey = "collection_oldest_first"
+    private let collectionSeriesModeKey = "collection_series_mode"
     private let initialTabKey = "initial_tab"
     private let commentSortKey = "comments_sort"
 
@@ -96,6 +97,14 @@ final class ContentPreferences {
         didSet { UserDefaults.standard.set(collectionOldestFirst, forKey: collectionOldestFirstKey) }
     }
 
+    /// When true, a collection behaves like a TV series: Play always starts at
+    /// the oldest episode that isn't finished (in progress or not started),
+    /// instead of resuming the last one watched. Collections only — nothing
+    /// else in the app changes.
+    var collectionSeriesMode: Bool {
+        didSet { UserDefaults.standard.set(collectionSeriesMode, forKey: collectionSeriesModeKey) }
+    }
+
     /// Which tab to open on launch (default Home).
     var initialTab: InitialTab {
         didSet { UserDefaults.standard.set(initialTab.rawValue, forKey: initialTabKey) }
@@ -124,6 +133,7 @@ final class ContentPreferences {
 
         showContinueCollection = UserDefaults.standard.object(forKey: continueCollectionKey) as? Bool ?? true
         collectionOldestFirst = UserDefaults.standard.object(forKey: collectionOldestFirstKey) as? Bool ?? false
+        collectionSeriesMode = UserDefaults.standard.object(forKey: collectionSeriesModeKey) as? Bool ?? false
         initialTab = InitialTab(rawValue: UserDefaults.standard.string(forKey: initialTabKey) ?? "") ?? .home
         commentSort = CommentSort(rawValue: UserDefaults.standard.string(forKey: commentSortKey) ?? "") ?? .best
         if let raw = UserDefaults.standard.string(forKey: AppLanguage.storageKey),

@@ -84,6 +84,7 @@
 "Pause" = "Pause";
 "Play" = "Play";
 "Play starts the collection" = "Play starts the collection";
+"Play a collection from its oldest unfinished episode, even if you watched a newer one last." = "Play a collection from its oldest unfinished episode, even if you watched a newer one last.";
 "Playback Problem" = "Playback Problem";
 "Podcasts" = "Podcasts";
 "Poll" = "Poll";
@@ -107,6 +108,7 @@
 "Searching…" = "Searching…";
 "Select to hide replies" = "Select to hide replies";
 "Select to show replies" = "Select to show replies";
+"Series mode for collections" = "Series mode for collections";
 "Session ID" = "Session ID";
 "Settings" = "Settings";
 "Show Continue Collection" = "Show Continue Collection";

@@ -99,6 +99,12 @@ struct SettingsView: View {
                 isOn: $prefs.collectionOldestFirst
             )
 
+            SettingsToggleRow(
+                title: "Series mode for collections",
+                detail: "Play a collection from its oldest unfinished episode, even if you watched a newer one last.",
+                isOn: $prefs.collectionSeriesMode
+            )
+
             autoplayRow
 
             initialTabSection

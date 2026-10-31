@@ -8,6 +8,9 @@
 //  Flags when a finished collection should restart from the beginning, so the
 //  caller can confirm first.
 //
+//  With Series mode on (Settings), it always starts at the oldest episode that
+//  isn't finished instead — in progress or not started, the earliest wins.
+//
 //  The same "remote Play" affordance is exposed here for collection cards
 //  (Continue Collection and a creator's collection list).
 //
@@ -34,13 +37,42 @@ enum CollectionPlaybackResolver {
         target(in: await collectionPosts(collectionID: collectionID))
     }
 
-    /// Pure selection core: given a collection's posts (in `post_ids` order,
-    /// newest-first), pick the next episode to play.
+    /// Episode to play for a collection, honoring the Series mode preference.
     static func target(in posts: [Post]) -> Target? {
+        target(
+            in: posts,
+            seriesMode: ContentPreferences.shared.collectionSeriesMode,
+            progress: { PlaybackProgressStore.shared.progress(for: $0) },
+            mostRecent: { PlaybackProgressStore.shared.mostRecent(in: $0) }
+        )
+    }
+
+    /// Pure selection core. `posts` are in `post_ids` order (newest-first).
+    ///
+    /// - Series mode: the oldest playable episode that isn't finished, whether
+    ///   it is in progress or not started. When everything is finished it falls
+    ///   back to the oldest one with `isRestart`, so the caller confirms first.
+    /// - Otherwise: the last episode watched if unfinished, else the next one,
+    ///   else the first with `isRestart`.
+    static func target(
+        in posts: [Post],
+        seriesMode: Bool,
+        progress: (String) -> PlaybackProgress?,
+        mostRecent: ([String]) -> PlaybackProgress?
+    ) -> Target? {
         let ordered = posts.reversed().filter { UpNextResolver.isPlayable($0) }   // oldest→newest
         guard let first = ordered.first else { return nil }
 
-        guard let recent = PlaybackProgressStore.shared.mostRecent(in: ordered.map(\.id)),
+        if seriesMode {
+            if let oldestUnfinished = ordered.first(where: { progress($0.id)?.isFinished != true }) {
+                log.info("Series mode: oldest unfinished \(oldestUnfinished.id)")
+                return make(oldestUnfinished, isRestart: false)
+            }
+            log.info("Series mode: everything finished, restarting at \(first.id)")
+            return make(first, isRestart: true)
+        }
+
+        guard let recent = mostRecent(ordered.map(\.id)),
               let index = ordered.firstIndex(where: { $0.id == recent.postID })
         else {
             log.info("Collection: nothing watched, starting at \(first.id)")
