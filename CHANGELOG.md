@@ -4,6 +4,10 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- **Series mode for collections** (Settings). When on, pressing Play on a collection starts its oldest unfinished episode — in progress or not started — instead of the episode watched last, and the collection screen focuses that episode. If everything is finished it still asks before restarting from the first one. Nothing outside collections changes.
+
 ## [2.1.0] - 2026-10-25
 
 ### Added
