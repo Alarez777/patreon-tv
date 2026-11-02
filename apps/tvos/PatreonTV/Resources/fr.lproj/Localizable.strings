@@ -157,6 +157,8 @@
 "count.comments.other" = "%@ commentaires";
 "count.members.one" = "%@ membre";
 "count.members.other" = "%@ membres";
+"count.newEpisodes.one" = "%@ nouvel épisode";
+"count.newEpisodes.other" = "%@ nouveaux épisodes";
 "count.posts.one" = "%@ publication";
 "count.posts.other" = "%@ publications";
 "count.votes.one" = "%@ vote";

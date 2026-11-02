@@ -21,7 +21,7 @@ import os.log
 @MainActor
 enum CollectionPlaybackResolver {
 
-    struct Target {
+    struct Target: Sendable {
         let postID: String
         /// Episode title, used for the Continue Collection hint.
         let title: String

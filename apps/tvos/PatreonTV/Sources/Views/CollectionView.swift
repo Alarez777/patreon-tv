@@ -55,9 +55,15 @@ struct CollectionView: View {
                 content
             }
         }
-        .task { await vm.load(collectionID: collectionID) }
+        .task {
+            await vm.load(collectionID: collectionID)
+            updateRecentAfterTransition()
+        }
         .onAppear {
-            Task { await vm.refreshIfStale(collectionID: collectionID) }
+            Task {
+                await vm.refreshIfStale(collectionID: collectionID)
+                updateRecentAfterTransition()
+            }
         }
         .onDisappear {
             // Record on the way out: updating the store re-renders Home, and
@@ -189,19 +195,50 @@ struct CollectionView: View {
     /// Only once the user has actually watched something in it — merely opening
     /// the collection shouldn't add it.
     private func recordRecent() {
-        guard let collection = vm.collection else { return }
-        guard vm.posts.contains(where: { PlaybackProgressStore.shared.progress(for: $0.id) != nil })
+        guard vm.posts.contains(where: { PlaybackProgressStore.shared.progress(for: $0.id) != nil }),
+              let entry = makeRecentEntry(markSeen: true)
         else { return }
 
-        RecentCollectionsStore.shared.record(RecentCollection(
+        RecentCollectionsStore.shared.record(entry)
+    }
+
+    /// Updates a collection that is already on the shelf as soon as its fresh
+    /// episodes land, so the card doesn't wait for `onDisappear` (and doesn't
+    /// need the viewer to leave and re-enter). Delayed past the push animation:
+    /// re-rendering Home mid-push used to steal the collection's initial focus.
+    private func updateRecentAfterTransition() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            updateRecentIfTracked()
+        }
+    }
+
+    private func updateRecentIfTracked() {
+        guard RecentCollectionsStore.shared.isTracked(id: collectionID),
+              let entry = makeRecentEntry(markSeen: true)
+        else { return }
+
+        RecentCollectionsStore.shared.update(entry)
+    }
+
+    private func makeRecentEntry(markSeen: Bool) -> RecentCollection? {
+        guard let collection = vm.collection else { return nil }
+        let existing = RecentCollectionsStore.shared.recentEntry(id: collection.id)
+        let target = CollectionPlaybackResolver.target(in: vm.posts)
+        let playableCount = vm.posts.filter(UpNextResolver.isPlayable).count
+
+        return RecentCollection(
             id: collection.id,
-            title: collection.attributes.title ?? L10n.string("Collection"),
-            squareImageURL: collection.attributes.thumbnail?.bestImageURL,
-            wideImageURL: collection.attributes.thumbnail?.wideImageURL,
-            numPosts: collection.attributes.numPosts,
-            campaignName: vm.campaignName,
-            nextEpisodeTitle: CollectionPlaybackResolver.target(in: vm.posts)?.title
-        ))
+            title: collection.attributes.title ?? existing?.title ?? L10n.string("Collection"),
+            squareImageURL: collection.attributes.thumbnail?.bestImageURL ?? existing?.squareImageURL,
+            wideImageURL: collection.attributes.thumbnail?.wideImageURL ?? existing?.wideImageURL,
+            numPosts: collection.attributes.numPosts ?? existing?.numPosts,
+            campaignName: vm.campaignName ?? existing?.campaignName,
+            nextEpisodeTitle: target?.title,
+            nextEpisodeID: target?.postID,
+            episodeCount: playableCount,
+            newEpisodeCount: markSeen ? 0 : existing?.newEpisodeCount
+        )
     }
 }
 

@@ -46,7 +46,8 @@ struct HomeView: View {
                 wideImageURL: $0.wideImageURL,
                 numPosts: $0.numPosts,
                 campaignName: $0.campaignName,
-                episodeTitle: $0.nextEpisodeTitle
+                episodeTitle: $0.nextEpisodeTitle,
+                newEpisodeCount: $0.newEpisodeCount
             )
         }
     }
@@ -102,15 +103,22 @@ struct HomeView: View {
         // Reading this in the body also registers the Observation dependency.
         .onChange(of: inProgressIDs) { _, _ in
             scheduleContinueWatchingRefresh()
+            ContinueCollectionSync.shared.refreshTargetsFromCache()
         }
         .onReceive(NotificationCenter.default.publisher(for: .playbackDidFinish)) { _ in
             // Something finished (possibly while the player is still on screen
-            // with autoplay off). Pull the newest stream in the background.
+            // with autoplay off). Pull the newest stream in the background and
+            // advance the Continue Collection hint immediately.
+            ContinueCollectionSync.shared.refreshTargetsFromCache()
             Task { await vm.refresh() }
         }
         .onAppear {
             isVisible = true
-            Task { await vm.refreshIfStale(minInterval: ContentRefresh.foregroundMinInterval) }
+            ContinueCollectionSync.shared.refreshTargetsFromCache()
+            Task {
+                await vm.refreshIfStale(minInterval: ContentRefresh.foregroundMinInterval)
+                await ContinueCollectionSync.shared.refreshTrackedIfStale()
+            }
 
             // A video may have finished while Home was covered by the player.
             // Reconcile as soon as we're visible again instead of waiting for

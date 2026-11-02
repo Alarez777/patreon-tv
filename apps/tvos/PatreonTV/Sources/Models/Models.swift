@@ -450,11 +450,20 @@ struct Post: JSONAPIResource, Equatable {
         let images: RelationList?
         let audio: RelationRef?
         let attachmentsMedia: RelationList?
+        /// Collections this post belongs to. Only present when the request
+        /// includes `collections` (or when Patreon sends the linkage anyway).
+        let collections: RelationList?
 
         enum CodingKeys: String, CodingKey {
-            case campaign, user, media, images, audio
+            case campaign, user, media, images, audio, collections
             case attachmentsMedia = "attachments_media"
         }
+    }
+
+    /// Collections this post belongs to, when the response carries the
+    /// `collections` relationship.
+    var collectionIDs: [String] {
+        relationships?.collections?.data?.map(\.id) ?? []
     }
 
     /// Number of images on an image post. Falls back to 1 when the API omits
