@@ -56,7 +56,8 @@ private struct CollectionActionsMenu: ViewModifier {
                     wideImageURL: card.wideImageURL,
                     numPosts: card.numPosts,
                     campaignName: card.campaignName,
-                    nextEpisodeTitle: card.episodeTitle
+                    nextEpisodeTitle: card.episodeTitle,
+                    newEpisodeCount: card.newEpisodeCount
                 )
             }
         }
