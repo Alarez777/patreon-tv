@@ -114,4 +114,65 @@ final class CollectionDecodingTests: XCTestCase {
         let posts = doc.data.orderedPosts(from: doc.included ?? [])
         XCTAssertEqual(posts.map(\.id), ["1", "2"])
     }
+
+    /// Patreon's `post_ids` can repeat an id (collection 1880435 had eight old
+    /// episodes appended twice). The repeat must not become a second grid cell.
+    func test_ordered_posts_deduplicates_repeated_post_ids() throws {
+        let json = """
+        {
+          "data": {
+            "type": "collection", "id": "1",
+            "attributes": { "title": "C", "post_ids": [3, 2, 1, 3, 2, 1] }
+          },
+          "included": [
+            { "type": "post", "id": "1", "attributes": {} },
+            { "type": "post", "id": "2", "attributes": {} },
+            { "type": "post", "id": "3", "attributes": {} }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonCollection>.self, from: json)
+        let posts = doc.data.orderedPosts(from: doc.included ?? [])
+        XCTAssertEqual(posts.map(\.id), ["3", "2", "1"])
+    }
+
+    /// An id can be referenced by `post_ids` but absent from `included` (for
+    /// example a scheduled or inaccessible post). Skip it and still deduplicate.
+    func test_ordered_posts_skips_missing_and_repeated_ids() throws {
+        let json = """
+        {
+          "data": {
+            "type": "collection", "id": "1",
+            "attributes": { "title": "C", "post_ids": [3, 99, 2, 3, 1, 2] }
+          },
+          "included": [
+            { "type": "post", "id": "1", "attributes": {} },
+            { "type": "post", "id": "2", "attributes": {} },
+            { "type": "post", "id": "3", "attributes": {} }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonCollection>.self, from: json)
+        let posts = doc.data.orderedPosts(from: doc.included ?? [])
+        XCTAssertEqual(posts.map(\.id), ["3", "2", "1"])
+    }
+
+    func test_ordered_posts_deduplicates_include_fallback() throws {
+        let json = """
+        {
+          "data": { "type": "collection", "id": "1", "attributes": { "title": "C" } },
+          "included": [
+            { "type": "post", "id": "1", "attributes": {} },
+            { "type": "post", "id": "2", "attributes": {} },
+            { "type": "post", "id": "1", "attributes": {} }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<PatreonCollection>.self, from: json)
+        let posts = doc.data.orderedPosts(from: doc.included ?? [])
+        XCTAssertEqual(posts.map(\.id), ["1", "2"])
+    }
 }

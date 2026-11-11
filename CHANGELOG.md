@@ -4,6 +4,12 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-10
+
+### Fixed
+
+- Collections no longer repeat posts when Patreon's `post_ids` list contains the same id more than once. Duplicate entries also confused the focus grid, making it jump back to earlier rows. The list is now de-duplicated while preserving the collection's order.
+
 ## [2.3.0] - 2026-11-01
 
 ### Fixed
