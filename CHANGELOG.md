@@ -8,15 +8,10 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ### Fixed
 
-- Collections no longer repeat posts when Patreon's `post_ids` list contains the same id more than once. Duplicate entries also confused the focus grid, making it jump back to earlier rows. The list is now de-duplicated while preserving the collection's order.
-
-## [2.3.0] - 2026-11-01
-
-### Fixed
-
 - **Continue Collection now picks up new episodes automatically.** When a newly published episode belongs to a collection already on the shelf, the app refreshes that collection, advances the card to the next unwatched episode and moves it to the front. A new-episode badge shows how many playable episodes were added since the collection was last opened.
 - Opening a collection updates its Continue Collection card immediately instead of waiting until you leave the screen.
 - Continue Collection cards now show the creator name again: the collection fetch also requests its campaign.
+- Collections no longer repeat posts when Patreon's `post_ids` list contains the same id more than once. Duplicate entries also confused the focus grid, making it jump back to earlier rows. The list is now de-duplicated while preserving the collection's order.
 
 ### Changed
 
