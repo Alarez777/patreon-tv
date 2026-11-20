@@ -105,17 +105,48 @@ final class PlaybackProgressStore {
     /// 100% so it reads as finished (hides the resume bar / unwatched corner,
     /// and drops it from Continue Watching).
     func markWatched(postID: String) {
-        record(PlaybackProgress(
-            postID: postID,
-            positionSeconds: 1,
-            durationSeconds: 1,
-            lastUpdated: Date()
-        ))
+        markWatched(postIDs: [postID])
     }
 
     /// Clears any progress so the post reads as "not started" again.
     func markUnwatched(postID: String) {
-        clear(postID: postID)
+        markUnwatched(postIDs: [postID])
+    }
+
+    /// Marks several posts as watched in a single persistence write.
+    ///
+    /// The order of `postIDs` is meaningful: later IDs get a newer
+    /// `lastUpdated`, so the last one is what `mostRecent(in:)` reports. Callers
+    /// marking a whole collection should pass oldest→newest, leaving the newest
+    /// episode as the one watched last.
+    func markWatched(postIDs: [String]) {
+        guard !postIDs.isEmpty else { return }
+
+        let now = Date()
+        let lastIndex = postIDs.count - 1
+
+        for (index, postID) in postIDs.enumerated() {
+            records[postID] = PlaybackProgress(
+                postID: postID,
+                positionSeconds: 1,
+                durationSeconds: 1,
+                lastUpdated: now.addingTimeInterval(Double(index - lastIndex) * 0.001)
+            )
+        }
+
+        prune()
+        save()
+    }
+
+    /// Clears progress for several posts in a single persistence write.
+    func markUnwatched(postIDs: [String]) {
+        var changed = false
+        for postID in postIDs {
+            if records.removeValue(forKey: postID) != nil {
+                changed = true
+            }
+        }
+        if changed { save() }
     }
 
     func clearAll() {
