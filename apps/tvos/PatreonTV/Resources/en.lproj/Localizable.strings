@@ -17,6 +17,7 @@
 "Clear cache" = "Clear cache";
 "Clear cache and history" = "Clear cache and history";
 "Clear cache?" = "Clear cache?";
+"Clear Selection" = "Clear Selection";
 "Choose where playback advances to the next post automatically." = "Choose where playback advances to the next post automatically.";
 "Closed" = "Closed";
 "Collection" = "Collection";
@@ -31,6 +32,7 @@
 "Creator" = "Creator";
 "Creators" = "Creators";
 "Creators you actively support on Patreon will appear here." = "Creators you actively support on Patreon will appear here.";
+"Done" = "Done";
 "Enable autoplay" = "Enable autoplay";
 "Episode" = "Episode";
 "Episodes" = "Episodes";
@@ -63,6 +65,10 @@
 "Mark all episodes as watched?" = "Mark all episodes as watched?";
 "Mark as Unwatched" = "Mark as Unwatched";
 "Mark as Watched" = "Mark as Watched";
+"Mark Selected as Unwatched" = "Mark Selected as Unwatched";
+"Mark Selected as Watched" = "Mark Selected as Watched";
+"Mark selected episodes as unwatched?" = "Mark selected episodes as unwatched?";
+"Mark selected episodes as watched?" = "Mark selected episodes as watched?";
 "NOW PLAYING" = "NOW PLAYING";
 "New" = "Recent";
 "Newest" = "Newest";
@@ -112,6 +118,8 @@
 "Search creators" = "Search creators";
 "Search this creator's posts" = "Search this creator's posts";
 "Searching…" = "Searching…";
+"Select All Episodes" = "Select All Episodes";
+"Select Episodes" = "Select Episodes";
 "Select to hide replies" = "Select to hide replies";
 "Select to show replies" = "Select to show replies";
 "Series mode for collections" = "Series mode for collections";
@@ -141,6 +149,8 @@
 "The audio stopped playing. Its link may have expired — try again." = "The audio stopped playing. Its link may have expired — try again.";
 "The video stopped playing. Its link may have expired — try again." = "The video stopped playing. Its link may have expired — try again.";
 "This comment was deleted." = "This comment was deleted.";
+"This clears your progress for the selected episodes." = "This clears your progress for the selected episodes.";
+"This marks the selected episodes as watched." = "This marks the selected episodes as watched.";
 "This post is only available to patrons at a higher tier." = "This post is only available to patrons at a higher tier.";
 "Title A–Z" = "Title A–Z";
 "Title Z–A" = "Title Z–A";
@@ -168,6 +178,8 @@
 "count.newEpisodes.other" = "%@ new episodes";
 "count.posts.one" = "%@ post";
 "count.posts.other" = "%@ posts";
+"count.selected.one" = "%@ selected";
+"count.selected.other" = "%@ selected";
 "count.votes.one" = "%@ vote";
 "count.votes.other" = "%@ votes";
 "error.badResponse" = "Unexpected response from Patreon.";

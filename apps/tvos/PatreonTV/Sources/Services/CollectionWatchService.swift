@@ -25,11 +25,45 @@ enum CollectionWatchService {
     static func markAll(watched: Bool, collectionID: String) async -> Int? {
         guard let loaded = await loadPosts(for: collectionID) else { return nil }
 
-        let playable = playableIDs(in: loaded.posts)
+        let playableCount = playableIDs(in: loaded.posts).count
+        let affected = apply(watched: watched, posts: loaded.posts)
+        guard affected > 0 else { return 0 }
+
+        // Marking the whole collection watched also acknowledges its "new
+        // episodes" badge. Skip this when we're working from a stale fallback
+        // snapshot: episodes added since that snapshot aren't marked, and
+        // clearing the badge would hide them.
+        if watched, loaded.isFresh {
+            acknowledgeNewEpisodes(
+                collectionID: collectionID,
+                playableCount: playableCount
+            )
+        }
+
+        return affected
+    }
+
+    /// Marks only the posts selected in the collection's selection mode.
+    /// `posts` must preserve the collection's newest-first order.
+    @discardableResult
+    static func markSelected(watched: Bool, posts: [Post]) -> Int {
+        apply(watched: watched, posts: posts)
+    }
+
+    /// Clears the Continue Collection "new episodes" badge and advances the
+    /// baseline. Used when a watched action covers every playable episode.
+    static func acknowledgeNewEpisodes(collectionID: String, playableCount: Int) {
+        guard let entry = RecentCollectionsStore.shared.recentEntry(id: collectionID) else { return }
+        RecentCollectionsStore.shared.update(
+            markedSeen(entry, playableCount: playableCount)
+        )
+    }
+
+    private static func apply(watched: Bool, posts: [Post]) -> Int {
         // Watched only touches posts that can actually carry progress. The
         // unwatched direction also clears stale records for locked or removed
-        // episodes, so it covers every post in the collection.
-        let ids = watched ? playable : uniqueIDs(in: loaded.posts)
+        // episodes, so it covers every post in the given set.
+        let ids = watched ? playableIDs(in: posts) : uniqueIDs(in: posts)
         guard !ids.isEmpty else { return 0 }
 
         if watched {
@@ -40,18 +74,6 @@ enum CollectionWatchService {
 
         // Other tracked collections can share episodes with this one.
         ContinueCollectionSync.shared.refreshTargetsFromCache()
-
-        // Marking the whole collection watched also acknowledges its "new
-        // episodes" badge. Skip this when we're working from a stale fallback
-        // snapshot: episodes added since that snapshot aren't marked, and
-        // clearing the badge would hide them.
-        if watched, loaded.isFresh,
-           let entry = RecentCollectionsStore.shared.recentEntry(id: collectionID) {
-            RecentCollectionsStore.shared.update(
-                markedSeen(entry, playableCount: playable.count)
-            )
-        }
-
         return ids.count
     }
 

@@ -7,6 +7,7 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 ### Added
 
 - Collection cards now offer **Mark All Episodes as Watched** and **Mark All Episodes as Unwatched** from the press-and-hold menu, each with a confirmation step. Marking a collection watched also clears its "new episodes" badge and advances the Continue Collection baseline.
+- Inside a collection, long-pressing an episode now offers **Select Episodes**. Selection mode lets you toggle several playable episodes, then long-press for **Mark Selected as Watched/Unwatched**, **Select All Episodes**, and **Clear Selection**. Leaving via Done or the Menu button cancels the selection.
 
 ## [2.4.0] - 2026-11-10
 
