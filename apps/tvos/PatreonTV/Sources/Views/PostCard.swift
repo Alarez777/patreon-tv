@@ -81,7 +81,7 @@ struct PostCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(selectionState == .selected ? .isSelected : [])
+        .accessibilityAddTraits(selectionState == .selected ? .isSelected : AccessibilityTraits())
     }
 
     @ViewBuilder

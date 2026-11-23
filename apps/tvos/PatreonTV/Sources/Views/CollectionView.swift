@@ -309,7 +309,7 @@ struct CollectionView: View {
         Divider()
 
         Button {
-            finishSelectionFromMenu()
+            endSelectionAfterDismissal()
         } label: {
             Label("Done", systemImage: "checkmark")
         }
@@ -371,16 +371,10 @@ struct CollectionView: View {
         }
     }
 
-    private func finishSelectionFromMenu() {
-        Task { @MainActor in
-            // The context menu is still dismissing; swap the cards afterwards.
-            try? await Task.sleep(for: .milliseconds(150))
-            endSelection()
-        }
-    }
-
     private func endSelectionAfterDismissal() {
         Task { @MainActor in
+            // The context menu or confirmation dialog is still dismissing;
+            // swap the cards back afterwards.
             try? await Task.sleep(for: .milliseconds(150))
             endSelection()
         }
