@@ -27,12 +27,14 @@
 "Continue Collection" = "Continue Collection";
 "Continue Watching" = "Continue Watching";
 "Copy the value of the session_id cookie." = "Copy the value of the session_id cookie.";
+"Couldn't Update Collection" = "Couldn't Update Collection";
 "Creator" = "Creator";
 "Creators" = "Creators";
 "Creators you actively support on Patreon will appear here." = "Creators you actively support on Patreon will appear here.";
 "Enable autoplay" = "Enable autoplay";
 "Episode" = "Episode";
 "Episodes" = "Episodes";
+"Every playable episode in this collection will be marked as watched." = "Every playable episode in this collection will be marked as watched.";
 "Feeds" = "Feeds";
 "Filter" = "Filter";
 "Filter posts by type" = "Filter posts by type";
@@ -55,6 +57,10 @@
 "Loading all posts…" = "Loading all posts…";
 "Loading posts…" = "Loading posts…";
 "Loading video…" = "Loading video…";
+"Mark All Episodes as Unwatched" = "Mark All Episodes as Unwatched";
+"Mark All Episodes as Watched" = "Mark All Episodes as Watched";
+"Mark all episodes as unwatched?" = "Mark all episodes as unwatched?";
+"Mark all episodes as watched?" = "Mark all episodes as watched?";
 "Mark as Unwatched" = "Mark as Unwatched";
 "Mark as Watched" = "Mark as Watched";
 "NOW PLAYING" = "NOW PLAYING";
@@ -152,6 +158,7 @@
 "Which tab opens when PatreonTV launches." = "Which tab opens when PatreonTV launches.";
 "You already finished this collection. Restart from the first episode?" = "You already finished this collection. Restart from the first episode?";
 "Your Patreon session expired. Paste a fresh session ID to reconnect this TV." = "Your Patreon session expired. Paste a fresh session ID to reconnect this TV.";
+"Your progress for every episode in this collection will be cleared." = "Your progress for every episode in this collection will be cleared.";
 "just started" = "just started";
 "count.comments.one" = "%@ comment";
 "count.comments.other" = "%@ comments";

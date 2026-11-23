@@ -27,12 +27,14 @@
 "Continue Collection" = "Continuer la collection";
 "Continue Watching" = "Reprendre la lecture";
 "Copy the value of the session_id cookie." = "Copiez la valeur du cookie session_id.";
+"Couldn't Update Collection" = "Impossible de mettre à jour la collection";
 "Creator" = "Créateur";
 "Creators" = "Créateurs";
 "Creators you actively support on Patreon will appear here." = "Les créateurs que vous soutenez sur Patreon apparaîtront ici.";
 "Enable autoplay" = "Activer la lecture automatique";
 "Episode" = "Épisode";
 "Episodes" = "Épisodes";
+"Every playable episode in this collection will be marked as watched." = "Tous les épisodes de cette collection seront marqués comme vus.";
 "Feeds" = "Flux";
 "Filter" = "Filtrer";
 "Filter posts by type" = "Filtrer les publications par type";
@@ -55,6 +57,10 @@
 "Loading all posts…" = "Chargement de toutes les publications…";
 "Loading posts…" = "Chargement des publications…";
 "Loading video…" = "Chargement de la vidéo…";
+"Mark All Episodes as Unwatched" = "Marquer tous les épisodes comme non vus";
+"Mark All Episodes as Watched" = "Marquer tous les épisodes comme vus";
+"Mark all episodes as unwatched?" = "Marquer tous les épisodes comme non vus ?";
+"Mark all episodes as watched?" = "Marquer tous les épisodes comme vus ?";
 "Mark as Unwatched" = "Marquer comme non vu";
 "Mark as Watched" = "Marquer comme vu";
 "NOW PLAYING" = "EN LECTURE";
@@ -152,6 +158,7 @@
 "Which tab opens when PatreonTV launches." = "Quel onglet s'ouvre au lancement de PatreonTV.";
 "You already finished this collection. Restart from the first episode?" = "Vous avez déjà terminé cette collection. Redémarrer depuis le premier épisode ?";
 "Your Patreon session expired. Paste a fresh session ID to reconnect this TV." = "Votre session Patreon a expiré. Collez un nouvel ID de session pour reconnecter ce téléviseur.";
+"Your progress for every episode in this collection will be cleared." = "Votre progression pour tous les épisodes de cette collection sera effacée.";
 "just started" = "vient de commencer";
 "count.comments.one" = "%@ commentaire";
 "count.comments.other" = "%@ commentaires";

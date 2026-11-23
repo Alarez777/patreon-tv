@@ -27,12 +27,14 @@
 "Continue Collection" = "Continuar coleção";
 "Continue Watching" = "Continuar assistindo";
 "Copy the value of the session_id cookie." = "Copie o valor do cookie session_id.";
+"Couldn't Update Collection" = "Não foi possível atualizar a coleção";
 "Creator" = "Criador";
 "Creators" = "Criadores";
 "Creators you actively support on Patreon will appear here." = "Os criadores que você apoia no Patreon aparecerão aqui.";
 "Enable autoplay" = "Ativar reprodução automática";
 "Episode" = "Episódio";
 "Episodes" = "Episódios";
+"Every playable episode in this collection will be marked as watched." = "Todos os episódios reproduzíveis desta coleção serão marcados como assistidos.";
 "Feeds" = "Feeds";
 "Filter" = "Filtrar";
 "Filter posts by type" = "Filtrar publicações por tipo";
@@ -55,6 +57,10 @@
 "Loading all posts…" = "Carregando todas as publicações…";
 "Loading posts…" = "Carregando publicações…";
 "Loading video…" = "Carregando vídeo…";
+"Mark All Episodes as Unwatched" = "Marcar todos os episódios como não assistidos";
+"Mark All Episodes as Watched" = "Marcar todos os episódios como assistidos";
+"Mark all episodes as unwatched?" = "Marcar todos os episódios como não assistidos?";
+"Mark all episodes as watched?" = "Marcar todos os episódios como assistidos?";
 "Mark as Unwatched" = "Marcar como não assistido";
 "Mark as Watched" = "Marcar como assistido";
 "NOW PLAYING" = "REPRODUZINDO AGORA";
@@ -152,6 +158,7 @@
 "Which tab opens when PatreonTV launches." = "Qual aba abre quando o PatreonTV inicia.";
 "You already finished this collection. Restart from the first episode?" = "Você já terminou esta coleção. Começar do primeiro episódio?";
 "Your Patreon session expired. Paste a fresh session ID to reconnect this TV." = "Sua sessão do Patreon expirou. Cole um novo ID de sessão para reconectar esta TV.";
+"Your progress for every episode in this collection will be cleared." = "Seu progresso em todos os episódios desta coleção será apagado.";
 "just started" = "recém-iniciado";
 "count.comments.one" = "%@ comentário";
 "count.comments.other" = "%@ comentários";
