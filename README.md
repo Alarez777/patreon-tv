@@ -15,8 +15,7 @@ A native tvOS app for watching your favorite Patreon creators on the big screen.
 > with the upstream project.
 
 ## Status
-
-**v2.1.0** (October 2026). The app is feature-complete for browsing creators,
+The app is feature-complete for browsing creators,
 collections, posts, comments and video/audio playback — including native
 Picture in Picture — and ships as an unsigned IPA attached to the GitHub
 release. See [`CHANGELOG.md`](./CHANGELOG.md) for everything that changed since
