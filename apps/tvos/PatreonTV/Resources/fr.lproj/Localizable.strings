@@ -17,6 +17,7 @@
 "Clear cache" = "Vider le cache";
 "Clear cache and history" = "Vider le cache et l'historique";
 "Clear cache?" = "Vider le cache ?";
+"Clear Selection" = "Effacer la sélection";
 "Choose where playback advances to the next post automatically." = "Choisissez où la lecture passe automatiquement à la publication suivante.";
 "Closed" = "Clôturé";
 "Collection" = "Collection";
@@ -31,6 +32,7 @@
 "Creator" = "Créateur";
 "Creators" = "Créateurs";
 "Creators you actively support on Patreon will appear here." = "Les créateurs que vous soutenez sur Patreon apparaîtront ici.";
+"Done" = "Terminé";
 "Enable autoplay" = "Activer la lecture automatique";
 "Episode" = "Épisode";
 "Episodes" = "Épisodes";
@@ -63,6 +65,10 @@
 "Mark all episodes as watched?" = "Marquer tous les épisodes comme vus ?";
 "Mark as Unwatched" = "Marquer comme non vu";
 "Mark as Watched" = "Marquer comme vu";
+"Mark Selected as Unwatched" = "Marquer les épisodes sélectionnés comme non vus";
+"Mark Selected as Watched" = "Marquer les épisodes sélectionnés comme vus";
+"Mark selected episodes as unwatched?" = "Marquer les épisodes sélectionnés comme non vus ?";
+"Mark selected episodes as watched?" = "Marquer les épisodes sélectionnés comme vus ?";
 "NOW PLAYING" = "EN LECTURE";
 "New" = "Récents";
 "Newest" = "Plus récents";
@@ -112,6 +118,8 @@
 "Search creators" = "Rechercher des créateurs";
 "Search this creator's posts" = "Rechercher les publications de ce créateur";
 "Searching…" = "Recherche…";
+"Select All Episodes" = "Sélectionner tous les épisodes";
+"Select Episodes" = "Sélectionner des épisodes";
 "Select to hide replies" = "Sélectionnez pour masquer les réponses";
 "Select to show replies" = "Sélectionnez pour afficher les réponses";
 "Series mode for collections" = "Mode série pour les collections";
@@ -141,6 +149,8 @@
 "The audio stopped playing. Its link may have expired — try again." = "La lecture audio s'est arrêtée. Le lien a peut-être expiré ; réessayez.";
 "The video stopped playing. Its link may have expired — try again." = "La lecture vidéo s'est arrêtée. Le lien a peut-être expiré ; réessayez.";
 "This comment was deleted." = "Ce commentaire a été supprimé.";
+"This clears your progress for the selected episodes." = "Votre progression pour les épisodes sélectionnés sera effacée.";
+"This marks the selected episodes as watched." = "Les épisodes sélectionnés seront marqués comme vus.";
 "This post is only available to patrons at a higher tier." = "Cette publication est réservée aux membres d'un niveau supérieur.";
 "Title A–Z" = "Titre A–Z";
 "Title Z–A" = "Titre Z–A";
@@ -168,6 +178,8 @@
 "count.newEpisodes.other" = "%@ nouveaux épisodes";
 "count.posts.one" = "%@ publication";
 "count.posts.other" = "%@ publications";
+"count.selected.one" = "%@ sélectionné";
+"count.selected.other" = "%@ sélectionnés";
 "count.votes.one" = "%@ vote";
 "count.votes.other" = "%@ votes";
 "error.badResponse" = "Réponse inattendue de Patreon.";

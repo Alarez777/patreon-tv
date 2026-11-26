@@ -22,8 +22,15 @@ struct CollectionView: View {
     var focusPostID: String? = nil
     var onPlayPost: ((String, String?) -> Void)? = nil
 
+    private enum SelectionWatchAction: Equatable {
+        case watched
+        case unwatched
+    }
+
     @State private var vm: CollectionViewModel
     @State private var reversed: Bool
+    @State private var selection = CollectionSelectionState()
+    @State private var pendingSelectionAction: SelectionWatchAction?
 
     init(collectionID: String, focusPostID: String? = nil, onPlayPost: ((String, String?) -> Void)? = nil) {
         self.collectionID = collectionID
@@ -69,8 +76,31 @@ struct CollectionView: View {
             // Record on the way out: updating the store re-renders Home, and
             // doing that mid-push stole the initial focus.
             recordRecent()
+            // Leaving the screen abandons any in-progress selection.
+            selection.end()
+        }
+        .onChange(of: vm.posts.map(\.id)) { _, ids in
+            selection.retain(Set(ids))
         }
         .background(PatreonColors.background.ignoresSafeArea())
+        .onExitCommand(perform: exitSelectionAction)
+        .confirmationDialog(
+            selectionConfirmationTitle,
+            isPresented: selectionConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            if let action = pendingSelectionAction {
+                switch action {
+                case .watched:
+                    Button("Mark as Watched") { applySelection(watched: true) }
+                case .unwatched:
+                    Button("Mark as Unwatched", role: .destructive) { applySelection(watched: false) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(selectionConfirmationMessage)
+        }
     }
 
     private var content: some View {
@@ -149,21 +179,47 @@ struct CollectionView: View {
     }
 
     private var postsToolbar: some View {
-        HStack {
-            Text("Posts")
+        HStack(spacing: 20) {
+            if selection.isActive {
+                Label(
+                    L10n.count(
+                        selection.count,
+                        one: "count.selected.one",
+                        other: "count.selected.other"
+                    ),
+                    systemImage: "checkmark.circle.fill"
+                )
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(PatreonColors.primaryText)
-            Spacer()
-            Button {
-                reversed.toggle()
-            } label: {
-                Label(reversed ? L10n.string("Oldest first") : L10n.string("Newest first"), systemImage: "arrow.up.arrow.down")
-                    .font(.title3.weight(.medium))
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
+            } else {
+                Text("Posts")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(PatreonColors.primaryText)
             }
-            .buttonStyle(.bordered)
-            .accessibilityLabel(reversed ? L10n.string("Oldest first") : L10n.string("Newest first"))
+
+            Spacer()
+
+            if selection.isActive {
+                Button("Done") {
+                    endSelection()
+                }
+                .font(.title3.weight(.medium))
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .buttonStyle(.bordered)
+                .accessibilityLabel(Text("Done"))
+            } else {
+                Button {
+                    reversed.toggle()
+                } label: {
+                    Label(reversed ? L10n.string("Oldest first") : L10n.string("Newest first"), systemImage: "arrow.up.arrow.down")
+                        .font(.title3.weight(.medium))
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel(reversed ? L10n.string("Oldest first") : L10n.string("Newest first"))
+            }
         }
         .padding(.horizontal, 60)
         .focusSection()
@@ -173,22 +229,186 @@ struct CollectionView: View {
     private var postsGrid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(displayedPosts) { post in
-                NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID, queue: nil, source: .collections)) {
-                    PostCard(post: post)
-                }
-                .buttonStyle(.card)
-                .postActionsMenu(post: post)
-                .focused($focusedPostID, equals: post.id)
-                .onPlayPauseCommand { onPlayPost?(post.id, collectionID) }
-                .id(post.id)
+                postGridItem(post)
+                    .focused($focusedPostID, equals: post.id)
+                    .id(post.id)
             }
         }
         .padding(.horizontal, 60)
         .focusSection()
     }
 
+    @ViewBuilder
+    private func postGridItem(_ post: Post) -> some View {
+        let isPlayable = UpNextResolver.isPlayable(post)
+        let isSelected = selection.postIDs.contains(post.id)
+
+        if selection.isActive {
+            Button {
+                selection.toggle(post)
+            } label: {
+                PostCard(
+                    post: post,
+                    selectionState: isPlayable
+                        ? (isSelected ? .selected : .selectable)
+                        : nil
+                )
+            }
+            .buttonStyle(.card)
+            .disabled(!isPlayable)
+            .opacity(isPlayable ? 1 : 0.35)
+            .contextMenu {
+                if isPlayable {
+                    selectionMenu
+                }
+            }
+        } else {
+            NavigationLink(value: DeepLinkDestination.post(id: post.id, autoplay: false, collectionID: collectionID, queue: nil, source: .collections)) {
+                PostCard(post: post)
+            }
+            .buttonStyle(.card)
+            .postActionsMenu(post: post, onSelect: { beginSelection(with: post) })
+            .onPlayPauseCommand { onPlayPost?(post.id, collectionID) }
+        }
+    }
+
+    @ViewBuilder
+    private var selectionMenu: some View {
+        if !selection.postIDs.isEmpty {
+            Button {
+                pendingSelectionAction = .watched
+            } label: {
+                Label("Mark Selected as Watched", systemImage: "checkmark.circle")
+            }
+
+            Button {
+                pendingSelectionAction = .unwatched
+            } label: {
+                Label("Mark Selected as Unwatched", systemImage: "arrow.uturn.backward.circle")
+            }
+
+            Divider()
+        }
+
+        if !allPlayableSelected {
+            Button {
+                selection.selectAll(from: vm.posts)
+            } label: {
+                Label("Select All Episodes", systemImage: "checklist")
+            }
+        }
+
+        if !selection.postIDs.isEmpty {
+            Button {
+                selection.clear()
+            } label: {
+                Label("Clear Selection", systemImage: "xmark.circle")
+            }
+        }
+
+        Divider()
+
+        Button {
+            endSelectionAfterDismissal()
+        } label: {
+            Label("Done", systemImage: "checkmark")
+        }
+    }
+
     private var displayedPosts: [Post] {
         reversed ? Array(vm.posts.reversed()) : vm.posts
+    }
+
+    private var allPlayableSelected: Bool {
+        let playableIDs = Set(vm.posts.filter(UpNextResolver.isPlayable).map(\.id))
+        return !playableIDs.isEmpty && playableIDs.isSubset(of: selection.postIDs)
+    }
+
+    /// Menu/Back exits selection mode instead of popping the collection, but
+    /// only while selection mode is active.
+    private var exitSelectionAction: (() -> Void)? {
+        guard selection.isActive, pendingSelectionAction == nil else { return nil }
+        return { endSelection() }
+    }
+
+    private var selectionConfirmationPresented: Binding<Bool> {
+        Binding(
+            get: { pendingSelectionAction != nil },
+            set: { if !$0 { pendingSelectionAction = nil } }
+        )
+    }
+
+    private var selectionConfirmationTitle: LocalizedStringKey {
+        pendingSelectionAction == .unwatched
+            ? "Mark selected episodes as unwatched?"
+            : "Mark selected episodes as watched?"
+    }
+
+    private var selectionConfirmationMessage: LocalizedStringKey {
+        pendingSelectionAction == .unwatched
+            ? "This clears your progress for the selected episodes."
+            : "This marks the selected episodes as watched."
+    }
+
+    // MARK: - Selection mode
+
+    private func beginSelection(with post: Post) {
+        Task { @MainActor in
+            // Let the context menu finish dismissing before the card swaps from
+            // a NavigationLink to a selection Button.
+            try? await Task.sleep(for: .milliseconds(200))
+            selection.begin(with: post)
+            restoreFocus(to: post.id)
+        }
+    }
+
+    private func endSelection() {
+        let anchor = selection.anchorID ?? focusedPostID
+        selection.end()
+
+        if let anchor {
+            restoreFocus(to: anchor)
+        }
+    }
+
+    private func endSelectionAfterDismissal() {
+        Task { @MainActor in
+            // The context menu or confirmation dialog is still dismissing;
+            // swap the cards back afterwards.
+            try? await Task.sleep(for: .milliseconds(150))
+            endSelection()
+        }
+    }
+
+    private func restoreFocus(to postID: String) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            focusedPostID = postID
+        }
+    }
+
+    private func applySelection(watched: Bool) {
+        pendingSelectionAction = nil
+
+        let selectedPosts = vm.posts.filter { selection.postIDs.contains($0.id) }
+        guard !selectedPosts.isEmpty else {
+            endSelectionAfterDismissal()
+            return
+        }
+
+        let playableIDs = Set(vm.posts.filter(UpNextResolver.isPlayable).map(\.id))
+        let coversWholeCollection = watched && selection.postIDs == playableIDs
+
+        CollectionWatchService.markSelected(watched: watched, posts: selectedPosts)
+
+        if coversWholeCollection {
+            CollectionWatchService.acknowledgeNewEpisodes(
+                collectionID: collectionID,
+                playableCount: playableIDs.count
+            )
+        }
+
+        endSelectionAfterDismissal()
     }
 
     /// Remember this collection so Home can offer it under Continue Collection.
