@@ -4,6 +4,8 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-25
+
 ### Added
 
 - Collection cards now offer **Mark All Episodes as Watched** and **Mark All Episodes as Unwatched** from the press-and-hold menu, each with a confirmation step. Marking a collection watched also clears its "new episodes" badge and advances the Continue Collection baseline.
