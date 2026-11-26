@@ -115,4 +115,45 @@ final class PostPayloadDecodingTests: XCTestCase {
         let doc = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json)
         XCTAssertEqual(doc.data.imageCount, 1)
     }
+
+    func test_decodes_collection_membership() throws {
+        let json = """
+        {
+          "data": {
+            "type": "post", "id": "4",
+            "attributes": { "post_type": "video_external_file", "title": "Episode 6" },
+            "relationships": {
+              "collections": {
+                "data": [
+                  { "type": "collection", "id": "c1" },
+                  { "type": "collection", "id": "c2" }
+                ]
+              }
+            }
+          },
+          "included": [
+            { "type": "collection", "id": "c1", "attributes": { "title": "Season 1" } }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let doc = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json)
+        XCTAssertEqual(doc.data.collectionIDs, ["c1", "c2"])
+
+        let collections = (doc.included ?? []).compactMap { inc -> PatreonCollection? in
+            if case .collection(let collection) = inc { return collection }
+            return nil
+        }
+        XCTAssertEqual(collections.map(\.id), ["c1"])
+        XCTAssertEqual(collections.first?.attributes.title, "Season 1")
+    }
+
+    func test_post_without_collections_relationship_has_no_membership() throws {
+        let json = """
+        { "data": { "type": "post", "id": "5", "attributes": { "title": "Solo" } } }
+        """.data(using: .utf8)!
+
+        let post = try JSONAPIDecoder.decode(SingleResource<Post>.self, from: json).data
+        XCTAssertTrue(post.collectionIDs.isEmpty)
+    }
 }

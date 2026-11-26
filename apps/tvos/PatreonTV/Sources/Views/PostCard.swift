@@ -18,8 +18,16 @@ import SwiftUI
 
 struct PostCard: View {
 
+    /// Multi-selection affordance shown by CollectionView while selection mode
+    /// is active. Nil leaves the card unchanged.
+    enum SelectionState: Equatable {
+        case selectable
+        case selected
+    }
+
     let post: Post
     var campaign: Campaign? = nil
+    var selectionState: SelectionState? = nil
 
     private let cardWidth: CGFloat = 400
     private let cardHeight: CGFloat = 225   // 16:9
@@ -41,6 +49,17 @@ struct PostCard: View {
                     if showsProgress { ResumeBar(postID: post.id, width: cardWidth) }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    if selectionState == .selected {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(PatreonColors.brand, lineWidth: 4)
+                    }
+                }
+                .overlay(alignment: .topLeading) {
+                    if let selectionState {
+                        selectionBadge(selectionState)
+                    }
+                }
                 .overlay(alignment: .bottomLeading) { badge }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -62,6 +81,7 @@ struct PostCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(selectionState == .selected ? .isSelected : AccessibilityTraits())
     }
 
     @ViewBuilder
@@ -105,6 +125,31 @@ struct PostCard: View {
         .padding(.vertical, 5)
         .background(Color.black.opacity(0.65), in: Capsule())
         .padding(14)
+        .accessibilityHidden(true)
+    }
+
+    /// Empty circle on selectable cards, filled checkmark on selected ones.
+    @ViewBuilder
+    private func selectionBadge(_ state: SelectionState) -> some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.7))
+                .frame(width: 46, height: 46)
+
+            if state == .selected {
+                Circle()
+                    .fill(PatreonColors.brand)
+                    .frame(width: 34, height: 34)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white)
+            } else {
+                Circle()
+                    .strokeBorder(.white, lineWidth: 3)
+                    .frame(width: 34, height: 34)
+            }
+        }
+        .padding(12)
         .accessibilityHidden(true)
     }
 

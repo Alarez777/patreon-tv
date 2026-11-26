@@ -10,21 +10,30 @@
 import Foundation
 import Observation
 
-struct RecentCollection: Codable, Identifiable {
+struct RecentCollection: Codable, Identifiable, Equatable {
     let id: String
-    let title: String
+    var title: String
     /// Square art (fallback for the shelf card).
-    let squareImageURL: URL?
+    var squareImageURL: URL?
     /// Wide 16:9-ish art, used for the Home shelf card.
-    let wideImageURL: URL?
-    let numPosts: Int?
+    var wideImageURL: URL?
+    var numPosts: Int?
     /// The collection's creator (campaign) name. Nil for entries recorded before
     /// this field existed (they decode to nil).
-    let campaignName: String?
+    var campaignName: String?
     /// Title of the episode the collection's Play would start — a display hint
     /// for the Continue Collection card. Nil for entries recorded before this
     /// field existed (they decode to nil).
-    let nextEpisodeTitle: String?
+    var nextEpisodeTitle: String?
+    /// ID of the episode Play would start. Used to tell a genuinely new target
+    /// apart from the same one rendered again.
+    var nextEpisodeID: String? = nil
+    /// Playable episodes the collection had the last time it was synced or the
+    /// viewer opened it. The baseline for `newEpisodeCount`.
+    var episodeCount: Int? = nil
+    /// Playable episodes added since the viewer last opened the collection.
+    /// Nil or zero hides the "N new" badge.
+    var newEpisodeCount: Int? = nil
 }
 
 @MainActor
@@ -81,6 +90,33 @@ final class RecentCollectionsStore {
 
     func isTracked(id: String) -> Bool {
         collections.contains { $0.id == id }
+    }
+
+    func recentEntry(id: String) -> RecentCollection? {
+        collections.first { $0.id == id }
+    }
+
+    /// Collections removed permanently. `record` and `update` ignore them.
+    func isHidden(id: String) -> Bool {
+        hiddenIDs.contains(id)
+    }
+
+    /// Updates an existing entry in place. `promote` moves it to the front,
+    /// which is reserved for "this collection got new episodes" so a plain
+    /// metadata refresh doesn't reshuffle the shelf.
+    func update(_ collection: RecentCollection, promote: Bool = false) {
+        guard !hiddenIDs.contains(collection.id),
+              let index = collections.firstIndex(where: { $0.id == collection.id })
+        else { return }
+
+        if !promote, collections[index] == collection { return }
+
+        collections[index] = collection
+        if promote {
+            collections.remove(at: index)
+            collections.insert(collection, at: 0)
+        }
+        save()
     }
 
     func recent(limit: Int = 8) -> [RecentCollection] {

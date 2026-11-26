@@ -119,6 +119,68 @@ final class RecentCollectionsStoreTests: XCTestCase {
         XCTAssertTrue(reloaded.isTracked(id: "b"))
     }
 
+    func test_update_replaces_in_place_without_reordering() {
+        let (defaults, suite) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let store = RecentCollectionsStore(defaults: defaults)
+        store.record(collection("a"))
+        store.record(collection("b"))
+
+        var updated = collection("a")
+        updated.title = "A (new title)"
+        store.update(updated)
+
+        XCTAssertEqual(store.recent(limit: 10).map(\.id), ["b", "a"])
+        XCTAssertEqual(store.recentEntry(id: "a")?.title, "A (new title)")
+    }
+
+    func test_update_promote_moves_to_front() {
+        let (defaults, suite) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let store = RecentCollectionsStore(defaults: defaults)
+        store.record(collection("a"))
+        store.record(collection("b"))
+
+        store.update(collection("a"), promote: true)
+
+        XCTAssertEqual(store.recent(limit: 10).map(\.id), ["a", "b"])
+    }
+
+    func test_update_ignores_hidden_and_unknown_collections() {
+        let (defaults, suite) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let store = RecentCollectionsStore(defaults: defaults)
+        store.record(collection("a"))
+        store.hide(id: "a")
+
+        store.update(collection("a"))
+        store.update(collection("b"))
+
+        XCTAssertFalse(store.isTracked(id: "a"))
+        XCTAssertFalse(store.isTracked(id: "b"))
+    }
+
+    func test_badge_fields_survive_relaunch() {
+        let (defaults, suite) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let first = RecentCollectionsStore(defaults: defaults)
+        var entry = collection("a")
+        entry.episodeCount = 12
+        entry.newEpisodeCount = 3
+        entry.nextEpisodeID = "ep12"
+        first.record(entry)
+
+        let second = RecentCollectionsStore(defaults: defaults)
+        let reloaded = second.recentEntry(id: "a")
+        XCTAssertEqual(reloaded?.episodeCount, 12)
+        XCTAssertEqual(reloaded?.newEpisodeCount, 3)
+        XCTAssertEqual(reloaded?.nextEpisodeID, "ep12")
+    }
+
     // MARK: - Helpers
 
     private func makeDefaults() -> (UserDefaults, String) {

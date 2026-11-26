@@ -19,6 +19,8 @@ struct CollectionCardModel: Identifiable {
     let campaignName: String?
     /// Title of the episode the Play would start (display hint). Nil hides it.
     let episodeTitle: String?
+    /// Playable episodes added since the viewer last opened the collection.
+    let newEpisodeCount: Int?
 }
 
 struct CollectionShelf: View {
@@ -74,6 +76,21 @@ private struct CollectionShelfCard: View {
                 .frame(width: cardWidth, height: cardHeight)
                 .background(PatreonColors.cardSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(alignment: .topLeading) {
+                    if let count = card.newEpisodeCount, count > 0 {
+                        Text(L10n.count(
+                            count,
+                            one: "count.newEpisodes.one",
+                            other: "count.newEpisodes.other"
+                        ))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(PatreonColors.brand, in: Capsule())
+                        .padding(8)
+                    }
+                }
                 .overlay(alignment: .topTrailing) {
                     Image(systemName: "square.stack")
                         .font(.callout.weight(.semibold))
@@ -105,7 +122,17 @@ private struct CollectionShelfCard: View {
             .frame(width: cardWidth, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(card.title)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        guard let count = card.newEpisodeCount, count > 0 else { return card.title }
+        let badge = L10n.count(
+            count,
+            one: "count.newEpisodes.one",
+            other: "count.newEpisodes.other"
+        )
+        return "\(card.title), \(badge)"
     }
 
     /// "N posts · Channel", whichever parts are available.

@@ -167,18 +167,60 @@ final class PatreonClient {
 
     /// GET /api/stream — the fan's home feed of posts from creators they follow.
     /// Requires a session_id cookie; returns empty with OAuth Bearer alone.
+    ///
+    /// Asks for the `collections` relationship so Continue Collection can tell
+    /// which tracked collections got a new episode without polling every
+    /// collection. If Patreon rejects that include (the internal API is
+    /// undocumented and may change), retry once without it: the feed keeps
+    /// working and the collection sweep is the fallback.
     func homeFeed(
         cursor: String? = nil,
         limit: Int = 20,
         cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) async throws -> Page<Post> {
+        do {
+            return try await homeFeedPage(
+                cursor: cursor,
+                limit: limit,
+                cachePolicy: cachePolicy,
+                includeCollections: true
+            )
+        } catch let error as PatreonError {
+            guard case .http(let status, _) = error, status == 400 || status == 422 else {
+                throw error
+            }
+            log.info("Home feed rejected include=collections (HTTP \(status)); retrying without it")
+            return try await homeFeedPage(
+                cursor: cursor,
+                limit: limit,
+                cachePolicy: cachePolicy,
+                includeCollections: false
+            )
+        }
+    }
+
+    private func homeFeedPage(
+        cursor: String?,
+        limit: Int,
+        cachePolicy: URLRequest.CachePolicy,
+        includeCollections: Bool
+    ) async throws -> Page<Post> {
+        var include = "user,campaign,attachments_media,post_file,media,audio,images"
+        if includeCollections {
+            include += ",collections"
+        }
         var qi: [URLQueryItem] = [
-            URLQueryItem(name: "include", value: "user,campaign,attachments_media,post_file,media,audio,images"),
+            URLQueryItem(name: "include", value: include),
             URLQueryItem(name: "fields[post]", value: PostFields.default),
             URLQueryItem(name: "fields[campaign]", value: "name,vanity,image_url,image_small_url,cover_photo_url,url,creation_name,patron_count,is_nsfw"),
             URLQueryItem(name: "fields[media]", value: MediaFields.default),
             URLQueryItem(name: "page[count]", value: String(limit)),
         ]
+        if includeCollections {
+            // Keep the include light: the post ids let us map posts back to
+            // their collection even if Patreon omits the relationship linkage.
+            qi.append(URLQueryItem(name: "fields[collection]", value: "title,post_ids"))
+        }
         if let cursor {
             qi.append(URLQueryItem(name: "page[cursor]", value: cursor))
         }
@@ -285,19 +327,41 @@ final class PatreonClient {
         }
     }
 
-    /// GET /api/collection/{id}?include=posts — one collection with all of its
-    /// posts in `included`, in a single response. (The `/campaigns/{id}/posts`
-    /// endpoint ignores `filter[collection_id]`, so this is the only reliable
-    /// way to fetch a collection's posts.)
+    /// GET /api/collection/{id}?include=posts,campaign — one collection with all
+    /// of its posts in `included`, in a single response. (The
+    /// `/campaigns/{id}/posts` endpoint ignores `filter[collection_id]`, so this
+    /// is the only reliable way to fetch a collection's posts.) The campaign
+    /// include fills the creator name shown on Continue Collection cards; if
+    /// the internal API rejects it, retry with posts only.
     func collection(
         id: String,
         cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) async throws -> SingleResource<PatreonCollection> {
+        do {
+            return try await collectionPage(id: id, cachePolicy: cachePolicy, includeCampaign: true)
+        } catch let error as PatreonError {
+            guard case .http(let status, _) = error, status == 400 || status == 422 else {
+                throw error
+            }
+            log.info("Collection rejected include=campaign (HTTP \(status)); retrying without it")
+            return try await collectionPage(id: id, cachePolicy: cachePolicy, includeCampaign: false)
+        }
+    }
+
+    private func collectionPage(
+        id: String,
+        cachePolicy: URLRequest.CachePolicy,
+        includeCampaign: Bool
+    ) async throws -> SingleResource<PatreonCollection> {
+        var qi: [URLQueryItem] = [
+            URLQueryItem(name: "include", value: includeCampaign ? "posts,campaign" : "posts"),
+            URLQueryItem(name: "fields[post]", value: PostFields.default),
+        ]
+        if includeCampaign {
+            qi.append(URLQueryItem(name: "fields[campaign]", value: "name"))
+        }
         let url = baseURL.appending(path: "collection/\(id)")
-            .appending(queryItems: [
-                URLQueryItem(name: "include", value: "posts"),
-                URLQueryItem(name: "fields[post]", value: PostFields.default),
-            ])
+            .appending(queryItems: qi)
         return try await fetch(SingleResource<PatreonCollection>.self, from: url, cachePolicy: cachePolicy)
     }
 

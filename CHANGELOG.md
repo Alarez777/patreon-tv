@@ -4,6 +4,26 @@ All notable changes to PatreonTV are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-25
+
+### Added
+
+- Collection cards now offer **Mark All Episodes as Watched** and **Mark All Episodes as Unwatched** from the press-and-hold menu, each with a confirmation step. Marking a collection watched also clears its "new episodes" badge and advances the Continue Collection baseline.
+- Inside a collection, long-pressing an episode now offers **Select Episodes**. Selection mode lets you toggle several playable episodes, then long-press for **Mark Selected as Watched/Unwatched**, **Select All Episodes**, and **Clear Selection**. Leaving via Done or the Menu button cancels the selection.
+
+## [2.4.0] - 2026-11-10
+
+### Fixed
+
+- **Continue Collection now picks up new episodes automatically.** When a newly published episode belongs to a collection already on the shelf, the app refreshes that collection, advances the card to the next unwatched episode and moves it to the front. A new-episode badge shows how many playable episodes were added since the collection was last opened.
+- Opening a collection updates its Continue Collection card immediately instead of waiting until you leave the screen.
+- Continue Collection cards now show the creator name again: the collection fetch also requests its campaign.
+- Collections no longer repeat posts when Patreon's `post_ids` list contains the same id more than once. Duplicate entries also confused the focus grid, making it jump back to earlier rows. The list is now de-duplicated while preserving the collection's order.
+
+### Changed
+
+- Collection refreshes are driven by the new posts in the feed, so a quiet refresh costs no extra collection requests. A slow sweep every 30 minutes covers collection edits that don't publish a new post.
+
 ## [2.2.0] - 2026-10-31
 
 ### Added

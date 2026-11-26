@@ -113,4 +113,31 @@ final class PlaybackProgressStoreTests: XCTestCase {
         store.markUnwatched(postID: "m")
         XCTAssertNil(store.progress(for: "m"))
     }
+
+    func test_bulk_markWatched_marks_all_and_last_is_most_recent() {
+        store.markWatched(postIDs: ["ep1", "ep2", "ep3"])
+
+        for id in ["ep1", "ep2", "ep3"] {
+            XCTAssertEqual(store.progress(for: id)?.isFinished, true)
+        }
+        XCTAssertEqual(store.mostRecent(in: ["ep1", "ep2", "ep3"])?.postID, "ep3")
+    }
+
+    func test_bulk_markUnwatched_clears_all() {
+        store.markWatched(postIDs: ["ep1", "ep2", "ep3"])
+
+        store.markUnwatched(postIDs: ["ep1", "ep2", "ep3"])
+
+        for id in ["ep1", "ep2", "ep3"] {
+            XCTAssertNil(store.progress(for: id))
+        }
+    }
+
+    func test_bulk_markWatched_persists_across_instances() {
+        store.markWatched(postIDs: ["ep1", "ep2"])
+
+        let secondStore = PlaybackProgressStore(defaults: defaults)
+        XCTAssertEqual(secondStore.progress(for: "ep1")?.isFinished, true)
+        XCTAssertEqual(secondStore.progress(for: "ep2")?.isFinished, true)
+    }
 }

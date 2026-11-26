@@ -106,7 +106,8 @@ final class HomeViewModel {
         defer { isBuildingCreatorRows = false }
         async let rows: Void = buildCreatorRows()
         async let continueWatch: Void = refreshContinueWatching()
-        _ = await (rows, continueWatch)
+        async let continueCollection: Void = ContinueCollectionSync.shared.refreshTrackedIfStale()
+        _ = await (rows, continueWatch, continueCollection)
     }
 
     /// Page in more of the merged feed when the viewer nears its end. Mirrors
@@ -188,6 +189,21 @@ final class HomeViewModel {
         if rows.changed {
             creatorRows = sortedRows(rows.rows)
         }
+
+        // Only the posts that are new to this session can tell us a collection
+        // got an episode. Targeted refreshes keep the request count low; the
+        // sweep is the slow fallback for collection edits without a new post.
+        if !outcome.addedIDs.isEmpty {
+            let added = Set(outcome.addedIDs)
+            let addedPosts = page.data.filter { added.contains($0.id) }
+            let includedCollections = (page.included ?? []).compactMap { inc -> PatreonCollection? in
+                if case .collection(let collection) = inc { return collection }
+                return nil
+            }
+            let membership = ContinueCollectionSync.membership(from: includedCollections)
+            await ContinueCollectionSync.shared.noteNewPosts(addedPosts, membership: membership)
+        }
+        await ContinueCollectionSync.shared.refreshTrackedIfStale()
 
         guard outcome.changed || rows.changed else { return }
 

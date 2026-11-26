@@ -11,6 +11,9 @@
 //  - in progress  → both
 //  - finished     → "Mark as Unwatched"
 //
+//  CollectionView also passes `onSelect`, which adds the entry point to multi-
+//  selection mode.
+//
 
 import SwiftUI
 
@@ -18,8 +21,15 @@ extension View {
     /// Adds the watched/unwatched context menu for the given post. Only offered
     /// for playable content (video/audio); polls, text, images and links never
     /// accumulate watch progress.
-    func postActionsMenu(post: Post) -> some View {
-        modifier(PostActionsMenu(postID: post.id, isPlayable: UpNextResolver.isPlayable(post)))
+    ///
+    /// - Parameter onSelect: When non-nil, adds a "Select Episodes" action that
+    ///   enters multi-selection mode. Only used by CollectionView.
+    func postActionsMenu(post: Post, onSelect: (() -> Void)? = nil) -> some View {
+        modifier(PostActionsMenu(
+            postID: post.id,
+            isPlayable: UpNextResolver.isPlayable(post),
+            onSelect: onSelect
+        ))
     }
 }
 
@@ -27,6 +37,7 @@ private struct PostActionsMenu: ViewModifier {
 
     let postID: String
     let isPlayable: Bool
+    let onSelect: (() -> Void)?
 
     func body(content: Content) -> some View {
         Group {
@@ -48,6 +59,14 @@ private struct PostActionsMenu: ViewModifier {
                             PlaybackProgressStore.shared.markUnwatched(postID: postID)
                         } label: {
                             Label("Mark as Unwatched", systemImage: "arrow.uturn.backward.circle")
+                        }
+                    }
+
+                    if let onSelect {
+                        Divider()
+
+                        Button(action: onSelect) {
+                            Label("Select Episodes", systemImage: "checklist")
                         }
                     }
                 }

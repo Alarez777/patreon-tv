@@ -450,11 +450,20 @@ struct Post: JSONAPIResource, Equatable {
         let images: RelationList?
         let audio: RelationRef?
         let attachmentsMedia: RelationList?
+        /// Collections this post belongs to. Only present when the request
+        /// includes `collections` (or when Patreon sends the linkage anyway).
+        let collections: RelationList?
 
         enum CodingKeys: String, CodingKey {
-            case campaign, user, media, images, audio
+            case campaign, user, media, images, audio, collections
             case attachmentsMedia = "attachments_media"
         }
+    }
+
+    /// Collections this post belongs to, when the response carries the
+    /// `collections` relationship.
+    var collectionIDs: [String] {
+        relationships?.collections?.data?.map(\.id) ?? []
     }
 
     /// Number of images on an image post. Falls back to 1 when the API omits
@@ -735,6 +744,11 @@ extension PatreonCollection {
 
     /// The posts from a `?include=posts` document, in the collection's own order
     /// (by `post_ids`). Falls back to the include order when `post_ids` is absent.
+    ///
+    /// Patreon's `post_ids` is an ordered list, not a set: it can repeat the
+    /// same post (observed on collection 1880435, where eight old episodes were
+    /// appended twice). Keep the first occurrence so `ForEach` identities stay
+    /// unique; duplicate ids otherwise make the focus engine jump between cells.
     func orderedPosts(from included: [Included]) -> [Post] {
         let byID = Dictionary(
             included.compactMap { item -> (String, Post)? in
@@ -745,12 +759,22 @@ extension PatreonCollection {
         )
 
         guard let order = attributes.postIDs, !order.isEmpty else {
+            var seen = Set<String>()
             return included.compactMap {
-                if case .post(let post) = $0 { return post }
-                return nil
+                guard case .post(let post) = $0, seen.insert(post.id).inserted else {
+                    return nil
+                }
+                return post
             }
         }
-        return order.compactMap { byID[String($0)] }
+
+        var seen = Set<String>()
+        return order.compactMap { id in
+            guard let post = byID[String(id)], seen.insert(post.id).inserted else {
+                return nil
+            }
+            return post
+        }
     }
 }
 
