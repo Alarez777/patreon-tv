@@ -2,103 +2,38 @@
 
 A native tvOS app for watching your favorite Patreon creators on the big screen.
 
-- **One app.** No companion, no LAN server, no pairing portal. Sign in once, done.
-- **Netflix-style browsing.** Focus-driven shelves, hero art that follows what you're looking at, snappy transitions.
-- **Native video.** Patreon-hosted video plays directly in `AVPlayer` via signed Mux HLS — no proxy — with native Picture in Picture.
-- **Paid creators first.** The Creators tab lists your paid memberships above the ones you follow for free, both sorted A–Z.
-- **Four languages.** English (US), Spanish (Latin America), Portuguese (Brazil), and French. The first launch follows the Apple TV language; Settings can change it.
-- **Free & open source** — MIT.
+PatreonTV is a standalone, free and open source (MIT) client: no companion app, no LAN server and no pairing portal. It signs in with your Patreon web session, so it can see the posts your membership unlocks, and plays video and audio directly without a proxy. Requires tvOS 17 or later.
 
-> **Fork notice:** This repository started from
-> [DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv)
-> and has since diverged. It is maintained independently and is not affiliated
-> with the upstream project.
+## What you get
 
-## Status
-
-**v2.1.0** (October 2026). The app is feature-complete for browsing creators,
-collections, posts, comments and video/audio playback — including native
-Picture in Picture — and ships as an unsigned IPA attached to the GitHub
-release. See [`CHANGELOG.md`](./CHANGELOG.md) for everything that changed since
-the fork.
-
-## Repo layout
-
-```
-patreon-tv/
-├── apps/tvos/          The Apple TV app (SwiftUI, tvOS 17+, XcodeGen)
-└── harness/            Node scripts for live-testing the Patreon API
-```
-
-## Getting started (on a Mac)
-
-Prerequisites:
-- macOS 14+ (Sonoma)
-- Xcode 16+
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
-- Apple Developer Program membership (paid)
-
-Steps:
-
-```bash
-git clone <this-repo>
-cd patreon-tv/apps/tvos
-xcodegen generate
-open PatreonTV.xcodeproj
-```
-
-Choose your Apple TV or the tvOS Simulator as the run destination and build.
+- **Home:** Recent across creators, Continue Watching, Continue Collection, and a shelf per creator.
+- **Creators & search:** paid memberships above free follows, creator pages, post-type filters, collection browsing and catalog search.
+- **Posts:** video, audio and podcasts, image galleries with a full-screen focus pager, text, polls and links.
+- **Playback:** native Mux HLS video, Picture in Picture, chapters, Up Next, configurable autoplay, resume positions and watched state.
+- **Collections:** browse, search and sort; series mode; Continue Collection with next-episode hints and new-episode badges; bulk mark watched and selection mode.
+- **Comments:** threaded replies, expandable long comments and sort options.
+- **Settings:** mature-content filter, language (English, Spanish, Portuguese and French), initial tab, comment order, autoplay by source, cache and viewing-history controls.
+- **Top Shelf:** recent posts on the Apple TV home screen, with deep links back into the app.
 
 ## Download & install
 
-Grab `PatreonTV-2.1.0-unsigned.ipa` from the
-[latest release](https://github.com/Alarez777/patreon-tv/releases/latest).
+Download the latest unsigned IPA from
+[GitHub Releases](https://github.com/Alarez777/patreon-tv/releases/latest).
+The asset is named `PatreonTV-<version>-unsigned.ipa`; release notes live in
+[`CHANGELOG.md`](./CHANGELOG.md).
 
-The IPA is unsigned, so tvOS will not install it as-is:
+tvOS will not install it unsigned:
 
-1. Sign it with your own Apple Developer certificate, **or** build and run
-   `apps/tvos` from Xcode with your team selected.
+1. Sign it with your Apple ID or Apple Developer certificate, or build and run
+   the app from Xcode with your team selected.
 2. Install it with a sideloading tool such as
-   [ATVLoadly](https://github.com/bitxeno/atvloadly) (Docker, Linux/OpenWrt) —
-   it signs the IPA with your Apple ID or certificate and can auto-refresh it
-   before the provisioning profile expires (7 days on a free Apple ID).
+   [ATVLoadly](https://github.com/bitxeno/atvloadly). A free Apple ID works for
+   7-day provisioning; a paid membership lasts longer.
 
-PatreonTV is **not on the App Store and there are no plans to publish it
-there**. Sideloading is the only distribution channel: the project does not
-ship with a paid developer account, and an app that signs in by asking for a
-Patreon session cookie is a poor fit for App Store review.
+PatreonTV is not on the App Store. It signs in with a Patreon web session, so
+sideloading is the intended distribution channel.
 
-## Build an installable IPA
-
-Pushing a `v*` tag runs the **tvOS IPA** workflow, which builds the Release app
-and attaches `PatreonTV-<version>-unsigned.ipa` to the matching GitHub release.
-The version is read from `apps/tvos/project.yml`, and the workflow fails if the
-tag does not match it. The `xcodebuild` log is kept as a run artifact.
-
-To build without publishing — or from **your own fork**:
-
-1. Fork this repo on GitHub.
-2. In the fork, open the **Actions** tab and enable workflows (forks start with
-   Actions disabled).
-3. Run **tvOS IPA → Run workflow**.
-4. Download `PatreonTV-unsigned` from the finished run's Artifacts.
-
-The same build, locally:
-
-```bash
-cd apps/tvos
-xcodegen generate
-xcodebuild \
-  -project PatreonTV.xcodeproj \
-  -scheme PatreonTV \
-  -configuration Release \
-  -destination "generic/platform=tvOS" \
-  -archivePath "$PWD/build/PatreonTV.xcarchive" \
-  archive \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
-```
-
-## Sign-in
+## Sign in
 
 PatreonTV uses the same web session as your browser. That is what lets the app
 see paid posts; Patreon's OAuth tokens do not unlock them. There is no pairing
@@ -116,15 +51,13 @@ to the Apple TV.
 Do this on a computer. The cookie is HttpOnly, so mobile browsers can't reveal
 it.
 
-1. Open your browser and the developer tools:
-   - Windows / Linux: `F12`
-   - Mac: `⌥⌘I`
-2. Sign in at [patreon.com](https://www.patreon.com).
-3. Open the cookies panel:
+1. Open your browser's developer tools (`F12` on Windows/Linux, `⌥⌘I` on Mac)
+   and sign in at [patreon.com](https://www.patreon.com).
+2. Open the cookies panel:
    - **Firefox:** Storage → Cookies → `https://www.patreon.com`
    - **Chrome / Edge:** Application → Storage → Cookies → `https://www.patreon.com`
    - **Safari:** Develop → Show Web Inspector → Storage → Cookies
-4. Select the `session_id` row and copy only its **value** (not the cookie
+3. Select the `session_id` row and copy only its **value** (not the cookie
    name). In Firefox/Chrome you can right-click the value or double-click it
    and copy.
 
@@ -161,12 +94,40 @@ it.
 - If you think the ID leaked, sign out of the Patreon session and sign in again
   with a fresh cookie.
 
+## Notes
+
+- PatreonTV uses Patreon's internal web API, so endpoints can change without
+  notice.
+- YouTube and Vimeo embeds open in their own apps instead of playing in-app.
+
+## Development
+
+Requires macOS 15.6+ and Xcode 26.3+ (the version CI uses), plus
+[XcodeGen](https://github.com/yonaskolb/XcodeGen):
+
+```bash
+brew install xcodegen
+git clone https://github.com/Alarez777/patreon-tv.git
+cd patreon-tv/apps/tvos
+xcodegen generate
+open PatreonTV.xcodeproj
+```
+
+CI runs the build and tests on the tvOS Simulator. Pushing a `v*` tag runs the
+`tvOS IPA` workflow and publishes the unsigned IPA to the matching GitHub
+release; the tag must match `MARKETING_VERSION` in `apps/tvos/project.yml`. In a
+fork, enable Actions and run **tvOS IPA** manually.
+
 ## Contributing
 
-See [`AGENTS.md`](./AGENTS.md) if you're an AI coding agent working in this repo — it points you at the right skills and reference patterns for each task.
+Issues and pull requests are welcome. AI coding agents should read
+[`AGENTS.md`](./AGENTS.md) for repo-specific guidance.
 
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).
 
-This project is not affiliated with, endorsed by, or sponsored by Patreon.
+PatreonTV is an independent fork of
+[DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv). It
+is not affiliated with, endorsed by, or sponsored by Patreon, Inc. or the
+upstream project.
