@@ -4,6 +4,11 @@ A native tvOS app for watching your favorite Patreon creators on the big screen.
 
 PatreonTV is a standalone, free and open source (MIT) client: no companion app, no LAN server and no pairing portal. It signs in with your Patreon web session, so it can see the posts your membership unlocks, and plays video and audio directly without a proxy. Requires tvOS 17 or later.
 
+> **Project history:** PatreonTV was built on top of
+> [DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv).
+> It was later separated into an independent fork because the original project
+> was no longer being updated.
+
 ## What you get
 
 - **Home:** Recent across creators, Continue Watching, Continue Collection, and a shelf per creator.
@@ -127,7 +132,5 @@ Issues and pull requests are welcome. AI coding agents should read
 
 MIT — see [`LICENSE`](./LICENSE).
 
-PatreonTV is an independent fork of
-[DevelopmentCats/patreon-tv](https://github.com/DevelopmentCats/patreon-tv). It
-is not affiliated with, endorsed by, or sponsored by Patreon, Inc. or the
-upstream project.
+PatreonTV is not affiliated with, endorsed by, or sponsored by Patreon, Inc. or
+the upstream project.
